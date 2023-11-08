@@ -29,9 +29,9 @@ setup(
     description="""
 BankStatementParser is your essential tool for easy bank statement management.
 Designed with finance and treasury experts in mind, it offers a simple way to
-handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from your
-financial data and spend less time on processing. It's the smart, hassle-free
-way to stay on top of your transactions.
+handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from
+your financial data and spend less time on processing. It's the smart, hassle-
+free way to stay on top of your transactions.
 """,
     long_description=long_description,
     long_description_content_type="text/markdown",

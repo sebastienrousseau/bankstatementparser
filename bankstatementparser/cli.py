@@ -14,8 +14,9 @@
 # limitations under the License.
 
 """
-This module provides a command line interface for parsing bank statement files in various formats.
-Currently, it supports CAMT (ISO 20022) format, with potential to extend support to other formats.
+This module provides a command line interface for parsing bank statement
+files in various formats. Currently, it supports CAMT (ISO 20022) format, with
+potential to extend support to other formats.
 """
 
 import argparse
@@ -23,6 +24,7 @@ import os
 import pandas as pd
 import sys
 from bankstatementparser import CamtParser, Pain001Parser
+
 
 class BankStatementCLI:
     """A command line interface for parsing bank statement files."""
@@ -40,12 +42,15 @@ class BankStatementCLI:
         """
         parser = argparse.ArgumentParser(
             description='Parse bank statement files.')
-        parser.add_argument('--type', type=str, required=True, choices=['camt', 'pain001'],
-                            help='Type of the bank statement file. Choices: "camt" or "pain001".')
-        parser.add_argument('--input', type=str, required=True,
-                            help='Path to the bank statement file.')
-        parser.add_argument('--output', type=str, required=False,
-                            help='Path to save the parsed data. If not provided, data is printed to console.')
+        parser.add_argument(
+            '--type', type=str, required=True, choices=['camt', 'pain001'],
+            help='Type of the bank statement file: "camt" or "pain001".')
+        parser.add_argument(
+            '--input', type=str, required=True,
+            help='Path to the bank statement file.')
+        parser.add_argument(
+            '--output', type=str, required=False,
+            help='Path to save parsed data; if not provided, data is printed.')
         return parser
 
     def parse_camt(self, file_path, output_path=None):
@@ -54,7 +59,8 @@ class BankStatementCLI:
 
         Args:
             file_path (str): Path to the CAMT file.
-            output_path (str, optional): Path to save the parsed data. If None, data is printed to console.
+            output_path (str, optional): Path to save the parsed data. If None,
+            data is printed to console.
         """
         try:
             parser = CamtParser(file_path)
@@ -79,11 +85,13 @@ class BankStatementCLI:
 
     def parse_pain(self, file_path, output_path=None):
         """
-        Parse a PAIN.001 format bank statement file and print or save the results.
+        Parse a PAIN.001 format bank statement file and print or save the
+        results.
 
         Args:
             file_path (str): Path to the PAIN.001 file.
-            output_path (str, optional): Path to save the parsed data. If None, data is printed to console.
+            output_path (str, optional): Path to save the parsed data. If None,
+            data is printed to console.
         """
         try:
             # Instantiate the PAIN.001 parser

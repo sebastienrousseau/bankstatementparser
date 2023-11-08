@@ -34,7 +34,9 @@ class Pain001Parser:
             logger.error("File %s not found!", file_name)
             raise
         except Exception as e:
-            logger.error("An error occurred while reading the file: %s", str(e))
+            logger.error(
+                "An error occurred while reading the file: %s", str(e)
+            )
             raise
 
         try:
@@ -62,27 +64,39 @@ class Pain001Parser:
             group_header = root.find('.//CstmrCdtTrfInitn/GrpHdr')
 
             # Get the message identification
-            message_id = group_header.find('MsgId').text if group_header.find('MsgId') is not None else None
+            message_id = group_header.find(
+                'MsgId'
+            ).text if group_header.find('MsgId') is not None else None
             print("Message Identification:", message_id)
 
             # Get the creation date and time
-            creation_date_time = group_header.find('CreDtTm').text if group_header.find('CreDtTm') is not None else None
+            creation_date_time = group_header.find(
+                'CreDtTm'
+            ).text if group_header.find('CreDtTm') is not None else None
             print("Creation Date and Time:", creation_date_time)
 
             # Get the number of transactions
-            number_of_transactions = group_header.find('NbOfTxs').text if group_header.find('NbOfTxs') is not None else None
+            number_of_transactions = group_header.find(
+                'NbOfTxs'
+            ).text if group_header.find('NbOfTxs') is not None else None
             print("Number of Transactions:", number_of_transactions)
 
             # Get the initiating party
-            initiating_party = group_header.find('.//InitgPty/Nm').text if group_header.find('.//InitgPty/Nm') is not None else None
+            initiating_party = group_header.find(
+                './/InitgPty/Nm'
+            ).text if group_header.find('.//InitgPty/Nm') is not None else None
             print("Initiating Party:", initiating_party)
 
             # Parse the payment information records
-            payment_info_records = root.findall('.//CstmrCdtTrfInitn/PmtInf')
+            payment_info_records = root.findall(
+                './/CstmrCdtTrfInitn/PmtInf'
+            )
             payments = []
             for pmt in payment_info_records:
                 payment = {}
-                payment['PmtInfId'] = pmt.find('PmtInfId').text if pmt.find('PmtInfId') is not None else None
+                payment['PmtInfId'] = pmt.find(
+                    'PmtInfId'
+                ).text if pmt.find('PmtInfId') is not None else None
                 # Additional payment information parsing omitted for brevity
                 payments.append(payment)
 

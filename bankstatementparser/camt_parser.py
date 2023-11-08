@@ -32,7 +32,8 @@ class CamtParser:
     Class to parse CAMT format bank statement files.
 
     Attributes:
-        tree (etree.Element): The Element object representing the parsed XML file.
+        tree (etree.Element): The Element object representing the parsed XML
+        file.
         definitions (dict): Dictionary mapping balance codes to descriptions.
     """
 
@@ -264,7 +265,8 @@ class CamtParser:
             xpath (str): XPath expression to find the child element.
 
         Returns:
-            str: Text content of the child element if it exists, else an empty string.
+            str: Text content of the child element if it exists, else an empty
+            string.
         """
         element = parent.xpath(xpath)
         return element[0].text if element else ''
@@ -274,7 +276,8 @@ class CamtParser:
         Extracts the account ID from a bank statement.
 
         Parameters:
-            statement (etree.Element): XML Element representing the bank statement.
+            statement (etree.Element): XML Element representing the bank
+            statement.
 
         Returns:
             str: Account ID.
@@ -307,7 +310,8 @@ class CamtParser:
         Extracts statistics for a single bank statement.
 
         Parameters:
-            statement (etree.Element): XML Element representing the bank statement.
+            statement (etree.Element): XML Element representing the bank
+            statement.
 
         Returns:
             dict: Statement statistics.
@@ -316,7 +320,8 @@ class CamtParser:
         account_id = self._get_account_id(statement)
         created = self._get_element_text(statement, './CreDtTm')
 
-        # Get all transactions for the statement and calculate summary statistics
+        # Get all transactions for the statement and calculate summary
+        # statistics
         transactions = self._get_transactions_for_statement(statement)
         tx_df = pd.DataFrame(transactions)
         net_amount = tx_df['Amount'].sum() if len(tx_df) > 0 else 0
@@ -345,13 +350,17 @@ class CamtParser:
         Parameters:
             filename (str): Path to the output Excel file.
         """
-        # Retrieve dataframes for balances, transactions, and statement statistics
+        # Retrieve dataframes for balances, transactions, and statement
+        # statistics
         balances = self.get_account_balances()
         transactions = self.get_transactions()
         stats = self.get_statement_stats()
 
         # Write the dataframes to the Excel file using the openpyxl engine
-        with pd.ExcelWriter(filename, engine='openpyxl') as writer:  # pylint: disable=E0110
+        # pylint: disable=E0110
+        with pd.ExcelWriter(filename, engine='openpyxl') as writer:
             balances.to_excel(writer, sheet_name='Balances', index=False)
-            transactions.to_excel(writer, sheet_name='Transactions', index=False)
+            transactions.to_excel(
+                writer, sheet_name='Transactions', index=False
+            )
             stats.to_excel(writer, sheet_name='Stats', index=False)

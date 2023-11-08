@@ -8,19 +8,25 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-# implied.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
 """
-`bankstatementparser` package provides useful tools for finance and treasury
-specialists.
+`bankstatementparser` package provides useful tools for finance and
+treasury specialists.
 
-This package includes modules for parsing bank statements in various formats,
-as well as other utilities commonly used in finance and treasury operations.
+This package includes modules for parsing bank statements in various
+formats, as well as other utilities commonly used in finance and treasury
+operations.
 """
 
-from .bank_statement_parsers import *
+from .bank_statement_parsers import __init__
 from .camt_parser import CamtParser
 from .pain001_parser import Pain001Parser
+
+__all__ = [
+    'CamtParser',
+    'Pain001Parser',
+    '__init__'
+]
