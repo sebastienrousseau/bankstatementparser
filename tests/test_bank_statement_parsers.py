@@ -1,16 +1,23 @@
 import unittest
-from bankstatementparser.bank_statement_parsers import FileParserError, Pain001Parser
+from bankstatementparser.bank_statement_parsers import FileParserError
+from bankstatementparser.bank_statement_parsers import Pain001Parser
 import os
+
 
 class TestFileParserError(unittest.TestCase):
     def test_file_parser_error(self):
         with self.assertRaises(FileParserError):
             raise FileParserError("This is a file parser error")
 
+
 class TestPain001Parser(unittest.TestCase):
     def setUp(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(current_dir, 'test_data', 'pain.001.001.03.xml')
+        file_path = os.path.join(
+            current_dir,
+            'test_data',
+            'pain.001.001.03.xml'
+        )
         self.parser = Pain001Parser(file_path)
 
     def test_init(self):
@@ -31,6 +38,7 @@ class TestPain001Parser(unittest.TestCase):
         self.assertEqual(first_payment['Name'], 'Global Tech')
         self.assertEqual(first_payment['Amount'], 150.0)
         self.assertEqual(first_payment['Currency'], 'EUR')
+
 
 if __name__ == '__main__':
     unittest.main()
