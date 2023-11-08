@@ -1,0 +1,81 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg
+*.egg-info/
+.eggs/
+develop-eggs/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+.installed.cfg
+
+# Environment & virtualenv
+env/
+.venv/
+venv/
+ENV/
+bandit-env
+myenv
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Test & coverage
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+
+# Documentation
+docs/_build/
+
+# IDEs & Editors
+.idea/
+.vscode/
+.spyderproject
+.ropeproject
+.pytype/
+
+# Frameworks & Libraries
+local_settings.py  # Django
+instance/          # Flask
+.webassets-cache   # Flask
+.scrapy            # Scrapy
+
+# Various tools & scripts
+*.manifest         # PyInstaller
+*.spec             # PyInstaller
+celerybeat-schedule
+*.sage.py          # SageMath
+.env               # dotenv
+.venv              # virtualenv
+
+# Miscellaneous
+.DS_Store          # macOS
+*.log
+*.mo               # Translations
+*.pot              # Translations
+*.db-shm           # Database
+*.db-wal           # Database
+.DS_Store

@@ -1,0 +1,9 @@
+exclude_dirs:
+  - .git
+  - .tox
+  - "tests/*"
+  - build
+  - dist
+
+skips:
+  - B101

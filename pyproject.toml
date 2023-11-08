@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "bankstatementparser"
+version = "0.0.1"
+description = "BankStatementParser is your essential tool for easy bank statement management. Designed with finance and treasury experts in mind, it offers a simple way to handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from your financial data and spend less time on processing. It's the smart, hassle-free way to stay on top of your transactions."
+authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
+license = "Apache Software License"
+readme = "README.md"
+repository = "https://github.com/sebastienrousseau/bankstatementparser"
+homepage = "https://bankstatementparser.com"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+lxml = "^4.9.3"
+openpyxl = "^3.1.2"
+pandas = "^2.1.1"
+requests = "^2.31.0"
+
+[tool.poetry.dev-dependencies]
+pytest = ">=7.4.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 72
+target-version = ["py40","py39"]
+
+[tool.isort]
+profile = "black"
+line_length = 72
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+combine_as_imports = true
+known_first_party = "bankstatementparser"
+
+[tool.pytest]
+addopts = "--cov=bankstatementparser --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=100"
+testpaths = "tests"
