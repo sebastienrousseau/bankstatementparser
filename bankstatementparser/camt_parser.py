@@ -76,6 +76,7 @@ class CamtParser:
             logger.error("An error occurred while parsing the XML: %s", str(e))
             raise
 
+        self.file_name = file_name
         # Define balance codes and their descriptions
         self.definitions = {
             'OPBD': 'Opening Booked balance',
@@ -147,7 +148,25 @@ class CamtParser:
             dict: Parsed balance information.
         """
         # Extract and process information from the balance element
-        code = bal_elem.xpath('.//Cd')[0].text
+        code_elem = bal_elem.xpath('.//Cd')    # A 'Type' element can either contain a Code('Cd')
+        prty_elem = bal_elem.xpath('.//Prtry') # or a Proprietary('Prtry') element.
+
+        # If neither of the elements are found, the balance element is technically invalid.
+        # Warn the user about the invalid element and continue work.
+        if not code_elem and not prty_elem:
+            logging.warning(" ".join([
+                                   "Invalid XML: \"%s\" contains an invalid balance element.",
+                                   "No 'Cd and No Prty. The 'Bal' element is has neither",
+                                   "a 'Cd' nor a 'Prtry' element."
+                                  ]
+                                 )%(self.file_name)
+                        )
+
+        # Get the value of the 'Cd' element if it exists. If there is no 'Cd' element, get the value
+        # of the 'Prtry' element. If both are missing, the 'Bal' element is technically invalid but
+        # we can probably still get some useful info from it. Assign 'N/A' as the value of the code
+        # and contiune work.
+        code = code_elem[0].text if code_elem else "Proprietary: %s"%(prty_elem[0].text) if prty_elem else "N/A"
         description = self.definitions.get(code, 'Unknown code')
         amount = float(bal_elem.xpath('.//Amt')[0].text)
         cdt_dbt = bal_elem.xpath('.//CdtDbtInd')[0].text
