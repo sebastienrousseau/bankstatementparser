@@ -152,6 +152,22 @@ Using the test data:
 python ./bankstatementparser/cli.py --type pain001 --input ./tests/test_data/pain.001.001.03.xml --output ./tests/test_data/pain_file.csv
 ```
 
+## Security
+
+Bank Statement Parser processes sensitive financial data including bank account numbers, transaction details, and personally identifiable information (PII). Security and regulatory compliance are critical priorities.
+
+### Security Documentation
+- **[Security Policy](SECURITY.md)** - Comprehensive security practices and data protection requirements
+- **[Vulnerability Reporting](VULNERABILITY_REPORTING.md)** - How to report security vulnerabilities responsibly
+
+### Key Security Considerations
+- **Data Protection**: All financial data processing must comply with GDPR, PCI DSS, and local regulations
+- **PII Handling**: Personal information is extracted from bank statements and must be protected
+- **Secure Usage**: Use only with trusted bank statement files and secure output handling
+
+### Reporting Security Issues
+If you discover a security vulnerability, please report it through our [vulnerability disclosure process](VULNERABILITY_REPORTING.md). Do not create public issues for security concerns.
+
 ## License
 
 The project is licensed under the terms of both the MIT license and the

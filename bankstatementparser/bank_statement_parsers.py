@@ -16,14 +16,22 @@
 """
 bank_statement_parsers.py
 
-This module provides classes for parsing different types of bank statement
-files.
+This module provides consolidated access to bank statement parsing functionality.
+The actual parser implementations are in standalone modules with compatibility wrappers.
 """
 
 import os
 import re
+from pathlib import Path
 from lxml import etree
 import pandas as pd
+from typing import List, Dict, Any, Optional, Tuple, Union
+from lxml.etree import _Element
+
+# Import parsers from standalone modules
+from .camt_parser import CamtParser
+from .pain001_parser import Pain001Parser as StandalonePain001Parser
+from .input_validator import ValidationError
 
 
 class FileParserError(Exception):
@@ -33,68 +41,81 @@ class FileParserError(Exception):
 
 class Pain001Parser:
     """
-    Parser for SEPA Pain.001 credit transfer files.
+    Compatibility wrapper for SEPA Pain.001 credit transfer files.
+
+    This maintains the original API while delegating to enhanced standalone implementation.
 
     Attributes:
         batches (list): List of batch elements parsed from the file.
         payments (list): List of parsed payment dictionaries.
         batches_count (int): The number of payment batches in the file.
-        total_payments_count (int): The total number of payments across all
-        batches.
+        total_payments_count (int): The total number of payments across all batches.
     """
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: Union[str, Path], redact_pii: bool = False) -> None:
         """
         Initializes the parser and parses payments from the given file.
 
         Parameters:
-            file_name (str): The path to the SEPA Pain.001 XML file.
+            file_name (Union[str, Path]): The path to the SEPA Pain.001 XML file.
+            redact_pii (bool): Whether to redact PII data (address fields).
 
         Raises:
             FileNotFoundError: If the specified file cannot be found.
         """
-        # Attempt to open and read the file content.
+        # Store redact_pii setting
+        self._redact_pii = redact_pii
+
+        # Use the enhanced standalone parser internally
+        self._standalone_parser = StandalonePain001Parser(str(file_name))
+
+        # Load and parse the XML to maintain compatibility with old API
         try:
             with open(file_name, 'r', encoding='utf-8') as f:
-                data = f.read()
+                data: str = f.read()
         except FileNotFoundError as e:
             raise FileNotFoundError(f"File {file_name} not found!") from e
 
         # Clean up the XML namespaces to simplify the XPath expressions.
         data = re.sub('<Document[\\S\\s]*?>', '<Document>', data)
-        data = bytes(data, 'utf-8')
+        data_bytes: bytes = bytes(data, 'utf-8')
 
-        # Parse the XML content.
-        parser = etree.XMLParser(recover=True, encoding='utf-8')
-        tree = etree.fromstring(data, parser)
+        # Parse the XML content with security settings to prevent XXE attacks.
+        parser: etree.XMLParser = etree.XMLParser(
+            recover=True,
+            encoding='utf-8',
+            resolve_entities=False,
+            load_dtd=False,
+            no_network=True
+        )
+        tree: _Element = etree.fromstring(data_bytes, parser)
 
         # Extract payment batches from the XML tree.
-        self.batches = tree.xpath('.//PmtInf')
-        self.batches_count = len(self.batches)
+        self.batches: List[_Element] = tree.xpath('.//PmtInf')
+        self.batches_count: int = len(self.batches)
 
         # Parse payments from each batch.
-        self.payments = []
+        self.payments: List[Dict[str, Any]] = []
         for batch in self.batches:
-            payments = self._parse_batch(batch)
+            payments: List[Dict[str, Any]] = self._parse_batch(batch)
             self.payments.extend(payments)
 
-        self.total_payments_count = len(self.payments)
+        self.total_payments_count: int = len(self.payments)
 
-    def _parse_batch_header(self, batch):
+    def _parse_batch_header(self, batch: _Element) -> Dict[str, str]:
         """
         Parses header data for a payment batch.
 
         Parameters:
-            batch (etree._Element): The XML element representing a payment
-            batch.
+            batch (_Element): The XML element representing a payment batch.
 
         Returns:
-            dict: A dictionary containing header information of the batch.
+            Dict[str, str]: A dictionary containing header information of the batch.
         """
         # Extract relevant information from the batch header.
-        execution_date = batch.xpath('.//ReqdExctnDt')[0].text
-        debtor_name = batch.xpath('.//Dbtr/Nm')[0].text
-        debtor_account = (
+        execution_date: str = batch.xpath('.//ReqdExctnDt')[0].text
+        debtor_name: str = batch.xpath('.//Dbtr/Nm')[0].text
+        debtor_account: str = (
             batch.xpath('.//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id')[0].text
             if batch.xpath('.//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id')
             else ''
@@ -106,58 +127,59 @@ class Pain001Parser:
             'execution_date': execution_date
         }
 
-    def _parse_batch(self, batch):
+    def _parse_batch(self, batch: _Element) -> List[Dict[str, Any]]:
         """
         Parses all payments in a payment batch.
 
         Parameters:
-            batch (etree._Element): The XML element representing a payment
-            batch.
+            batch (_Element): The XML element representing a payment batch.
 
         Returns:
-            list: A list of dictionaries, each representing a payment.
+            List[Dict[str, Any]]: A list of dictionaries, each representing a payment.
         """
         # Parse header data for the batch.
-        header = self._parse_batch_header(batch)
+        header: Dict[str, str] = self._parse_batch_header(batch)
 
         # Parse each payment in the batch.
-        payments = []
+        payments: List[Dict[str, Any]] = []
         for payment in batch.xpath('.//CdtTrfTxInf'):
-            payment_dict = self._parse_payment(payment)
+            payment_dict: Dict[str, Any] = self._parse_payment(payment, self._redact_pii)
             payment_dict.update(header)
             payments.append(payment_dict)
 
         return payments
 
-    def _parse_payment(self, payment):
+    def _parse_payment(self, payment: _Element, redact_pii: bool = False) -> Dict[str, Any]:
         """
         Parses a single payment within a payment batch.
 
         Parameters:
-            payment (etree._Element): The XML element representing a single
-            payment.
+            payment (_Element): The XML element representing a single payment.
+            redact_pii (bool): Whether to redact PII data (address fields).
 
         Returns:
-            dict: A dictionary containing information about the payment.
+            Dict[str, Any]: A dictionary containing information about the payment.
         """
         # Extract relevant information from the payment.
-        amount = payment.xpath('.//InstdAmt')[0].text
-        currency = payment.xpath('.//InstdAmt/@Ccy')[0]
-        name = payment.xpath('.//Cdtr/Nm')[0].text
-        account = (
+        amount: str = payment.xpath('.//InstdAmt')[0].text
+        currency: str = payment.xpath('.//InstdAmt/@Ccy')[0]
+        name: str = payment.xpath('.//Cdtr/Nm')[0].text
+        account: str = (
             payment.xpath('.//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id')[0].text
             if payment.xpath('.//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id')
             else ''
         )
-        country = (
-            payment.xpath(
-                './/Ctry'
-            )[0].text if payment.xpath('.//Ctry') else ''
+        country: str = (
+            payment.xpath('.//Ctry')[0].text if payment.xpath('.//Ctry') else ''
         )
-        references = [ref.text for ref in payment.xpath('.//RmtInf/Ustrd')]
-        reference = ' '.join(references)
-        address_lines = [line.text for line in payment.xpath('.//AdrLine')]
-        address = ' '.join(address_lines)
+        references: List[str] = [ref.text for ref in payment.xpath('.//RmtInf/Ustrd')]
+        reference: str = ' '.join(references)
+        address_lines: List[str] = [line.text for line in payment.xpath('.//AdrLine')]
+        address: str = ' '.join(address_lines)
+
+        # Apply PII redaction if requested
+        if redact_pii:
+            address = '***REDACTED***' if address else address
 
         return {
             'Name': name,
@@ -169,7 +191,7 @@ class Pain001Parser:
             'Address': address
         }
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Returns a string representation of the Pain001Parser instance.
 
@@ -184,13 +206,13 @@ class Pain001Parser:
 
 class Camt053Parser:
     """
-    Parser for CAMT.053 bank account statement files.
+    Compatibility wrapper for CAMT.053 bank account statement files.
+
+    This maintains the original API while delegating to enhanced standalone implementation.
 
     Attributes:
-        statements (list): A list of dictionaries, each representing a
-        statement.
-        transactions (list): A list of dictionaries, each representing a
-        transaction.
+        statements (list): A list of dictionaries, each representing a statement.
+        transactions (list): A list of dictionaries, each representing a transaction.
     """
 
     # Balance type definitions.
@@ -200,212 +222,55 @@ class Camt053Parser:
         'CLAV': 'Closing available balance'
     }
 
-    def __init__(self, file_name):
+    def __init__(self, file_name: Union[str, Path], redact_pii: bool = False) -> None:
         """
-        Initializes the parser and parses statements and transactions from the
-        given file.
+        Initializes the parser and parses statements and transactions from the given file.
 
         Parameters:
-            file_name (str): The path to the CAMT.053 XML file.
+            file_name (Union[str, Path]): The path to the CAMT.053 XML file.
+            redact_pii (bool): Whether to redact PII data (address fields).
 
         Raises:
             FileNotFoundError: If the specified file cannot be found.
             FileParserError: If the file is not a valid CAMT.053 file or if it
             does not contain any statements.
         """
-        # Attempt to open and read the file content.
+        # Use the enhanced standalone parser internally
         try:
-            with open(file_name, 'r', encoding='utf-8') as f:
-                data = f.read()
+            self._parser = CamtParser(str(file_name))
+
+            # Convert standalone parser output to original API format
+            # Get data from enhanced parser
+            balances_df = self._parser.get_account_balances(redact_pii=redact_pii)
+            transactions_df = self._parser.get_transactions(redact_pii=redact_pii)
+            stats_df = self._parser.get_statement_stats(redact_pii=redact_pii)
+
+            # Convert to original format
+            self.statements = stats_df.to_dict('records') if not stats_df.empty else []
+            self.transactions = transactions_df.to_dict('records') if not transactions_df.empty else []
+
+            # Add balance information to statements if available
+            if not balances_df.empty:
+                balances_by_account = balances_df.groupby('AccountId').apply(
+                    lambda x: {row['Code']: {'Amount': row['Amount'], 'Description': row['Description']}
+                             for _, row in x.iterrows()}
+                ).to_dict()
+
+                for stmt in self.statements:
+                    account_id = stmt.get('AccountId')
+                    if account_id in balances_by_account:
+                        stmt.update(balances_by_account[account_id])
+
         except FileNotFoundError as e:
-            raise FileNotFoundError(f"File {file_name} not found!") from e
-
-        # Clean up the XML namespaces to simplify the XPath expressions.
-        data = data.replace(
-            'xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02"', ''
-        )
-        data = bytes(data, 'utf-8')
-
-        # Parse the XML content.
-        try:
-            parser = etree.XMLParser(recover=True, encoding='utf-8')
-            tree = etree.fromstring(data, parser)
+            # Actual file not found - re-raise with consistent message
+            if not isinstance(e, ValidationError):
+                raise FileNotFoundError(f"File {file_name} not found!") from e
+            # ValidationError (subclass of FileNotFoundError) - treat as parse error
+            raise FileParserError('Not a valid CAMT.053 file') from e
         except Exception as e:
             raise FileParserError('Not a valid CAMT.053 file') from e
 
-        # Extract statement elements from the XML tree.
-        stmt_list = tree.xpath('.//Stmt')
-        if not stmt_list:
-            raise FileParserError('No statements found in the CAMT.053 file')
-
-        # Parse statements and transactions.
-        self.statements = self._parse_statements(stmt_list)
-        self.transactions = self._parse_transactions(stmt_list)
-
-    def _parse_statement_header(self, stmt):
-        """
-        Parses header data for a bank statement.
-
-        Parameters:
-            stmt (etree._Element): The XML element representing a bank
-            statement.
-
-        Returns:
-            dict: A dictionary containing header information of the statement.
-        """
-        # Extract relevant information from the statement header.
-        account_id = stmt.xpath('./Acct/Id/IBAN|./Acct/Id/Othr/Id')[0].text
-        name = stmt.xpath(
-            './Acct/Nm'
-        )[0].text if stmt.xpath('./Acct/Nm') else ''
-        stmt_id = stmt.xpath('./Id')[0].text
-
-        return {
-            'StatementId': stmt_id,
-            'AccountId': account_id,
-            'AccountName': name
-        }
-
-    def _parse_statement_balances(self, stmt):
-        """
-        Parses balance amounts from a bank statement.
-
-        Parameters:
-            stmt (etree._Element): The XML element representing a bank
-            statement.
-
-        Returns:
-            dict: A dictionary containing balance information of the statement.
-        """
-        balances = {}
-        for bal in stmt.xpath('.//Bal'):
-            code = bal.xpath('.//Cd')[0].text
-            desc = self.DEFINITIONS.get(code, 'Unknown code')
-            amount = float(bal.xpath('.//Amt')[0].text)
-            cdt_dbt = bal.xpath('.//CdtDbtInd')[0].text
-            if cdt_dbt == 'DBIT':
-                amount *= -1
-            balances[code] = {
-                'Amount': amount,
-                'Description': desc
-            }
-        return balances
-
-    def _parse_statement_summary(self, stmt):
-        """
-        Parses summary statistics for a bank statement.
-
-        Parameters:
-            stmt (etree._Element): The XML element representing a bank
-            statement.
-
-        Returns:
-            dict: A dictionary containing summary statistics of the statement.
-        """
-        transactions = self._parse_transactions([stmt])
-        total = sum(t['Amount'] for t in transactions)
-        return {
-            'NumTransactions': len(transactions),
-            'TotalAmount': total
-        }
-
-    def _parse_statements(self, stmt_list):
-        """
-        Parses a list of bank statement elements.
-
-        Parameters:
-            stmt_list (list of etree._Element): A list of XML elements, each
-            representing a bank statement.
-
-        Returns:
-            list: A list of dictionaries, each representing a bank statement.
-        """
-        statements = []
-        for stmt in stmt_list:
-            header = self._parse_statement_header(stmt)
-            balances = self._parse_statement_balances(stmt)
-            summary = self._parse_statement_summary(stmt)
-            stmt_data = {**header, **balances, **summary}
-            statements.append(stmt_data)
-        return statements
-
-    def _parse_transaction(self, entry):
-        """
-        Parses a single transaction entry within a bank statement.
-
-        Parameters:
-            entry (etree._Element): The XML element representing a transaction
-            entry.
-
-        Returns:
-            dict: A dictionary containing information about the transaction.
-        """
-        # Extract relevant information from the transaction entry.
-        debtor_name = entry.xpath(
-            './/Dbtr/Nm'
-        )[0].text if entry.xpath('.//Dbtr/Nm') else ''
-        debtor_acct = entry.xpath(
-            './/DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id'
-        )[0].text if entry.xpath(
-            './/DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id'
-        ) else ''
-        creditor_name = entry.xpath(
-            './/Cdtr/Nm'
-        )[0].text if entry.xpath('.//Cdtr/Nm') else ''
-        creditor_acct = entry.xpath(
-            './/CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id'
-        )[0].text if entry.xpath(
-            './/CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id'
-        ) else ''
-        amount = float(entry.xpath('./Amt')[0].text)
-        currency = entry.xpath('./Amt/@Ccy')[0]
-        cdt_dbt = entry.xpath('./CdtDbtInd')[0].text
-        if cdt_dbt == 'DBIT':
-            amount *= -1
-        references = [ref.text for ref in entry.xpath('.//RmtInf/Ustrd')]
-        reference = ' '.join(references)
-        value_date = entry.xpath(
-            './ValDt/Dt'
-        )[0].text if entry.xpath(
-            './ValDt/Dt'
-        ) else None
-        booking_date = entry.xpath(
-            './BookgDt/Dt'
-        )[0].text if entry.xpath('./BookgDt/Dt') else None
-
-        return {
-            'DebtorName': debtor_name,
-            'DebtorAccount': debtor_acct,
-            'CreditorName': creditor_name,
-            'CreditorAccount': creditor_acct,
-            'Amount': amount,
-            'Currency': currency,
-            'CreditDebit': cdt_dbt,
-            'Reference': reference,
-            'ValueDate': value_date,
-            'BookingDate': booking_date
-        }
-
-    def _parse_transactions(self, stmt_list):
-        """
-        Parses all transactions from a list of bank statement elements.
-
-        Parameters:
-            stmt_list (list of etree._Element): A list of XML elements, each
-            representing a bank statement.
-
-        Returns:
-            list: A list of dictionaries, each representing a transaction.
-        """
-        transactions = []
-        for stmt in stmt_list:
-            for entry in stmt.xpath('./Ntry'):
-                txn = self._parse_transaction(entry)
-                txn['StatementId'] = stmt.xpath('./Id')[0].text
-                transactions.append(txn)
-        return transactions
-
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Returns a string representation of the Camt053Parser instance.
 
@@ -419,53 +284,54 @@ class Camt053Parser:
         )
 
 
-def process_camt053_folder(folder):
+def process_camt053_folder(folder: Union[str, Path], redact_pii: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Processes all CAMT.053 files in a specified folder.
 
     Parameters:
-        folder (str): The path to the folder containing CAMT.053 files.
+        folder (Union[str, Path]): The path to the folder containing CAMT.053 files.
+        redact_pii (bool): Whether to redact PII data (address fields).
 
     Returns:
-        tuple: A tuple containing three pandas DataFrames:
+        Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: A tuple containing three pandas DataFrames:
             - files_df: A DataFrame with information about the processed files.
             - statements_df: A DataFrame with parsed statement data.
             - transactions_df: A DataFrame with parsed transaction data.
     """
-    files_df = []
-    statements_df = pd.DataFrame()
-    transactions_df = pd.DataFrame()
+    files_df_list: List[Dict[str, str]] = []
+    statements_df: pd.DataFrame = pd.DataFrame()
+    transactions_df: pd.DataFrame = pd.DataFrame()
 
     # Loop through each file in the specified folder.
     for file_name in os.listdir(folder):
-        file_path = os.path.join(folder, file_name)
+        file_path: str = os.path.join(folder, file_name)
         if os.path.isfile(file_path):
             try:
-                # Attempt to parse the file.
-                parser = Camt053Parser(file_path)
+                # Attempt to parse the file using the compatibility wrapper.
+                parser: Camt053Parser = Camt053Parser(file_path, redact_pii=redact_pii)
 
                 # Append parsed data to the respective DataFrames.
-                statement_rows = [s for s in parser.statements]
+                statement_rows: List[Dict[str, Any]] = [s for s in parser.statements]
                 statements_df = pd.concat(
                     [statements_df, pd.DataFrame(statement_rows)]
                 )
-                transaction_rows = [t for t in parser.transactions]
+                transaction_rows: List[Dict[str, Any]] = [t for t in parser.transactions]
                 transactions_df = pd.concat(
                     [transactions_df, pd.DataFrame(transaction_rows)]
                 )
 
                 # Record the successful processing of the file.
-                files_df.append({
+                files_df_list.append({
                     'FileName': file_name,
                     'Status': 'Success'
                 })
             except Exception as e:
                 # Record any failures along with the associated error message.
-                files_df.append({
+                files_df_list.append({
                     'FileName': file_name,
                     'Status': f'Failed: {e}'
                 })
 
     # Convert the list of file statuses to a DataFrame.
-    files_df = pd.DataFrame(files_df)
+    files_df: pd.DataFrame = pd.DataFrame(files_df_list)
     return files_df, statements_df, transactions_df

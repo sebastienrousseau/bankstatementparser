@@ -1,0 +1,24 @@
+{
+  "project": "legacy-bank-processing",
+  "mode": "hierarchical",
+  "dispatches": [
+    {
+      "agent": "input-validator",
+      "priority": "P0",
+      "task": "Validate input bank statement files",
+      "verify_cmd": "test -f /tmp/validation_complete.flag"
+    },
+    {
+      "agent": "camt-parser",
+      "priority": "P1",
+      "task": "Parse CAMT.053 format statements",
+      "verify_cmd": "test -f /tmp/camt_parsed.flag"
+    },
+    {
+      "agent": "report-generator",
+      "priority": "P2",
+      "task": "Generate summary reports",
+      "verify_cmd": "test -f /tmp/reports_ready.flag"
+    }
+  ]
+}

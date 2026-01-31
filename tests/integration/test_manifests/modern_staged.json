@@ -1,0 +1,68 @@
+{
+  "project": "modern-bank-processing",
+  "mode": "hierarchical",
+  "abort_on_stage_failure": true,
+  "dispatches": [
+    {
+      "agent": "security-validator",
+      "priority": "P0",
+      "task": "Security validation of input files",
+      "verify_cmd": "test -f /tmp/security_validated.flag",
+      "stage": 1,
+      "locks": ["security.db", "audit.log"]
+    },
+    {
+      "agent": "file-preprocessor",
+      "priority": "P1",
+      "task": "Preprocess and normalize file formats",
+      "verify_cmd": "test -f /tmp/preprocessed.flag",
+      "stage": 1,
+      "locks": ["temp_storage.db"]
+    },
+    {
+      "agent": "camt-parser",
+      "priority": "P1",
+      "task": "Parse CAMT format statements",
+      "verify_cmd": "test -f /tmp/camt_complete.flag",
+      "stage": 2,
+      "depends_on": ["security-validator", "file-preprocessor"],
+      "locks": ["camt_processing.db"]
+    },
+    {
+      "agent": "pain001-parser",
+      "priority": "P1",
+      "task": "Parse PAIN.001 format statements",
+      "verify_cmd": "test -f /tmp/pain001_complete.flag",
+      "stage": 2,
+      "depends_on": ["security-validator", "file-preprocessor"],
+      "locks": ["pain001_processing.db"]
+    },
+    {
+      "agent": "data-consolidator",
+      "priority": "P0",
+      "task": "Consolidate parsed data from all formats",
+      "verify_cmd": "test -f /tmp/consolidated.flag",
+      "stage": 3,
+      "depends_on": ["camt-parser", "pain001-parser"],
+      "locks": ["master_database.db", "consolidation.lock"]
+    },
+    {
+      "agent": "report-generator",
+      "priority": "P1",
+      "task": "Generate comprehensive reports",
+      "verify_cmd": "test -f /tmp/reports_complete.flag",
+      "stage": 4,
+      "depends_on": ["data-consolidator"],
+      "locks": ["reports.db"]
+    },
+    {
+      "agent": "audit-logger",
+      "priority": "P2",
+      "task": "Log processing audit trail",
+      "verify_cmd": "test -f /tmp/audit_complete.flag",
+      "stage": 4,
+      "depends_on": ["data-consolidator"],
+      "locks": ["audit.log", "compliance.db"]
+    }
+  ]
+}
