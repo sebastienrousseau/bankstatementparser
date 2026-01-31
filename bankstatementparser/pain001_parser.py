@@ -20,11 +20,11 @@
 """
 
 import logging
-from xml.etree.ElementTree import ParseError
 import pandas as pd
 from lxml import etree
+from xml.etree.ElementTree import ParseError
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Generator
 from .base_parser import BankStatementParser
 from .input_validator import InputValidator, ValidationError
 
@@ -98,7 +98,7 @@ class Pain001Parser(BankStatementParser):
                 no_network=True
             )
             self.tree = etree.fromstring(data_bytes, parser)
-        except etree.XMLSyntaxError as e:
+        except ValueError as e:
             logger.error("XML syntax error: %s", str(e))
             # Check if it's a basic XML structure error and use appropriate message
             error_msg = str(e)
@@ -108,7 +108,11 @@ class Pain001Parser(BankStatementParser):
                 raise ValidationError(f"Invalid XML format: {error_msg}")
         except Exception as e:
             logger.error("An error occurred while parsing the XML: %s", str(e))
-            raise ValidationError(f"Error parsing XML: {str(e)}")
+            error_msg = str(e)
+            if "Start tag expected" in error_msg and "not found" in error_msg:
+                raise ValidationError(f"Error parsing XML: {error_msg}")
+            else:
+                raise ValidationError(f"Invalid XML format: {error_msg}")
 
     def parse(self, output_file: Optional[str] = None, redact_pii: bool = False) -> pd.DataFrame:
         try:
@@ -118,7 +122,7 @@ class Pain001Parser(BankStatementParser):
             # Check for required PAIN.001 structure
             customer_credit_transfer = root.find('.//CstmrCdtTrfInitn')
             if customer_credit_transfer is None:
-                raise ParseError("Invalid PAIN.001 structure: missing CstmrCdtTrfInitn element")
+                raise ValueError("Invalid PAIN.001 structure: missing CstmrCdtTrfInitn element")
 
             # Pre-extract header information once
             group_header = root.find('.//CstmrCdtTrfInitn/GrpHdr')
@@ -199,7 +203,7 @@ class Pain001Parser(BankStatementParser):
         except Exception as e:
             raise ParseError(f"Error parsing PAIN.001 file: {e}")
 
-    def parse_streaming(self, redact_pii: bool = False):
+    def parse_streaming(self, redact_pii: bool = False) -> Generator[Dict[str, Any], None, None]:
         """
         Parse the PAIN.001 file using streaming XML parsing for large files.
         Yields payment data incrementally to keep memory usage low.
@@ -256,8 +260,8 @@ class Pain001Parser(BankStatementParser):
             )
 
             # Track context for header and payment info
-            header_fields = {}
-            current_payment_info = {}
+            header_fields: Dict[str, Any] = {}
+            current_payment_info: Dict[str, Any] = {}
 
             # Use iterparse to process elements incrementally
             for event, elem in etree.iterparse(temp_file, events=('start', 'end')):
@@ -315,7 +319,7 @@ class Pain001Parser(BankStatementParser):
             except OSError:
                 pass  # Ignore if temp file cleanup fails
 
-    def _parse_streaming_payment(self, tx_elem, payment_info: Dict[str, Any], header_fields: Dict[str, Any], redact_pii: bool = False) -> Dict[str, Any]:
+    def _parse_streaming_payment(self, tx_elem: etree._Element, payment_info: Dict[str, Any], header_fields: Dict[str, Any], redact_pii: bool = False) -> Dict[str, Any]:
         """
         Parse a single credit transfer transaction element for streaming mode.
 

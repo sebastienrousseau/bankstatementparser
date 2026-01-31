@@ -81,8 +81,10 @@ class BankStatementCLI:
         cwd = os.path.abspath(os.getcwd())
         try:
             common_path = os.path.commonpath([abs_path, cwd])
-            # Allow paths under current working directory or absolute paths to known safe locations
-            if not (common_path == cwd or abs_path.startswith('/tmp/') or abs_path.startswith('/var/tmp/')):
+            # Allow paths under current working directory or use system temp directory
+            import tempfile
+            system_temp = os.path.abspath(tempfile.gettempdir())
+            if not (common_path == cwd or abs_path.startswith(system_temp)):
                 # For production, you might want to be more restrictive
                 logger.info(f"Path outside working directory: {file_path}")
         except ValueError:
@@ -364,7 +366,6 @@ class BankStatementCLI:
         if len(sys.argv) == 1:
             self.parser.print_help(sys.stderr)
             sys.exit(1)
-            return  # Defensive programming: ensure we don't continue if sys.exit is mocked
 
         try:
             args = self.parser.parse_args()

@@ -20,7 +20,7 @@ Provides a class CamtParser for parsing CAMT format bank statement files.
 """
 
 import logging
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union, Any, Generator
 import pandas as pd
 from lxml import etree
 from pathlib import Path
@@ -499,7 +499,7 @@ class CamtParser(BankStatementParser):
         """
         return self.get_transactions(redact_pii=redact_pii)
 
-    def parse_streaming(self, redact_pii: bool = False):
+    def parse_streaming(self, redact_pii: bool = False) -> Generator[Dict[str, Any], None, None]:
         """
         Parse the CAMT file using streaming XML parsing for large files.
         Yields transaction data incrementally to keep memory usage low.
@@ -586,7 +586,7 @@ class CamtParser(BankStatementParser):
             except OSError:
                 pass  # Ignore if temp file cleanup fails
 
-    def _parse_streaming_transaction(self, entry_elem, account_id: str, redact_pii: bool = False) -> Dict[str, Any]:
+    def _parse_streaming_transaction(self, entry_elem: etree._Element, account_id: str, redact_pii: bool = False) -> Dict[str, Any]:
         """
         Parse a single transaction entry element for streaming mode.
 
