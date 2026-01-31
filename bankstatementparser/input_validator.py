@@ -117,6 +117,19 @@ class InputValidator:
         except (OSError, ValueError) as e:
             raise ValidationError(f"Invalid file path format: {e}")
 
+        # Check for symlink attacks: reject if the original path is a symlink
+        # pointing outside its parent directory
+        raw_path = Path(file_path)
+        if raw_path.is_symlink():
+            link_target = raw_path.resolve()
+            link_parent = raw_path.parent.resolve()
+            try:
+                link_target.relative_to(link_parent)
+            except ValueError:
+                raise ValidationError(
+                    f"Symlink target is outside the parent directory: {file_path}"
+                )
+
         # Additional security check on resolved path
         self._check_dangerous_patterns(str(path))
 

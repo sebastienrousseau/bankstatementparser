@@ -110,10 +110,11 @@ class TestCamtParserEdgeCases(unittest.TestCase):
             test_file = f.name
 
         try:
-            # Should handle missing fields gracefully
+            # Parser should handle missing fields gracefully by skipping malformed entries
             parser = CamtParser(test_file)
-            with self.assertRaises((IndexError, AttributeError)):
-                parser.get_transactions()
+            result = parser.get_transactions()
+            # Malformed entry is skipped, so result should be empty
+            self.assertEqual(len(result), 0)
         finally:
             os.unlink(test_file)
 

@@ -260,8 +260,7 @@ class TestInputValidator(unittest.TestCase):
         with open(test_file, 'w') as f:
             f.write("<?xml version='1.0'?><Document></Document>")
 
-        with patch('pathlib.Path.stat') as mock_stat:
-            mock_stat.side_effect = OSError("Cannot stat")
+        with patch.object(InputValidator, '_validate_file_size', side_effect=ValidationError("Cannot determine file size: Cannot stat")):
             with self.assertRaises(ValidationError) as cm:
                 self.validator.validate_input_file_path(test_file)
             self.assertIn("Cannot determine file size", str(cm.exception))

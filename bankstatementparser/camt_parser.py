@@ -202,19 +202,25 @@ class CamtParser(BankStatementParser):
         if not bal_elems:
             return []
 
-        # Batch XPath queries to eliminate N+1 pattern
-        # Extract all data with single XPath queries instead of per-balance queries
-        # Maintain original error behavior for missing required fields
-        codes = [elem.xpath('.//Cd')[0].text for elem in bal_elems]  # Will raise IndexError if missing
-        amounts = [float(elem.xpath('.//Amt')[0].text) for elem in bal_elems]  # Will raise IndexError if missing
-        currencies = [elem.xpath('.//Amt/@Ccy')[0] for elem in bal_elems]  # Will raise IndexError if missing
-        cdt_dbt_inds = [elem.xpath('.//CdtDbtInd')[0].text for elem in bal_elems]  # Will raise IndexError if missing
-        dates = [elem.xpath('./Dt/Dt|./Dt/DtTm')[0].text for elem in bal_elems]  # Will raise IndexError if missing
-
         balances = []
 
-        # Zip results together to reconstruct balance data
-        for i, (code, amount, currency, cdt_dbt, date) in enumerate(zip(codes, amounts, currencies, cdt_dbt_inds, dates)):
+        for elem in bal_elems:
+            # Safely extract required fields, skipping malformed balance elements
+            code_elems = elem.xpath('.//Cd')
+            amt_elems = elem.xpath('.//Amt')
+            ccy_elems = elem.xpath('.//Amt/@Ccy')
+            cdt_dbt_elems = elem.xpath('.//CdtDbtInd')
+            date_elems = elem.xpath('./Dt/Dt|./Dt/DtTm')
+
+            if not code_elems or not amt_elems or not ccy_elems or not cdt_dbt_elems or not date_elems:
+                logger.warning("Skipping malformed balance element: missing required fields")
+                continue
+
+            code = code_elems[0].text
+            amount = float(amt_elems[0].text)
+            currency = ccy_elems[0]
+            cdt_dbt = cdt_dbt_elems[0].text
+            date = date_elems[0].text
             # Apply debit sign adjustment
             if cdt_dbt == 'DBIT':
                 amount = -amount
@@ -295,15 +301,18 @@ class CamtParser(BankStatementParser):
         creditor_addresses = []
 
         for entry in entries:
-            # Essential transaction fields - maintain original error behavior for missing required fields
+            # Essential transaction fields - skip entries missing required fields
             amount_elems = entry.xpath('./Amt')
-            amounts.append(float(amount_elems[0].text))  # Will raise IndexError if missing
-
             currency_elems = entry.xpath('./Amt/@Ccy')
-            currencies.append(currency_elems[0])  # Will raise IndexError if missing
-
             cdt_dbt_elems = entry.xpath('./CdtDbtInd')
-            cdt_dbt_inds.append(cdt_dbt_elems[0].text)  # Will raise IndexError if missing
+
+            if not amount_elems or not currency_elems or not cdt_dbt_elems:
+                logger.warning("Skipping malformed transaction entry: missing required fields")
+                continue
+
+            amounts.append(float(amount_elems[0].text))
+            currencies.append(currency_elems[0])
+            cdt_dbt_inds.append(cdt_dbt_elems[0].text)
 
             # Party information
             debtor_elems = entry.xpath('.//Dbtr/Nm')
