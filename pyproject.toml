@@ -15,8 +15,12 @@ openpyxl = "^3.1.2"
 pandas = "^2.1.1"
 requests = "^2.32.0"
 
-[tool.poetry.dev-dependencies]
-pytest = ">=7.4.2"
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^4.1.0"
+ruff = "^0.1.0"
+mypy = "^1.5.0"
+bandit = "^1.7.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -35,6 +39,44 @@ force_grid_wrap = 0
 combine_as_imports = true
 known_first_party = "bankstatementparser"
 
-[tool.pytest]
-addopts = "--cov=bankstatementparser --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=100"
-testpaths = "tests"
+[tool.ruff]
+target-version = "py39"
+line-length = 72
+src = ["bankstatementparser", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["bankstatementparser"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+addopts = "--cov=bankstatementparser --cov-report=term-missing --cov-report=xml --cov-fail-under=80"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["bankstatementparser"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
