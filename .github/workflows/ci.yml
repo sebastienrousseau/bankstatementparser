@@ -1,246 +1,27 @@
-name: ❯ Python bankstatementparser
+name: CI
 
 on:
-  pull_request:
-    branches:
-      - main
-      - "feat/*"
   push:
-    branches:
-      - main
-      - "feat/*"
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main, "feat/**"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   security-events: write
   contents: read
 
 jobs:
-  # This job reads the version number from setup.cfg and sets it as an
-  # environment variable
-  version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.set-version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: ❯ Set up Python 🐍
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-          cache: 'pip'
-          cache-dependency-path: 'requirements.txt'
-      - name: ❯ Get version number from setup.cfg
-        id: set-version
-        run: |
-          echo "version=$(python -c 'import configparser; cfg = configparser.ConfigParser(); cfg.read("setup.cfg"); print(cfg.get("metadata", "version"))')" >> $GITHUB_OUTPUT
-
-  # Security scanning with Bandit
-  bandit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: ❯ Set up Python 🐍
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-          cache: 'pip'
-          cache-dependency-path: 'requirements.txt'
-      - name: ❯ Install Bandit 🔐
-        run: pip install bandit[toml]
-      - name: ❯ Run Bandit security scan 🔍
-        run: bandit -r bankstatementparser/ -f json -o bandit-report.json || true
-      - name: ❯ Upload Bandit results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: bandit-report
-          path: bandit-report.json
-
-  # Security scanning with pip-audit
-  pip-audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: ❯ Set up Python 🐍
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-          cache: 'pip'
-          cache-dependency-path: 'requirements.txt'
-      - name: ❯ Install pip-audit 🔐
-        run: pip install pip-audit
-      - name: ❯ Install dependencies 📦
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-      - name: ❯ Run pip-audit security scan 🔍
-        run: pip-audit --format=json --output=pip-audit-report.json || true
-      - name: ❯ Upload pip-audit results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: pip-audit-report
-          path: pip-audit-report.json
-
-  # CodeQL security analysis
-  codeql:
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - name: ❯ Initialize CodeQL 🔍
-        uses: github/codeql-action/init@v3
-        with:
-          languages: python
-      - name: ❯ Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-
-  # This job runs unit tests using pytest
-  pytest:
-    needs: version
-    runs-on: ubuntu-latest
-    steps:
-      # Check out the repository code
-      - uses: actions/checkout@v4
-
-      # Set up Python and install dependencies
-      - name: ❯ Set up Python and install dependencies 🐍📦
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-          cache: 'pip'
-          cache-dependency-path: 'requirements.txt'
-      - name: ❯ Install dependencies 📦
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install pytest pytest-cov
-
-      # Run pytest
-      - name: ❯ Run pytest 🧪
-        run: pytest
-
-      # Upload code coverage report to Codecov
-      - name: ❯ Upload code coverage report to Codecov 📊
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-  # This job runs flake8 to check for code style issues
-  lint:
-    needs: version
-    runs-on: ubuntu-latest
-    steps:
-      # Check out the repository code
-      - uses: actions/checkout@v4
-      # Set up Python and install dependencies
-      - name: ❯ Set up Python and install dependencies 🐍📦
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-          cache: 'pip'
-          cache-dependency-path: 'requirements.txt'
-      - name: ❯ Install flake8 📦
-        run: python -m pip install flake8
-      # Run flake8
-      - name: ❯ Run flake8 🔍
-        run: flake8
-
-  # This job builds the distribution packages, and publishes them
-  # to PyPI
-  build:
-    needs: [version, pytest, bandit, pip-audit, codeql]
-    runs-on: ubuntu-latest
-    env:
-      TWINE_USERNAME: __token__
-      TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      VERSION: ${{ needs.version.outputs.version }}
-      PKG_NAME: bankstatementparser
-    steps:
-      # Check out the repository code
-      - uses: actions/checkout@v4
-      - name: ❯ Set up Python 🐍
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        id: python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-          cache: 'pip'
-          cache-dependency-path: 'requirements.txt'
-
-      # Install dependencies
-      - name: ❯ Install dependencies 📦
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install -r requirements.txt
-
-      # Update the version number based on the setup.cfg file
-      - name: Update version number from setup.cfg file 📝
-        id: update-version
-        run: |
-          NEW_VERSION=$(grep -E '^version =' setup.cfg | cut -d '=' -f 2 | tr -d '[:space:]')
-          echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
-        shell: /bin/bash -e {0}
-
-      # Generate the changelog based on git log and template file
-      - name: Generate Changelog 📚
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          # Append version information to CHANGELOG.md
-          echo "## Release v${{ env.VERSION }} - $(date +'%Y-%m-%d')" >> ${{ github.workspace }}/CHANGELOG.md
-          # Copy content of template file to CHANGELOG.md
-          cat TEMPLATE.md >> ${{ github.workspace }}/CHANGELOG.md
-          # Append git log to CHANGELOG.md
-          echo "$(git log --pretty=format:'%s' --reverse $(git describe --tags --abbrev=0)..HEAD)" >> ${{ github.workspace }}/CHANGELOG.md
-          # Append empty line to CHANGELOG.md
-          echo "" >> ${{ github.workspace }}/CHANGELOG.md
-
-      # Build distribution packages
-      - name: ❯ Build distribution packages 🧰
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          python setup.py sdist bdist_wheel
-
-      # Publish distribution packages to PyPI
-      - name: ❯ Publish distribution packages to PyPI 🚀
-        id: publish
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: pypa/gh-action-pypi-publish@v1.8.14
-        with:
-          user: ${{ env.TWINE_USERNAME }}
-          password: ${{ env.TWINE_PASSWORD }}
-          packages_dir: dist
-          verify_metadata: true
-          skip_existing: true
-
-      # Append artifact links to the changelog
-      - name: Append Artifact Links 🔗
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          echo "" >> ${{ github.workspace }}/CHANGELOG.md
-          echo "## Artifacts 🎁" >> ${{ github.workspace }}/CHANGELOG.md
-          for filename in dist/*; do
-            link="$(basename $filename)"
-            echo "* [$link](${{ env.RELEASES_URL }}/$link)" >> ${{ github.workspace }}/CHANGELOG.md
-          done
-        env:
-          RELEASES_URL: https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}
-
-      # Create a release using modern approach
-      - name: Create Release 🚀
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ env.VERSION }}
-          name: Release v${{ env.VERSION }}
-          body_path: ${{ github.workspace }}/CHANGELOG.md
-          draft: false
-          prerelease: false
-          files: dist/*
+  ci:
+    name: Python CI
+    uses: sebastienrousseau/pipelines/.github/workflows/python-ci.yml@main
+    with:
+      python-version: '3.11'
+      run-ruff: true
+      run-mypy: true
+      coverage-threshold: 80
+      package-manager: 'poetry'
+    secrets: inherit
