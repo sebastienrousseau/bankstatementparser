@@ -20,6 +20,9 @@ Provides a class CamtParser for parsing CAMT format bank statement files.
 """
 
 import logging
+import os
+import re
+import tempfile
 from typing import Dict, List, Optional, Union, Any, Generator
 import pandas as pd
 from lxml import etree
@@ -87,8 +90,8 @@ class CamtParser(BankStatementParser):
 
         try:
             # Remove the namespace from the XML data for easier parsing
-            data = data.replace(
-                ' xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02"', '')
+            data = re.sub(
+                r'\s+xmlns="urn:iso:std:iso:20022:tech:xsd:camt\.\d{3}\.\d{3}\.\d{2}"', '', data)
             data_bytes = bytes(data, 'utf-8')
 
             # First try strict parsing to validate XML structure
@@ -207,16 +210,24 @@ class CamtParser(BankStatementParser):
         for elem in bal_elems:
             # Safely extract required fields, skipping malformed balance elements
             code_elems = elem.xpath('.//Cd')
+            prtry_elems = elem.xpath('.//Prtry')
             amt_elems = elem.xpath('.//Amt')
             ccy_elems = elem.xpath('.//Amt/@Ccy')
             cdt_dbt_elems = elem.xpath('.//CdtDbtInd')
             date_elems = elem.xpath('./Dt/Dt|./Dt/DtTm')
 
-            if not code_elems or not amt_elems or not ccy_elems or not cdt_dbt_elems or not date_elems:
+            if not amt_elems or not ccy_elems or not cdt_dbt_elems or not date_elems:
                 logger.warning("Skipping malformed balance element: missing required fields")
                 continue
 
-            code = code_elems[0].text
+            # ISO 20022: Type element contains either Cd or Prtry
+            if code_elems:
+                code = code_elems[0].text
+            elif prtry_elems:
+                code = f"Proprietary: {prtry_elems[0].text}"
+            else:
+                logger.warning("Balance element missing both Cd and Prtry type elements, using N/A")
+                code = "N/A"
             amount = float(amt_elems[0].text)
             currency = ccy_elems[0]
             cdt_dbt = cdt_dbt_elems[0].text
@@ -537,12 +548,12 @@ class CamtParser(BankStatementParser):
             raise ValidationError(f"Error reading file {file_path}: {str(e)}")
 
         # Remove namespace and write to temp file for streaming
-        data = data.replace(
-            ' xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02"', '')
+        data = re.sub(
+            r'\s+xmlns="urn:iso:std:iso:20022:tech:xsd:camt\.\d{3}\.\d{3}\.\d{2}"', '', data)
 
-        temp_file = f"{file_path}.streaming.tmp"
+        fd, temp_file = tempfile.mkstemp(suffix='.xml', prefix='bsp_streaming_')
         try:
-            with open(temp_file, 'w', encoding='utf-8') as f:
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
                 f.write(data)
 
             # Set up iterative XML parser with security settings
@@ -590,7 +601,6 @@ class CamtParser(BankStatementParser):
         finally:
             # Clean up temp file
             try:
-                import os
                 os.unlink(temp_file)
             except OSError:
                 pass  # Ignore if temp file cleanup fails

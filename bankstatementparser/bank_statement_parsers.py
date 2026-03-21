@@ -21,7 +21,6 @@ The actual parser implementations are in standalone modules with compatibility w
 """
 
 import os
-import re
 from pathlib import Path
 from lxml import etree
 import pandas as pd
@@ -66,31 +65,11 @@ class Pain001Parser:
         # Store redact_pii setting
         self._redact_pii = redact_pii
 
-        # Use the enhanced standalone parser internally
+        # Delegate to the standalone parser for file I/O and XML parsing
         self._standalone_parser = StandalonePain001Parser(str(file_name))
+        tree = self._standalone_parser.tree
 
-        # Load and parse the XML to maintain compatibility with old API
-        try:
-            with open(file_name, 'r', encoding='utf-8') as f:
-                data: str = f.read()
-        except FileNotFoundError as e:
-            raise FileNotFoundError(f"File {file_name} not found!") from e
-
-        # Clean up the XML namespaces to simplify the XPath expressions.
-        data = re.sub('<Document[\\S\\s]*?>', '<Document>', data)
-        data_bytes: bytes = bytes(data, 'utf-8')
-
-        # Parse the XML content with security settings to prevent XXE attacks.
-        parser: etree.XMLParser = etree.XMLParser(
-            recover=True,
-            encoding='utf-8',
-            resolve_entities=False,
-            load_dtd=False,
-            no_network=True
-        )
-        tree: _Element = etree.fromstring(data_bytes, parser)
-
-        # Extract payment batches from the XML tree.
+        # Extract payment batches from the already-parsed XML tree.
         self.batches: List[_Element] = tree.xpath('.//PmtInf')
         self.batches_count: int = len(self.batches)
 
@@ -261,12 +240,10 @@ class Camt053Parser:
                     if account_id in balances_by_account:
                         stmt.update(balances_by_account[account_id])
 
-        except FileNotFoundError as e:
-            # Actual file not found - re-raise with consistent message
-            if not isinstance(e, ValidationError):
-                raise FileNotFoundError(f"File {file_name} not found!") from e
-            # ValidationError (subclass of FileNotFoundError) - treat as parse error
+        except ValidationError as e:
             raise FileParserError('Not a valid CAMT.053 file') from e
+        except FileNotFoundError as e:
+            raise FileNotFoundError(f"File {file_name} not found!") from e
         except Exception as e:
             raise FileParserError('Not a valid CAMT.053 file') from e
 

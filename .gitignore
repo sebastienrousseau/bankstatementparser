@@ -71,6 +71,9 @@ celerybeat-schedule
 .env               # dotenv
 .venv              # virtualenv
 
+# Plan files
+plan.json
+
 # Miscellaneous
 .DS_Store          # macOS
 *.log

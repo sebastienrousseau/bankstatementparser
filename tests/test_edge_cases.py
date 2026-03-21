@@ -15,6 +15,7 @@ from bankstatementparser.bank_statement_parsers import (
     Camt053Parser,
     FileParserError
 )
+from bankstatementparser.input_validator import ValidationError
 from lxml import etree
 
 
@@ -588,7 +589,7 @@ class TestErrorConditions(unittest.TestCase):
             # Remove read permissions
             os.chmod(test_file, 0o000)
 
-            with self.assertRaises((PermissionError, OSError)):
+            with self.assertRaises((PermissionError, OSError, ValidationError)):
                 CamtParser(test_file)
 
         finally:

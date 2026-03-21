@@ -29,13 +29,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class ValidationError(FileNotFoundError):
-    """Custom exception for validation errors.
-
-    Inherits from FileNotFoundError (which inherits from OSError)
-    for backward compatibility with code that catches file-related
-    OS errors such as FileNotFoundError, PermissionError, or OSError.
-    """
+class ValidationError(Exception):
+    """Custom exception for validation errors."""
     pass
 
 class InputValidator:

@@ -21,6 +21,7 @@ from bankstatementparser.bank_statement_parsers import (
     Camt053Parser,
     FileParserError
 )
+from bankstatementparser.input_validator import ValidationError
 from lxml import etree
 
 
@@ -154,7 +155,7 @@ class TestSecurityCamtParser(unittest.TestCase):
         ]
 
         for dangerous_path in dangerous_paths:
-            with self.assertRaises((FileNotFoundError, PermissionError, OSError)):
+            with self.assertRaises((FileNotFoundError, PermissionError, OSError, ValidationError)):
                 CamtParser(dangerous_path)
 
     def test_large_file_handling(self):
@@ -518,12 +519,12 @@ class TestSecurityMitigations(unittest.TestCase):
     def test_exception_information_disclosure(self):
         """Test that exceptions don't leak sensitive information."""
         # Test with file that might reveal system info
-        with self.assertRaises(FileNotFoundError) as cm:
+        with self.assertRaises((FileNotFoundError, ValidationError)) as cm:
             CamtParser('/etc/passwd')
 
-        # Exception should not contain sensitive paths
+        # Exception should not contain sensitive paths or should block access
         error_msg = str(cm.exception).lower()
-        self.assertIn('not found', error_msg)
+        self.assertTrue('not found' in error_msg or 'blocked' in error_msg)
 
         # Test with parsing error
         invalid_xml = '<?xml version="1.0"?><Document><Stmt><Id>test'  # Malformed

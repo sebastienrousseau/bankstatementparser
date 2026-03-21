@@ -172,7 +172,8 @@ class BankStatementCLI:
 
                 if output_path:
                     # For output file, use atomic write operation with temp file
-                    safe_output_path = self.validator.get_safe_filename(str(output_path))
+                    safe_name = self.validator.get_safe_filename(output_path.name)
+                    safe_output_path = str(output_path.parent / safe_name)
                     temp_output = f"{safe_output_path}.tmp"
 
                     with open(temp_output, 'w', encoding='utf-8') as f:
@@ -194,7 +195,6 @@ class BankStatementCLI:
                                 tx_df.to_csv(f, index=False, mode='a', header=False)
 
                     # Atomically move temp file to final location
-                    import os
                     os.rename(temp_output, safe_output_path)
                     print(f"Parsed {transaction_count} transactions in streaming mode, saved to {safe_output_path}")
 
@@ -233,7 +233,8 @@ class BankStatementCLI:
 
                 if output_path:
                     # Use safe filename for output
-                    safe_output_path = self.validator.get_safe_filename(str(output_path))
+                    safe_name = self.validator.get_safe_filename(output_path.name)
+                    safe_output_path = str(output_path.parent / safe_name)
                     data_df.to_csv(safe_output_path, index=False)
                     print(f"Parsed data saved to {safe_output_path}")
                 else:
@@ -280,7 +281,8 @@ class BankStatementCLI:
 
                 if output_path:
                     # For output file, use atomic write operation with temp file
-                    safe_output_path = self.validator.get_safe_filename(str(output_path))
+                    safe_name = self.validator.get_safe_filename(output_path.name)
+                    safe_output_path = str(output_path.parent / safe_name)
                     temp_output = f"{safe_output_path}.tmp"
 
                     with open(temp_output, 'w', encoding='utf-8') as f:
@@ -302,7 +304,6 @@ class BankStatementCLI:
                                 payment_df.to_csv(f, index=False, mode='a', header=False)
 
                     # Atomically move temp file to final location
-                    import os
                     os.rename(temp_output, safe_output_path)
                     print(f"Parsed {payment_count} payments in streaming mode, saved to {safe_output_path}")
 
@@ -337,7 +338,8 @@ class BankStatementCLI:
 
                 if output_path:
                     # Use safe filename for output
-                    safe_output_path = self.validator.get_safe_filename(str(output_path))
+                    safe_name = self.validator.get_safe_filename(output_path.name)
+                    safe_output_path = str(output_path.parent / safe_name)
                     data_df.to_csv(safe_output_path, index=False)
                     print(f"Parsed data saved to {safe_output_path}")
                 else:
@@ -362,7 +364,16 @@ class BankStatementCLI:
             sys.exit(1)
 
     def run(self) -> None:
-        """Parse command line arguments and perform the requested action."""
+        """
+        Parse command line arguments and perform the requested action.
+
+        Validates input/output paths, configures logging, and delegates
+        to the appropriate parser (CAMT or PAIN.001) based on the --type
+        argument. Supports both traditional and streaming parsing modes.
+
+        Raises:
+            SystemExit: On invalid arguments, validation failure, or parse errors.
+        """
         if len(sys.argv) == 1:
             self.parser.print_help(sys.stderr)
             sys.exit(1)

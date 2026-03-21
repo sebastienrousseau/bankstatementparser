@@ -57,8 +57,7 @@ free way to stay on top of your transactions.
     install_requires=[
         'lxml>=4.9.3',
         'openpyxl>=3.1.2',
-        'pandas>=2.1.1',
-        'requests>=2.31.0'
+        'pandas>=2.1.1'
     ],
     keywords="""
         banking, finance, parsing, CAMT, ISO20022, treasury, SEPA, analysis,

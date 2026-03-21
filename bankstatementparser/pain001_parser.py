@@ -20,6 +20,9 @@
 """
 
 import logging
+import os
+import re
+import tempfile
 import pandas as pd
 from lxml import etree
 from xml.etree.ElementTree import ParseError
@@ -85,8 +88,8 @@ class Pain001Parser(BankStatementParser):
 
         try:
             # Remove the namespace from the XML data for easier parsing
-            data = data.replace(
-                'xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03"', '')
+            data = re.sub(
+                r'xmlns="urn:iso:std:iso:20022:tech:xsd:pain\.\d{3}\.\d{3}\.\d{2}"', '', data)
             data_bytes = bytes(data, 'utf-8')
 
             # Parse the XML data with security settings
@@ -115,6 +118,23 @@ class Pain001Parser(BankStatementParser):
                 raise ValidationError(f"Invalid XML format: {error_msg}")
 
     def parse(self, output_file: Optional[str] = None, redact_pii: bool = False) -> pd.DataFrame:
+        """
+        Parse the PAIN.001 XML file and return structured payment data.
+
+        Extracts group header, payment information, and individual credit
+        transfer transactions into a flat DataFrame.
+
+        Args:
+            output_file (str, optional): Path to save parsed data as CSV.
+            redact_pii (bool): Whether to redact PII fields.
+
+        Returns:
+            pd.DataFrame: Parsed payment data with columns for header,
+            payment, and transaction-level fields.
+
+        Raises:
+            ParseError: If parsing fails for any reason.
+        """
         try:
             # Get the root element
             root = self.tree.getroottree().getroot()
@@ -195,7 +215,6 @@ class Pain001Parser(BankStatementParser):
                 # Use atomic write operation with temp file
                 temp_file = f"{output_file}.tmp"
                 df.to_csv(temp_file, index=False)
-                import os
                 os.rename(temp_file, output_file)
                 logger.info("Parsed data saved to %s", output_file)
 
@@ -242,12 +261,12 @@ class Pain001Parser(BankStatementParser):
             raise ValidationError(f"Error reading file {file_path}: {str(e)}")
 
         # Remove namespace and write to temp file for streaming
-        data = data.replace(
-            'xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03"', '')
+        data = re.sub(
+            r'xmlns="urn:iso:std:iso:20022:tech:xsd:pain\.\d{3}\.\d{3}\.\d{2}"', '', data)
 
-        temp_file = f"{file_path}.streaming.tmp"
+        fd, temp_file = tempfile.mkstemp(suffix='.xml', prefix='bsp_streaming_')
         try:
-            with open(temp_file, 'w', encoding='utf-8') as f:
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
                 f.write(data)
 
             # Set up iterative XML parser with security settings
@@ -314,7 +333,6 @@ class Pain001Parser(BankStatementParser):
         finally:
             # Clean up temp file
             try:
-                import os
                 os.unlink(temp_file)
             except OSError:
                 pass  # Ignore if temp file cleanup fails
