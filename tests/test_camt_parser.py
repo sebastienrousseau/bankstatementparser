@@ -1,6 +1,7 @@
-import unittest
-from bankstatementparser.camt_parser import CamtParser
 import os
+import unittest
+
+from bankstatementparser.camt_parser import CamtParser
 
 
 class TestCamtParser(unittest.TestCase):

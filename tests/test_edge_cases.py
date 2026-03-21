@@ -4,19 +4,22 @@ Edge case tests for bank statement parsers.
 Tests for boundary conditions, error handling, and edge scenarios.
 """
 
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
+
 import pandas as pd
-from bankstatementparser.camt_parser import CamtParser
-from bankstatementparser.pain001_parser import Pain001Parser
+
+from bankstatementparser.bank_statement_parsers import (
+    Camt053Parser,
+    FileParserError,
+)
 from bankstatementparser.bank_statement_parsers import (
     Pain001Parser as BankPain001Parser,
-    Camt053Parser,
-    FileParserError
 )
+from bankstatementparser.camt_parser import CamtParser
 from bankstatementparser.input_validator import ValidationError
-from lxml import etree
+from bankstatementparser.pain001_parser import Pain001Parser
 
 
 class TestCamtParserEdgeCases(unittest.TestCase):

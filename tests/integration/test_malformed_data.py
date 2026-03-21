@@ -6,13 +6,15 @@ Tests end-to-end behavior when processing various types of malformed
 or malicious input files to ensure proper error handling and security.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
+
+import pytest
+from lxml import etree
+
 from bankstatementparser.camt_parser import CamtParser
 from bankstatementparser.input_validator import ValidationError
-from lxml import etree
 
 
 class TestMalformedDataHandling:
@@ -58,7 +60,7 @@ class TestMalformedDataHandling:
 
         # Should not raise an exception due to entity resolution being disabled
         # But should parse without executing the entity
-        parser = CamtParser(str(file_path))
+        CamtParser(str(file_path))
         # The parser should handle this safely due to resolve_entities=False
 
     def test_extremely_large_xml_file(self, temp_dir):

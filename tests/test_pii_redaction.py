@@ -6,20 +6,17 @@ ensuring that sensitive personal information is properly handled in different
 scenarios while maintaining data utility for legitimate use cases.
 """
 
-import unittest
-import tempfile
 import os
-import sys
-import pandas as pd
+import tempfile
+import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from io import StringIO
-import json
+from unittest.mock import Mock, patch
 
-from bankstatementparser.cli import BankStatementCLI
+import pandas as pd
+
 from bankstatementparser.camt_parser import CamtParser
+from bankstatementparser.cli import BankStatementCLI
 from bankstatementparser.pain001_parser import Pain001Parser
-from bankstatementparser.input_validator import ValidationError
 
 
 class TestPIIRedaction(unittest.TestCase):
@@ -199,8 +196,7 @@ class TestPIIRedaction(unittest.TestCase):
                     self.assertEqual(mock_to_csv.call_count, 1)
 
                     # Extract the DataFrame passed to to_csv
-                    saved_df_call = mock_to_csv.call_args
-                    saved_df = mock_to_csv.call_args[1]['data'] if 'data' in str(mock_to_csv.call_args) else None
+                    mock_to_csv.call_args[1]['data'] if 'data' in str(mock_to_csv.call_args) else None
 
                     # Verify that file export contains unredacted data
                     # The DataFrame passed to to_csv should be the original, not redacted
@@ -343,7 +339,7 @@ class TestPIIRedaction(unittest.TestCase):
                 # Use patch to avoid actual XML parsing but verify parameter acceptance
                 with patch.object(parser, '__init__', return_value=None):
                     # Create a mock parser instance
-                    mock_parser = Mock(spec=Pain001Parser)
+                    Mock(spec=Pain001Parser)
 
                     # Test that the parse method signature accepts redact_pii
                     self.assertTrue(hasattr(Pain001Parser.parse, '__code__'))

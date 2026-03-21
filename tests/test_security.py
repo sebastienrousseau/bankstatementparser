@@ -10,19 +10,22 @@ Tests for security vulnerabilities including:
 - XML injection attacks
 """
 
-import unittest
-import tempfile
 import os
-from unittest.mock import patch, mock_open
-from bankstatementparser.camt_parser import CamtParser
-from bankstatementparser.pain001_parser import Pain001Parser
+import tempfile
+import unittest
+
+from lxml import etree
+
+from bankstatementparser.bank_statement_parsers import (
+    Camt053Parser,
+    FileParserError,
+)
 from bankstatementparser.bank_statement_parsers import (
     Pain001Parser as BankPain001Parser,
-    Camt053Parser,
-    FileParserError
 )
+from bankstatementparser.camt_parser import CamtParser
 from bankstatementparser.input_validator import ValidationError
-from lxml import etree
+from bankstatementparser.pain001_parser import Pain001Parser
 
 
 class TestSecurityCamtParser(unittest.TestCase):
@@ -437,7 +440,9 @@ class TestSecurityBankStatementParsers(unittest.TestCase):
 
     def test_process_folder_security(self):
         """Test folder processing security."""
-        from bankstatementparser.bank_statement_parsers import process_camt053_folder
+        from bankstatementparser.bank_statement_parsers import (
+            process_camt053_folder,
+        )
 
         # Test with non-existent folder
         with self.assertRaises((FileNotFoundError, OSError)):

@@ -6,12 +6,13 @@ This module provides utilities to run all dispatch tests and generate
 comprehensive test coverage reports for the dispatch functionality.
 """
 
-import pytest
-import sys
 import json
+import sys
 import time
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
+from typing import Any
+
+import pytest
 
 
 class EuxisDispatchTestSuite:
@@ -22,7 +23,7 @@ class EuxisDispatchTestSuite:
         self.start_time = None
         self.end_time = None
 
-    def run_basic_functionality_tests(self) -> Dict[str, Any]:
+    def run_basic_functionality_tests(self) -> dict[str, Any]:
         """Run basic functionality tests."""
         print("Running basic euxis-dispatch functionality tests...")
 
@@ -39,7 +40,7 @@ class EuxisDispatchTestSuite:
             "status": "PASSED" if result == 0 else "FAILED"
         }
 
-    def run_edge_case_tests(self) -> Dict[str, Any]:
+    def run_edge_case_tests(self) -> dict[str, Any]:
         """Run edge case tests."""
         print("Running euxis-dispatch edge case tests...")
 
@@ -55,7 +56,7 @@ class EuxisDispatchTestSuite:
             "status": "PASSED" if result == 0 else "FAILED"
         }
 
-    def run_performance_tests(self) -> Dict[str, Any]:
+    def run_performance_tests(self) -> dict[str, Any]:
         """Run performance tests."""
         print("Running euxis-dispatch performance tests...")
 
@@ -73,7 +74,7 @@ class EuxisDispatchTestSuite:
             "status": "PASSED" if result == 0 else "FAILED"
         }
 
-    def run_stress_tests(self) -> Dict[str, Any]:
+    def run_stress_tests(self) -> dict[str, Any]:
         """Run stress tests (slow)."""
         print("Running euxis-dispatch stress tests (this may take a while)...")
 
@@ -89,7 +90,7 @@ class EuxisDispatchTestSuite:
             "status": "PASSED" if result == 0 else "FAILED"
         }
 
-    def run_manifest_validation_tests(self) -> Dict[str, Any]:
+    def run_manifest_validation_tests(self) -> dict[str, Any]:
         """Run tests against the sample manifest files."""
         print("Running manifest validation tests...")
 
@@ -108,7 +109,7 @@ class EuxisDispatchTestSuite:
 
         for manifest_file in manifest_files:
             try:
-                with open(manifest_file, 'r') as f:
+                with open(manifest_file) as f:
                     manifest_data = json.load(f)
 
                 # Basic validation
@@ -150,7 +151,7 @@ class EuxisDispatchTestSuite:
             "results": validation_results
         }
 
-    def run_coverage_analysis(self) -> Dict[str, Any]:
+    def run_coverage_analysis(self) -> dict[str, Any]:
         """Run tests with coverage analysis."""
         print("Running coverage analysis for euxis-dispatch tests...")
 
@@ -169,7 +170,7 @@ class EuxisDispatchTestSuite:
             "status": "PASSED" if result == 0 else "FAILED"
         }
 
-    def generate_test_report(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def generate_test_report(self, results: list[dict[str, Any]]) -> dict[str, Any]:
         """Generate a comprehensive test report."""
         total_tests = len(results)
         passed_tests = sum(1 for r in results if r["status"] == "PASSED")
@@ -193,7 +194,7 @@ class EuxisDispatchTestSuite:
 
         return report
 
-    def _generate_recommendations(self, results: List[Dict[str, Any]]) -> List[str]:
+    def _generate_recommendations(self, results: list[dict[str, Any]]) -> list[str]:
         """Generate recommendations based on test results."""
         recommendations = []
 
@@ -221,7 +222,7 @@ class EuxisDispatchTestSuite:
 
         return recommendations
 
-    def run_comprehensive_test_suite(self, include_stress: bool = False, include_coverage: bool = True) -> Dict[str, Any]:
+    def run_comprehensive_test_suite(self, include_stress: bool = False, include_coverage: bool = True) -> dict[str, Any]:
         """Run the complete euxis-dispatch test suite."""
         print("🚀 Starting comprehensive euxis-dispatch test suite...")
         self.start_time = time.time()
@@ -255,7 +256,7 @@ class EuxisDispatchTestSuite:
 
         return report
 
-    def print_test_report(self, report: Dict[str, Any]) -> None:
+    def print_test_report(self, report: dict[str, Any]) -> None:
         """Print a formatted test report."""
         print("\n" + "="*80)
         print("🧪 EUXIS-DISPATCH INTEGRATION TEST REPORT")

@@ -7,14 +7,11 @@ dependency resolution, file locking, and backward compatibility.
 """
 
 import json
-import pytest
 import tempfile
-import threading
-import time
-import os
 from pathlib import Path
-from unittest.mock import Mock, patch
-from typing import Dict, Any, List
+from typing import Any
+
+import pytest
 
 
 class MockEuxisDispatcher:
@@ -26,14 +23,14 @@ class MockEuxisDispatcher:
         self.failed_tasks = set()
         self.stage_order = []
 
-    def execute_manifest(self, manifest_path: str) -> Dict[str, Any]:
+    def execute_manifest(self, manifest_path: str) -> dict[str, Any]:
         """Execute a dispatch manifest with stage ordering and locking."""
-        with open(manifest_path, 'r') as f:
+        with open(manifest_path) as f:
             manifest = json.load(f)
 
         return self._process_manifest(manifest)
 
-    def _process_manifest(self, manifest: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_manifest(self, manifest: dict[str, Any]) -> dict[str, Any]:
         """Process manifest with proper stage ordering and dependency resolution."""
         tasks = manifest.get('dispatches', [])
 
@@ -77,7 +74,7 @@ class MockEuxisDispatcher:
         overall_status = 'SUCCESS' if all(r['status'] == 'SUCCESS' for r in results) else 'FAILED'
         return {'status': overall_status, 'results': results}
 
-    def _group_by_stage(self, tasks: List[Dict[str, Any]]) -> Dict[int, List[Dict[str, Any]]]:
+    def _group_by_stage(self, tasks: list[dict[str, Any]]) -> dict[int, list[dict[str, Any]]]:
         """Group tasks by stage number."""
         stages = {}
         for task in tasks:
@@ -87,7 +84,7 @@ class MockEuxisDispatcher:
             stages[stage].append(task)
         return stages
 
-    def _execute_stage(self, tasks: List[Dict[str, Any]], stage_num: int) -> List[Dict[str, Any]]:
+    def _execute_stage(self, tasks: list[dict[str, Any]], stage_num: int) -> list[dict[str, Any]]:
         """Execute all tasks in a stage, respecting dependencies."""
         self.stage_order.append(stage_num)
 
@@ -119,7 +116,7 @@ class MockEuxisDispatcher:
 
         return results
 
-    def _resolve_dependencies(self, tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _resolve_dependencies(self, tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Resolve task dependencies and return execution order."""
         # Create a map of available agents in this stage
         available_agents = {task['agent'] for task in tasks}
@@ -173,16 +170,16 @@ class MockEuxisDispatcher:
 
         return ordered
 
-    def _task_completed(self, agent_id: str, completed_tasks: List[Dict[str, Any]]) -> bool:
+    def _task_completed(self, agent_id: str, completed_tasks: list[dict[str, Any]]) -> bool:
         """Check if a task has been completed."""
         return any(task['agent'] == agent_id for task in completed_tasks)
 
-    def _depends_on_failed_task(self, task: Dict[str, Any], failed_agent: str) -> bool:
+    def _depends_on_failed_task(self, task: dict[str, Any], failed_agent: str) -> bool:
         """Check if a task depends on a failed agent."""
         deps = task.get('depends_on') or []
         return failed_agent in deps
 
-    def _execute_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
+    def _execute_task(self, task: dict[str, Any]) -> dict[str, Any]:
         """Execute a single task with locking."""
         agent = task['agent']
         locks = task.get('locks') or []
@@ -240,7 +237,7 @@ class TestEuxisDispatchIntegration:
         """Create a mock dispatcher instance."""
         return MockEuxisDispatcher()
 
-    def create_manifest(self, temp_dir: Path, filename: str, manifest_data: Dict[str, Any]) -> Path:
+    def create_manifest(self, temp_dir: Path, filename: str, manifest_data: dict[str, Any]) -> Path:
         """Helper to create a test manifest file."""
         manifest_path = temp_dir / filename
         manifest_path.write_text(json.dumps(manifest_data, indent=2))

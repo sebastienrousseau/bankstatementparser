@@ -6,12 +6,18 @@ Tests end-to-end security controls including path traversal prevention,
 dangerous file access prevention, and input sanitization.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
+
+import pytest
+from lxml import etree
+
 from bankstatementparser.camt_parser import CamtParser
-from bankstatementparser.input_validator import InputValidator, ValidationError
+from bankstatementparser.input_validator import (
+    InputValidator,
+    ValidationError,
+)
 
 
 class TestSecurityBoundaries:
@@ -183,7 +189,7 @@ class TestSecurityBoundaries:
         # Parser should work with original content loaded in memory
         # This tests that the parser doesn't re-read files after initialization
         try:
-            stats = parser.get_statement_stats()
+            parser.get_statement_stats()
             # If this succeeds, the parser used the original safe content
         except Exception as e:
             # If it fails, it should be due to structure, not XXE
@@ -234,7 +240,7 @@ class TestSecurityBoundaries:
         # Check that no external entity content was loaded
         # The parser should process this without resolving entities
         try:
-            stats = parser.get_statement_stats()
+            parser.get_statement_stats()
             # Success means entities were not resolved
         except Exception as e:
             # Failure should be due to structure, not entity resolution
@@ -260,7 +266,7 @@ class TestSecurityBoundaries:
         try:
             parser = CamtParser(str(file_path))
             # If parsing succeeds, operations should still be reasonable
-            stats = parser.get_statement_stats()
+            parser.get_statement_stats()
         except (MemoryError, etree.XMLSyntaxError):
             # Acceptable failure modes for resource exhaustion
             pass

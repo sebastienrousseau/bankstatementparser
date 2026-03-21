@@ -23,8 +23,8 @@ operations.
 
 from .base_parser import BankStatementParser
 from .camt_parser import CamtParser
-from .pain001_parser import Pain001Parser
 from .input_validator import InputValidator, ValidationError
+from .pain001_parser import Pain001Parser
 
 __all__ = [
     'BankStatementParser',

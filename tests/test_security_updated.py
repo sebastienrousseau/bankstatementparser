@@ -5,20 +5,19 @@ Tests that validate existing security measures and ensure they function properly
 This suite validates that security controls are in place rather than testing for vulnerabilities.
 """
 
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
+
 import pandas as pd
-from unittest.mock import patch, mock_open
-from bankstatementparser.camt_parser import CamtParser
-from bankstatementparser.pain001_parser import Pain001Parser
-from bankstatementparser.bank_statement_parsers import (
-    Pain001Parser as BankPain001Parser,
-    Camt053Parser,
-    FileParserError
-)
-from bankstatementparser.input_validator import ValidationError
 from lxml import etree
+
+from bankstatementparser.bank_statement_parsers import (
+    Camt053Parser,
+)
+from bankstatementparser.camt_parser import CamtParser
+from bankstatementparser.input_validator import ValidationError
+from bankstatementparser.pain001_parser import Pain001Parser
 
 
 class TestInputValidationSecurity(unittest.TestCase):
@@ -251,8 +250,8 @@ class TestResourceProtection(unittest.TestCase):
 
     def test_memory_usage_reasonable(self):
         """Test that memory usage remains reasonable."""
-        import sys
         import gc
+        import sys
 
         test_xml = '''<?xml version="1.0"?>
 <Document>
@@ -278,7 +277,7 @@ class TestResourceProtection(unittest.TestCase):
             # Verify reasonable memory usage
             gc.collect()
             parser = CamtParser(test_file)
-            stats = parser.get_statement_stats()
+            parser.get_statement_stats()
 
             if hasattr(sys, 'getsizeof'):
                 tree_size = sys.getsizeof(parser.tree)
@@ -374,7 +373,9 @@ class TestSecurityIntegration(unittest.TestCase):
 
     def test_folder_processing_security(self):
         """Test folder processing security measures."""
-        from bankstatementparser.bank_statement_parsers import process_camt053_folder
+        from bankstatementparser.bank_statement_parsers import (
+            process_camt053_folder,
+        )
 
         # Create a test directory with mixed files
         test_dir = tempfile.mkdtemp()

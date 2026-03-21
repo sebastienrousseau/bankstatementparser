@@ -22,15 +22,15 @@ The actual parser implementations are in standalone modules with compatibility w
 
 import os
 from pathlib import Path
-from lxml import etree
+from typing import Any, Union
+
 import pandas as pd
-from typing import List, Dict, Any, Optional, Tuple, Union
 from lxml.etree import _Element
 
 # Import parsers from standalone modules
 from .camt_parser import CamtParser
-from .pain001_parser import Pain001Parser as StandalonePain001Parser
 from .input_validator import ValidationError
+from .pain001_parser import Pain001Parser as StandalonePain001Parser
 
 
 class FileParserError(Exception):
@@ -70,18 +70,18 @@ class Pain001Parser:
         tree = self._standalone_parser.tree
 
         # Extract payment batches from the already-parsed XML tree.
-        self.batches: List[_Element] = tree.xpath('.//PmtInf')
+        self.batches: list[_Element] = tree.xpath('.//PmtInf')
         self.batches_count: int = len(self.batches)
 
         # Parse payments from each batch.
-        self.payments: List[Dict[str, Any]] = []
+        self.payments: list[dict[str, Any]] = []
         for batch in self.batches:
-            payments: List[Dict[str, Any]] = self._parse_batch(batch)
+            payments: list[dict[str, Any]] = self._parse_batch(batch)
             self.payments.extend(payments)
 
         self.total_payments_count: int = len(self.payments)
 
-    def _parse_batch_header(self, batch: _Element) -> Dict[str, str]:
+    def _parse_batch_header(self, batch: _Element) -> dict[str, str]:
         """
         Parses header data for a payment batch.
 
@@ -106,7 +106,7 @@ class Pain001Parser:
             'execution_date': execution_date
         }
 
-    def _parse_batch(self, batch: _Element) -> List[Dict[str, Any]]:
+    def _parse_batch(self, batch: _Element) -> list[dict[str, Any]]:
         """
         Parses all payments in a payment batch.
 
@@ -117,18 +117,18 @@ class Pain001Parser:
             List[Dict[str, Any]]: A list of dictionaries, each representing a payment.
         """
         # Parse header data for the batch.
-        header: Dict[str, str] = self._parse_batch_header(batch)
+        header: dict[str, str] = self._parse_batch_header(batch)
 
         # Parse each payment in the batch.
-        payments: List[Dict[str, Any]] = []
+        payments: list[dict[str, Any]] = []
         for payment in batch.xpath('.//CdtTrfTxInf'):
-            payment_dict: Dict[str, Any] = self._parse_payment(payment, self._redact_pii)
+            payment_dict: dict[str, Any] = self._parse_payment(payment, self._redact_pii)
             payment_dict.update(header)
             payments.append(payment_dict)
 
         return payments
 
-    def _parse_payment(self, payment: _Element, redact_pii: bool = False) -> Dict[str, Any]:
+    def _parse_payment(self, payment: _Element, redact_pii: bool = False) -> dict[str, Any]:
         """
         Parses a single payment within a payment batch.
 
@@ -151,9 +151,9 @@ class Pain001Parser:
         country: str = (
             payment.xpath('.//Ctry')[0].text if payment.xpath('.//Ctry') else ''
         )
-        references: List[str] = [ref.text for ref in payment.xpath('.//RmtInf/Ustrd')]
+        references: list[str] = [ref.text for ref in payment.xpath('.//RmtInf/Ustrd')]
         reference: str = ' '.join(references)
-        address_lines: List[str] = [line.text for line in payment.xpath('.//AdrLine')]
+        address_lines: list[str] = [line.text for line in payment.xpath('.//AdrLine')]
         address: str = ' '.join(address_lines)
 
         # Apply PII redaction if requested
@@ -261,7 +261,7 @@ class Camt053Parser:
         )
 
 
-def process_camt053_folder(folder: Union[str, Path], redact_pii: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def process_camt053_folder(folder: Union[str, Path], redact_pii: bool = False) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Processes all CAMT.053 files in a specified folder.
 
@@ -275,7 +275,7 @@ def process_camt053_folder(folder: Union[str, Path], redact_pii: bool = False) -
             - statements_df: A DataFrame with parsed statement data.
             - transactions_df: A DataFrame with parsed transaction data.
     """
-    files_df_list: List[Dict[str, str]] = []
+    files_df_list: list[dict[str, str]] = []
     statements_df: pd.DataFrame = pd.DataFrame()
     transactions_df: pd.DataFrame = pd.DataFrame()
 
@@ -288,11 +288,11 @@ def process_camt053_folder(folder: Union[str, Path], redact_pii: bool = False) -
                 parser: Camt053Parser = Camt053Parser(file_path, redact_pii=redact_pii)
 
                 # Append parsed data to the respective DataFrames.
-                statement_rows: List[Dict[str, Any]] = [s for s in parser.statements]
+                statement_rows: list[dict[str, Any]] = list(parser.statements)
                 statements_df = pd.concat(
                     [statements_df, pd.DataFrame(statement_rows)]
                 )
-                transaction_rows: List[Dict[str, Any]] = [t for t in parser.transactions]
+                transaction_rows: list[dict[str, Any]] = list(parser.transactions)
                 transactions_df = pd.concat(
                     [transactions_df, pd.DataFrame(transaction_rows)]
                 )

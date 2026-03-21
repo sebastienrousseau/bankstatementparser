@@ -5,28 +5,30 @@ Covers uncovered lines in: cli.py, camt_parser.py, pain001_parser.py,
 bank_statement_parsers.py, base_parser.py, input_validator.py.
 """
 
-import unittest
-import tempfile
-import os
-import sys
 import json
+import os
 import shutil
+import tempfile
+import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock, mock_open
-import pandas as pd
+from unittest.mock import MagicMock, patch
 
-from bankstatementparser.camt_parser import CamtParser
-from bankstatementparser.pain001_parser import Pain001Parser
 from bankstatementparser.bank_statement_parsers import (
-    Pain001Parser as BankPain001Parser,
     Camt053Parser,
     FileParserError,
     process_camt053_folder,
 )
+from bankstatementparser.bank_statement_parsers import (
+    Pain001Parser as BankPain001Parser,
+)
 from bankstatementparser.base_parser import BankStatementParser
-from bankstatementparser.input_validator import InputValidator, ValidationError
-from bankstatementparser.cli import BankStatementCLI, setup_logging
-
+from bankstatementparser.camt_parser import CamtParser
+from bankstatementparser.cli import BankStatementCLI
+from bankstatementparser.input_validator import (
+    InputValidator,
+    ValidationError,
+)
+from bankstatementparser.pain001_parser import Pain001Parser
 
 # ── Shared XML fixtures ──────────────────────────────────────────────
 
@@ -211,7 +213,7 @@ class TestCamtParserCoverage(unittest.TestCase):
     def test_generic_exception_in_init(self):
         """Cover generic Exception handler in file reading (line 86-89)."""
         # Pass Path to bypass validator, then mock open to raise generic error
-        with patch('builtins.open', side_effect=IOError("disk error")):
+        with patch('builtins.open', side_effect=OSError("disk error")):
             with self.assertRaises((ValidationError, IOError)):
                 CamtParser(Path(self.camt_file))
 
@@ -328,7 +330,7 @@ class TestCamtParserCoverage(unittest.TestCase):
     def test_streaming_generic_error(self):
         """Cover streaming generic Exception (lines 546-548)."""
         parser = CamtParser(self.camt_file)
-        with patch('builtins.open', side_effect=IOError("disk error")):
+        with patch('builtins.open', side_effect=OSError("disk error")):
             with self.assertRaises(ValidationError):
                 list(parser.parse_streaming())
 
@@ -475,7 +477,7 @@ class TestPain001ParserCoverage(unittest.TestCase):
     def test_generic_exception_in_init(self):
         """Cover generic Exception handler (lines 83-87)."""
         # Pass Path to bypass validator
-        with patch('builtins.open', side_effect=IOError("disk error")):
+        with patch('builtins.open', side_effect=OSError("disk error")):
             with self.assertRaises((ValidationError, IOError)):
                 Pain001Parser(Path(self.pain_file))
 
@@ -546,7 +548,7 @@ class TestPain001ParserCoverage(unittest.TestCase):
         """Cover streaming generic Exception (lines 242-244)."""
         parser = Pain001Parser(self.pain_file)
         parser.file_name = 42  # Not a string, skip validation
-        with patch('builtins.open', side_effect=IOError("disk error")):
+        with patch('builtins.open', side_effect=OSError("disk error")):
             with self.assertRaises(ValidationError):
                 list(parser.parse_streaming())
 
@@ -563,7 +565,7 @@ class TestPain001ParserCoverage(unittest.TestCase):
             return original_method(elem, pmt_info, header, redact_pii)
 
         with patch.object(parser, '_parse_streaming_payment', side_effect=side_effect):
-            payments = list(parser.parse_streaming())
+            list(parser.parse_streaming())
             # We only have one payment, so if first fails, we get zero
             # That's OK - we just need to cover the continue path
 
@@ -571,7 +573,7 @@ class TestPain001ParserCoverage(unittest.TestCase):
         """Cover streaming cleanup OSError path (lines 320-321)."""
         parser = Pain001Parser(self.pain_file)
         with patch('os.unlink', side_effect=OSError("cannot delete")):
-            payments = list(parser.parse_streaming())
+            list(parser.parse_streaming())
 
     def test_get_summary(self):
         """Cover get_summary method (lines 371-428)."""
@@ -701,7 +703,7 @@ class TestBankStatementParsersCoverage(unittest.TestCase):
         xml = '<?xml version="1.0"?><Document><BkToCstmrStmt></BkToCstmrStmt></Document>'
         f = _write_xml(xml)
         try:
-            parser = Camt053Parser(f)
+            Camt053Parser(f)
         except (FileParserError, Exception):
             pass  # Expected
         finally:
@@ -771,7 +773,6 @@ class TestBaseParserCoverage(unittest.TestCase):
         try:
             parser = CamtParser(camt_file)
             # Mock parse to raise error after temp file is created
-            original_parse = parser.parse
             def failing_parse(*args, **kwargs):
                 # Create the temp file first (simulating partial write)
                 Path(f"{output_path}.tmp").touch()

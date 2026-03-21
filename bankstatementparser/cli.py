@@ -20,14 +20,19 @@ potential to extend support to other formats.
 """
 
 import argparse
-import os
-import pandas as pd
-import sys
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import Optional
+
+import pandas as pd
+
 from bankstatementparser import CamtParser, Pain001Parser
-from bankstatementparser.input_validator import InputValidator, ValidationError
+from bankstatementparser.input_validator import (
+    InputValidator,
+    ValidationError,
+)
 
 # Set up logging
 logger = logging.getLogger(__name__)

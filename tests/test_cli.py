@@ -1,10 +1,10 @@
 
-import unittest
-import tempfile
 import os
-import sys
+import tempfile
+import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 from bankstatementparser.cli import BankStatementCLI
 from bankstatementparser.input_validator import ValidationError
 

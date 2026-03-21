@@ -20,11 +20,12 @@ Abstract base class for bank statement parsers providing a standardized
 interface for parsing different bank statement formats.
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Union
-import pandas as pd
 import json
+from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any, Union
+
+import pandas as pd
 
 
 class BankStatementParser(ABC):
@@ -68,7 +69,7 @@ class BankStatementParser(ABC):
         pass
 
     @abstractmethod
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """
         Get a summary of the parsed bank statement data.
 
@@ -109,7 +110,7 @@ class BankStatementParser(ABC):
             # Clean up temp file if it exists
             if Path(temp_path).exists():
                 Path(temp_path).unlink()
-            raise IOError(f"Failed to export CSV: {e}") from e
+            raise OSError(f"Failed to export CSV: {e}") from e
 
     def export_json(self, output_path: Union[str, Path]) -> None:
         """
@@ -140,7 +141,7 @@ class BankStatementParser(ABC):
             # Clean up temp file if it exists
             if Path(temp_path).exists():
                 Path(temp_path).unlink()
-            raise IOError(f"Failed to export JSON: {e}") from e
+            raise OSError(f"Failed to export JSON: {e}") from e
 
     def __repr__(self) -> str:
         """

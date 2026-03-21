@@ -1,7 +1,10 @@
-import unittest
-from bankstatementparser.bank_statement_parsers import FileParserError
-from bankstatementparser.bank_statement_parsers import Pain001Parser
 import os
+import unittest
+
+from bankstatementparser.bank_statement_parsers import (
+    FileParserError,
+    Pain001Parser,
+)
 
 
 class TestFileParserError(unittest.TestCase):

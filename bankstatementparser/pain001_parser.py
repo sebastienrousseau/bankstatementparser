@@ -23,11 +23,13 @@ import logging
 import os
 import re
 import tempfile
+from collections.abc import Generator
+from typing import Any, Optional
+from xml.etree.ElementTree import ParseError
+
 import pandas as pd
 from lxml import etree
-from xml.etree.ElementTree import ParseError
-from pathlib import Path
-from typing import Optional, Dict, Any, Generator
+
 from .base_parser import BankStatementParser
 from .input_validator import InputValidator, ValidationError
 
@@ -62,7 +64,7 @@ class Pain001Parser(BankStatementParser):
                 logger.error(f"File validation failed for {file_name}: {e}")
                 # Check if it's a file read error during validation and re-raise with expected message
                 if "Cannot read file for format validation" in str(e):
-                    raise ValidationError(f"Error reading file: {str(e).split(': ')[-1]}")
+                    raise ValidationError(f"Error reading file: {str(e).split(': ')[-1]}") from e
                 raise
             except FileNotFoundError as e:
                 logger.error(f"File validation failed for {file_name}: {e}")
@@ -72,19 +74,19 @@ class Pain001Parser(BankStatementParser):
 
         try:
             # Attempt to open and read the file content
-            with open(file_name, 'r', encoding='utf-8') as f:
+            with open(file_name, encoding='utf-8') as f:
                 data = f.read()
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             logger.error("File %s not found!", file_name)
-            raise FileNotFoundError(f"PAIN.001 file not found: {file_name}")
-        except PermissionError:
+            raise FileNotFoundError(f"PAIN.001 file not found: {file_name}") from exc
+        except PermissionError as exc:
             logger.error("Permission denied reading file: %s", file_name)
-            raise ValidationError(f"Permission denied reading file: {file_name}")
+            raise ValidationError(f"Permission denied reading file: {file_name}") from exc
         except Exception as e:
             logger.error(
                 "An error occurred while reading the file: %s", str(e)
             )
-            raise ValidationError(f"Error reading file: {str(e)}")
+            raise ValidationError(f"Error reading file: {str(e)}") from e
 
         try:
             # Remove the namespace from the XML data for easier parsing
@@ -106,16 +108,16 @@ class Pain001Parser(BankStatementParser):
             # Check if it's a basic XML structure error and use appropriate message
             error_msg = str(e)
             if "Start tag expected" in error_msg and "not found" in error_msg:
-                raise ValidationError(f"Error parsing XML: {error_msg}")
+                raise ValidationError(f"Error parsing XML: {error_msg}") from e
             else:
-                raise ValidationError(f"Invalid XML format: {error_msg}")
+                raise ValidationError(f"Invalid XML format: {error_msg}") from e
         except Exception as e:
             logger.error("An error occurred while parsing the XML: %s", str(e))
             error_msg = str(e)
             if "Start tag expected" in error_msg and "not found" in error_msg:
-                raise ValidationError(f"Error parsing XML: {error_msg}")
+                raise ValidationError(f"Error parsing XML: {error_msg}") from e
             else:
-                raise ValidationError(f"Invalid XML format: {error_msg}")
+                raise ValidationError(f"Invalid XML format: {error_msg}") from e
 
     def parse(self, output_file: Optional[str] = None, redact_pii: bool = False) -> pd.DataFrame:
         """
@@ -220,9 +222,9 @@ class Pain001Parser(BankStatementParser):
 
             return df
         except Exception as e:
-            raise ParseError(f"Error parsing PAIN.001 file: {e}")
+            raise ParseError(f"Error parsing PAIN.001 file: {e}") from e
 
-    def parse_streaming(self, redact_pii: bool = False) -> Generator[Dict[str, Any], None, None]:
+    def parse_streaming(self, redact_pii: bool = False) -> Generator[dict[str, Any], None, None]:
         """
         Parse the PAIN.001 file using streaming XML parsing for large files.
         Yields payment data incrementally to keep memory usage low.
@@ -248,17 +250,17 @@ class Pain001Parser(BankStatementParser):
 
         try:
             # Read file content for namespace removal
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 data = f.read()
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             logger.error("File %s not found for streaming!", file_path)
-            raise FileNotFoundError(f"PAIN.001 file not found: {file_path}")
-        except PermissionError:
+            raise FileNotFoundError(f"PAIN.001 file not found: {file_path}") from exc
+        except PermissionError as exc:
             logger.error("Permission denied reading file for streaming: %s", file_path)
-            raise ValidationError(f"Permission denied reading file: {file_path}")
+            raise ValidationError(f"Permission denied reading file: {file_path}") from exc
         except Exception as e:
             logger.error("Error reading file for streaming: %s", str(e))
-            raise ValidationError(f"Error reading file {file_path}: {str(e)}")
+            raise ValidationError(f"Error reading file {file_path}: {str(e)}") from e
 
         # Remove namespace and write to temp file for streaming
         data = re.sub(
@@ -270,7 +272,7 @@ class Pain001Parser(BankStatementParser):
                 f.write(data)
 
             # Set up iterative XML parser with security settings
-            parser = etree.XMLParser(
+            etree.XMLParser(
                 recover=False,
                 encoding='utf-8',
                 resolve_entities=False,
@@ -279,8 +281,8 @@ class Pain001Parser(BankStatementParser):
             )
 
             # Track context for header and payment info
-            header_fields: Dict[str, Any] = {}
-            current_payment_info: Dict[str, Any] = {}
+            header_fields: dict[str, Any] = {}
+            current_payment_info: dict[str, Any] = {}
 
             # Use iterparse to process elements incrementally
             for event, elem in etree.iterparse(temp_file, events=('start', 'end')):
@@ -356,7 +358,7 @@ class Pain001Parser(BankStatementParser):
             except OSError:
                 pass  # Ignore if temp file cleanup fails
 
-    def _parse_streaming_payment(self, tx_elem: etree._Element, payment_info: Dict[str, Any], header_fields: Dict[str, Any], redact_pii: bool = False) -> Dict[str, Any]:
+    def _parse_streaming_payment(self, tx_elem: etree._Element, payment_info: dict[str, Any], header_fields: dict[str, Any], redact_pii: bool = False) -> dict[str, Any]:
         """
         Parse a single credit transfer transaction element for streaming mode.
 
@@ -404,7 +406,7 @@ class Pain001Parser(BankStatementParser):
 
         return payment
 
-    def get_summary(self, redact_pii: bool = False) -> Dict[str, Any]:
+    def get_summary(self, redact_pii: bool = False) -> dict[str, Any]:
         """
         Get a summary of the parsed PAIN.001 statement data.
 

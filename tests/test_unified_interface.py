@@ -7,19 +7,20 @@ concrete implementations provide consistent behavior for format detection,
 parsing, error handling, and export functionality.
 """
 
-import unittest
+import json
 import os
 import tempfile
-import json
-import pandas as pd
+import unittest
 from pathlib import Path
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch
 from xml.etree.ElementTree import ParseError
+
+import pandas as pd
 
 from bankstatementparser.base_parser import BankStatementParser
 from bankstatementparser.camt_parser import CamtParser
-from bankstatementparser.pain001_parser import Pain001Parser
 from bankstatementparser.input_validator import ValidationError
+from bankstatementparser.pain001_parser import Pain001Parser
 
 
 class TestUnifiedParserInterface(unittest.TestCase):
@@ -61,15 +62,15 @@ class TestUnifiedParserInterface(unittest.TestCase):
         for parser in parsers:
             # Test required abstract methods exist and are callable
             self.assertTrue(hasattr(parser, 'parse'))
-            self.assertTrue(callable(getattr(parser, 'parse')))
+            self.assertTrue(callable(parser.parse))
             self.assertTrue(hasattr(parser, 'get_summary'))
-            self.assertTrue(callable(getattr(parser, 'get_summary')))
+            self.assertTrue(callable(parser.get_summary))
 
             # Test inherited concrete methods exist
             self.assertTrue(hasattr(parser, 'export_csv'))
-            self.assertTrue(callable(getattr(parser, 'export_csv')))
+            self.assertTrue(callable(parser.export_csv))
             self.assertTrue(hasattr(parser, 'export_json'))
-            self.assertTrue(callable(getattr(parser, 'export_json')))
+            self.assertTrue(callable(parser.export_json))
 
     def test_parse_method_returns_dataframe(self):
         """Test that parse() method returns a pandas DataFrame for all parsers."""
@@ -149,7 +150,7 @@ class TestUnifiedParserInterface(unittest.TestCase):
                     self.assertTrue(os.path.exists(tmp_file.name))
 
                     # Verify file has content
-                    with open(tmp_file.name, 'r') as f:
+                    with open(tmp_file.name) as f:
                         content = f.read()
                         self.assertGreater(len(content), 0,
                                          f"Empty CSV export for {parser_name}")
@@ -180,13 +181,13 @@ class TestUnifiedParserInterface(unittest.TestCase):
                     self.assertTrue(os.path.exists(tmp_file.name))
 
                     # Verify file has content
-                    with open(tmp_file.name, 'r') as f:
+                    with open(tmp_file.name) as f:
                         content = f.read()
                         self.assertGreater(len(content), 0,
                                          f"Empty JSON export for {parser_name}")
 
                     # Verify it's valid JSON with expected structure
-                    with open(tmp_file.name, 'r') as f:
+                    with open(tmp_file.name) as f:
                         data = json.load(f)
                         self.assertIsInstance(data, dict)
                         self.assertIn('summary', data)
@@ -257,7 +258,7 @@ class TestUnifiedParserInterface(unittest.TestCase):
         if self.pain001_parser:
             parsers.append(('PAIN001', self.pain001_parser))
 
-        for parser_name, parser in parsers:
+        for _parser_name, parser in parsers:
             # Test __repr__ - CamtParser returns statement stats, others might use default
             repr_str = repr(parser)
             self.assertIsInstance(repr_str, str)
@@ -417,7 +418,7 @@ class TestUnifiedParserInterface(unittest.TestCase):
                     # parse() should fail or return empty results
                     df = parser.parse()
                     self.assertIsInstance(df, pd.DataFrame)
-                except (ValidationError, Exception) as e:
+                except (ValidationError, Exception):
                     # Either constructor or parse can fail - both acceptable
                     pass
 
@@ -426,7 +427,7 @@ class TestUnifiedParserInterface(unittest.TestCase):
                     # parse() should fail or return empty results
                     df = parser.parse()
                     self.assertIsInstance(df, pd.DataFrame)
-                except (ValidationError, Exception) as e:
+                except (ValidationError, Exception):
                     # Either constructor or parse can fail - both acceptable
                     pass
 
@@ -502,7 +503,7 @@ class TestParserFactoryPattern(unittest.TestCase):
             parsers['PAIN001'] = Pain001Parser(pain001_file)
 
         # Test that all created parsers implement the interface properly
-        for format_name, parser in parsers.items():
+        for _format_name, parser in parsers.items():
             self.assertIsInstance(parser, BankStatementParser)
 
             # Test polymorphic usage

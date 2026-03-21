@@ -4,12 +4,16 @@ Comprehensive tests for input_validator module.
 Tests to achieve high coverage of input validation functionality.
 """
 
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
 from pathlib import Path
-from unittest.mock import patch, mock_open
-from bankstatementparser.input_validator import InputValidator, ValidationError
+from unittest.mock import patch
+
+from bankstatementparser.input_validator import (
+    InputValidator,
+    ValidationError,
+)
 
 
 class TestInputValidator(unittest.TestCase):
@@ -141,7 +145,7 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_file_path_file_too_small(self):
         """Test rejection of files that are too small."""
         test_file = os.path.join(self.temp_dir, "empty.xml")
-        with open(test_file, 'w') as f:
+        with open(test_file, 'w'):
             pass  # Create empty file
 
         with self.assertRaises(ValidationError) as cm:

@@ -7,12 +7,13 @@ and performance characteristics of the dispatch system.
 """
 
 import json
-import pytest
 import tempfile
 import time
-import threading
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any
+
+import pytest
+
 from tests.integration.test_euxis_dispatch import MockEuxisDispatcher
 
 
@@ -30,7 +31,7 @@ class TestEuxisDispatchPerformance:
         """Create a mock dispatcher instance."""
         return MockEuxisDispatcher()
 
-    def create_manifest(self, temp_dir: Path, filename: str, manifest_data: Dict[str, Any]) -> Path:
+    def create_manifest(self, temp_dir: Path, filename: str, manifest_data: dict[str, Any]) -> Path:
         """Helper to create a test manifest file."""
         manifest_path = temp_dir / filename
         manifest_path.write_text(json.dumps(manifest_data, indent=2))

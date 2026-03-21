@@ -23,10 +23,12 @@ import logging
 import os
 import re
 import tempfile
-from typing import Dict, List, Optional, Union, Any, Generator
+from collections.abc import Generator
+from typing import Any
+
 import pandas as pd
 from lxml import etree
-from pathlib import Path
+
 from .base_parser import BankStatementParser
 from .input_validator import InputValidator, ValidationError
 
@@ -75,18 +77,18 @@ class CamtParser(BankStatementParser):
 
         try:
             # Attempt to open and read the file content
-            with open(file_name, 'r', encoding='utf-8') as f:
+            with open(file_name, encoding='utf-8') as f:
                 data = f.read()
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             logger.error("File %s not found!", file_name)
-            raise FileNotFoundError(f"CAMT file not found: {file_name}")
-        except PermissionError:
+            raise FileNotFoundError(f"CAMT file not found: {file_name}") from exc
+        except PermissionError as exc:
             logger.error("Permission denied reading file: %s", file_name)
-            raise ValidationError(f"Permission denied reading file: {file_name}")
+            raise ValidationError(f"Permission denied reading file: {file_name}") from exc
         except Exception as e:
             logger.error(
                 "An error occurred while reading the file: %s", str(e))
-            raise ValidationError(f"Error reading file {file_name}: {str(e)}")
+            raise ValidationError(f"Error reading file {file_name}: {str(e)}") from e
 
         try:
             # Remove the namespace from the XML data for easier parsing
@@ -189,7 +191,7 @@ class CamtParser(BankStatementParser):
         # Convert the list of balances to a DataFrame and return
         return pd.DataFrame(balances)
 
-    def _get_balances_for_statement(self, statement: etree._Element) -> List[Dict[str, Any]]:
+    def _get_balances_for_statement(self, statement: etree._Element) -> list[dict[str, Any]]:
         """
         Helper method to extract balances for a single statement.
 
@@ -281,7 +283,7 @@ class CamtParser(BankStatementParser):
         # Convert the list of transactions to a DataFrame and return
         return pd.DataFrame(transactions)
 
-    def _get_transactions_for_statement(self, statement: etree._Element, redact_pii: bool = False) -> List[Dict[str, Any]]:
+    def _get_transactions_for_statement(self, statement: etree._Element, redact_pii: bool = False) -> list[dict[str, Any]]:
         """
         Helper method to extract transactions for a single statement.
 
@@ -363,7 +365,7 @@ class CamtParser(BankStatementParser):
         transactions = []
 
         # Reconstruct transactions from batched data
-        for i, (amount, currency, cdt_dbt, debtor, creditor, reference, val_date, book_date, debtor_addr, creditor_addr) in enumerate(
+        for _i, (amount, currency, cdt_dbt, debtor, creditor, reference, val_date, book_date, debtor_addr, creditor_addr) in enumerate(
             zip(amounts, currencies, cdt_dbt_inds, debtors, creditors, references, value_dates, booking_dates, debtor_addresses, creditor_addresses)
         ):
             # Apply debit sign adjustment
@@ -449,7 +451,7 @@ class CamtParser(BankStatementParser):
         # Convert the list of statistics to a DataFrame and return
         return pd.DataFrame(stats)
 
-    def _get_statement_stats(self, statement: etree._Element, redact_pii: bool = False) -> Dict[str, Any]:
+    def _get_statement_stats(self, statement: etree._Element, redact_pii: bool = False) -> dict[str, Any]:
         """
         Extracts statistics for a single bank statement.
 
@@ -519,7 +521,7 @@ class CamtParser(BankStatementParser):
         """
         return self.get_transactions(redact_pii=redact_pii)
 
-    def parse_streaming(self, redact_pii: bool = False) -> Generator[Dict[str, Any], None, None]:
+    def parse_streaming(self, redact_pii: bool = False) -> Generator[dict[str, Any], None, None]:
         """
         Parse the CAMT file using streaming XML parsing for large files.
         Yields transaction data incrementally to keep memory usage low.
@@ -535,17 +537,17 @@ class CamtParser(BankStatementParser):
 
         try:
             # Read file content for namespace removal
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 data = f.read()
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             logger.error("File %s not found for streaming!", file_path)
-            raise FileNotFoundError(f"CAMT file not found: {file_path}")
-        except PermissionError:
+            raise FileNotFoundError(f"CAMT file not found: {file_path}") from exc
+        except PermissionError as exc:
             logger.error("Permission denied reading file for streaming: %s", file_path)
-            raise ValidationError(f"Permission denied reading file: {file_path}")
+            raise ValidationError(f"Permission denied reading file: {file_path}") from exc
         except Exception as e:
             logger.error("Error reading file for streaming: %s", str(e))
-            raise ValidationError(f"Error reading file {file_path}: {str(e)}")
+            raise ValidationError(f"Error reading file {file_path}: {str(e)}") from e
 
         # Remove namespace and write to temp file for streaming
         data = re.sub(
@@ -557,7 +559,7 @@ class CamtParser(BankStatementParser):
                 f.write(data)
 
             # Set up iterative XML parser with security settings
-            parser = etree.XMLParser(
+            etree.XMLParser(
                 recover=False,
                 encoding='utf-8',
                 resolve_entities=False,
@@ -605,7 +607,7 @@ class CamtParser(BankStatementParser):
             except OSError:
                 pass  # Ignore if temp file cleanup fails
 
-    def _parse_streaming_transaction(self, entry_elem: etree._Element, account_id: str, redact_pii: bool = False) -> Dict[str, Any]:
+    def _parse_streaming_transaction(self, entry_elem: etree._Element, account_id: str, redact_pii: bool = False) -> dict[str, Any]:
         """
         Parse a single transaction entry element for streaming mode.
 
@@ -692,7 +694,7 @@ class CamtParser(BankStatementParser):
 
         return result
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """
         Get a summary of the parsed CAMT statement data.
 

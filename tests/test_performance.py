@@ -8,18 +8,18 @@ Tests for performance, memory efficiency, and streaming functionality including:
 - Memory usage monitoring for large files
 """
 
-import unittest
-import time
-import tempfile
 import os
-import sys
-import subprocess
+import tempfile
+import time
+import unittest
 from pathlib import Path
 from unittest.mock import patch
+
 import pandas as pd
+
 from bankstatementparser.camt_parser import CamtParser
-from bankstatementparser.pain001_parser import Pain001Parser
 from bankstatementparser.cli import BankStatementCLI
+from bankstatementparser.pain001_parser import Pain001Parser
 
 
 class TestPerformanceBenchmarks(unittest.TestCase):
@@ -109,7 +109,7 @@ class TestStreamingFunctionality(unittest.TestCase):
             self.skipTest("parse_streaming method not implemented in CamtParser")
 
         # Convert streaming results to DataFrame for comparison
-        streaming_df = pd.DataFrame(streaming_results)
+        pd.DataFrame(streaming_results)
 
         # Basic validation - both should have data
         self.assertGreater(len(standard_results), 0, "Standard parsing should return data")
@@ -143,7 +143,7 @@ class TestStreamingFunctionality(unittest.TestCase):
             self.skipTest("parse_streaming method not implemented in Pain001Parser")
 
         # Convert streaming results to DataFrame for comparison
-        streaming_df = pd.DataFrame(streaming_results)
+        pd.DataFrame(streaming_results)
 
         # Basic validation - both should have data
         self.assertGreater(len(standard_results), 0, "Standard parsing should return data")
@@ -171,7 +171,7 @@ class TestStreamingFunctionality(unittest.TestCase):
         element_counts = []
         transaction_count = 0
 
-        for transaction_data in parser.parse_streaming():
+        for _transaction_data in parser.parse_streaming():
             transaction_count += 1
 
             # Check if parser has tree attribute and count elements
@@ -237,7 +237,7 @@ class TestCLIStreamingFlag(unittest.TestCase):
 
         with patch('sys.argv', ['bankstatementparser'] + test_args):
             # Mock sys.exit to prevent actual exit during test
-            with patch('sys.exit') as mock_exit:
+            with patch('sys.exit'):
                 # Should parse arguments successfully
                 args = cli.parser.parse_args(test_args)
 

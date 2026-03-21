@@ -7,11 +7,12 @@ and other edge cases for robust dispatch behavior.
 """
 
 import json
-import pytest
 import tempfile
-import os
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any
+
+import pytest
+
 from tests.integration.test_euxis_dispatch import MockEuxisDispatcher
 
 
@@ -29,7 +30,7 @@ class TestEuxisDispatchEdgeCases:
         """Create a mock dispatcher instance."""
         return MockEuxisDispatcher()
 
-    def create_manifest(self, temp_dir: Path, filename: str, manifest_data: Dict[str, Any]) -> Path:
+    def create_manifest(self, temp_dir: Path, filename: str, manifest_data: dict[str, Any]) -> Path:
         """Helper to create a test manifest file."""
         manifest_path = temp_dir / filename
         manifest_path.write_text(json.dumps(manifest_data, indent=2))
@@ -129,7 +130,7 @@ class TestEuxisDispatchEdgeCases:
         }
 
         manifest_path = self.create_manifest(temp_dir, "invalid_stages.json", manifest_data)
-        result = dispatcher.execute_manifest(str(manifest_path))
+        dispatcher.execute_manifest(str(manifest_path))
 
         # Should handle gracefully - negative stages might be treated as 0
         # All tasks should execute in some order

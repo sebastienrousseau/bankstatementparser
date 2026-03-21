@@ -20,12 +20,12 @@ Provides comprehensive input validation for file paths, sizes, and formats
 used throughout the bank statement parser.
 """
 
+import logging
+import mimetypes
 import os
 import re
-import mimetypes
 from pathlib import Path
-from typing import Optional, Tuple
-import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ class InputValidator:
         try:
             path = Path(file_path).resolve()
         except (OSError, ValueError) as e:
-            raise ValidationError(f"Invalid file path format: {e}")
+            raise ValidationError(f"Invalid file path format: {e}") from e
 
         # Check for symlink attacks: reject if the original path is a symlink
         # pointing outside its parent directory
@@ -120,10 +120,10 @@ class InputValidator:
             link_parent = raw_path.parent.resolve()
             try:
                 link_target.relative_to(link_parent)
-            except ValueError:
+            except ValueError as exc:
                 raise ValidationError(
                     f"Symlink target is outside the parent directory: {file_path}"
-                )
+                ) from exc
 
         # Additional security check on resolved path
         self._check_dangerous_patterns(str(path))
@@ -180,7 +180,7 @@ class InputValidator:
         try:
             path = Path(file_path).resolve()
         except (OSError, ValueError) as e:
-            raise ValidationError(f"Invalid output file path format: {e}")
+            raise ValidationError(f"Invalid output file path format: {e}") from e
 
         # Check parent directory exists and is writable
         parent_dir = path.parent
@@ -188,7 +188,7 @@ class InputValidator:
             try:
                 parent_dir.mkdir(parents=True, exist_ok=True)
             except OSError as e:
-                raise ValidationError(f"Cannot create output directory: {e}")
+                raise ValidationError(f"Cannot create output directory: {e}") from e
 
         if not os.access(parent_dir, os.W_OK):
             raise ValidationError(f"Output directory is not writable: {parent_dir}")
@@ -221,11 +221,11 @@ class InputValidator:
         ]
         for char in dangerous_unicode:
             if char in file_path:
-                raise ValidationError(f"Potentially dangerous path pattern detected")
+                raise ValidationError("Potentially dangerous path pattern detected")
 
         for pattern in self.DANGEROUS_PATTERNS:
             if re.search(pattern, file_path, re.IGNORECASE):
-                raise ValidationError(f"Potentially dangerous path pattern detected")
+                raise ValidationError("Potentially dangerous path pattern detected")
 
         # Check for blocked directories (case-insensitive comparison)
         # Also check the original path to catch Windows paths on Unix systems
@@ -235,7 +235,7 @@ class InputValidator:
         for blocked_dir in self.BLOCKED_DIRECTORIES:
             blocked_dir_lower = blocked_dir.lower()
             if abs_path.startswith(blocked_dir_lower) or original_path.startswith(blocked_dir_lower):
-                raise ValidationError(f"Access to system directory blocked: file not found or not accessible")
+                raise ValidationError("Access to system directory blocked: file not found or not accessible")
 
     def _validate_input_extension(self, path: Path) -> None:
         """Validate input file extension."""
@@ -260,7 +260,7 @@ class InputValidator:
         try:
             file_size = path.stat().st_size
         except OSError as e:
-            raise ValidationError(f"Cannot determine file size: {e}")
+            raise ValidationError(f"Cannot determine file size: {e}") from e
 
         if file_size < self.MIN_FILE_SIZE_BYTES:
             raise ValidationError(f"File is too small ({file_size} bytes). Minimum: {self.MIN_FILE_SIZE_BYTES} bytes")
@@ -310,8 +310,8 @@ class InputValidator:
             # Validate UTF-8 encoding
             try:
                 header.decode('utf-8')
-            except UnicodeDecodeError:
-                raise ValidationError(f"File encoding is not valid UTF-8: {path}")
+            except UnicodeDecodeError as exc:
+                raise ValidationError(f"File encoding is not valid UTF-8: {path}") from exc
 
             # Check for XML declaration or root elements
             header_str = header.decode('utf-8', errors='ignore').lower()
@@ -335,10 +335,10 @@ class InputValidator:
                 else:
                     logger.warning(f"File may not be a valid XML document: {path}")
 
-        except UnicodeDecodeError:
-            raise ValidationError(f"File encoding is not valid UTF-8: {path}")
+        except UnicodeDecodeError as exc:
+            raise ValidationError(f"File encoding is not valid UTF-8: {path}") from exc
         except OSError as e:
-            raise ValidationError(f"Cannot read file for format validation: {e}")
+            raise ValidationError(f"Cannot read file for format validation: {e}") from e
 
     def get_safe_filename(self, filename: str) -> str:
         """

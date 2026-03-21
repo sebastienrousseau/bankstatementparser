@@ -1,10 +1,11 @@
-import unittest
 import os
 import tempfile
-from unittest.mock import patch, mock_open
+import unittest
+from unittest.mock import patch
 from xml.etree.ElementTree import ParseError
-from bankstatementparser.pain001_parser import Pain001Parser
+
 from bankstatementparser.input_validator import ValidationError
+from bankstatementparser.pain001_parser import Pain001Parser
 
 
 # Define additional test cases
@@ -96,7 +97,7 @@ class TestPain001Parser(unittest.TestCase):
 
     def test_file_read_error(self):
         """Test general file reading error."""
-        with patch("builtins.open", side_effect=IOError("I/O error")):
+        with patch("builtins.open", side_effect=OSError("I/O error")):
             with tempfile.NamedTemporaryFile(suffix='.xml', delete=False) as temp_file:
                 temp_file.write(b'<test/>')
                 temp_path = temp_file.name

@@ -5,21 +5,16 @@ Covers partial branches in: pain001_parser.py, camt_parser.py,
 bank_statement_parsers.py.
 """
 
-import unittest
-import tempfile
 import os
-from pathlib import Path
-from unittest.mock import patch
-import pandas as pd
+import tempfile
+import unittest
 
-from bankstatementparser.camt_parser import CamtParser
-from bankstatementparser.pain001_parser import Pain001Parser
 from bankstatementparser.bank_statement_parsers import (
-    Pain001Parser as BankPain001Parser,
     Camt053Parser,
-    FileParserError,
     process_camt053_folder,
 )
+from bankstatementparser.camt_parser import CamtParser
+from bankstatementparser.pain001_parser import Pain001Parser
 
 
 def _write_xml(content: str) -> str:
