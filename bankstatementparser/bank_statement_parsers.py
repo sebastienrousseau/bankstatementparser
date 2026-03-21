@@ -35,6 +35,7 @@ from .pain001_parser import Pain001Parser as StandalonePain001Parser
 
 class FileParserError(Exception):
     """Custom exception for file parsing errors."""
+
     pass
 
 
@@ -51,7 +52,9 @@ class Pain001Parser:
         total_payments_count (int): The total number of payments across all batches.
     """
 
-    def __init__(self, file_name: Union[str, Path], redact_pii: bool = False) -> None:
+    def __init__(
+        self, file_name: Union[str, Path], redact_pii: bool = False
+    ) -> None:
         """
         Initializes the parser and parses payments from the given file.
 
@@ -66,11 +69,13 @@ class Pain001Parser:
         self._redact_pii = redact_pii
 
         # Delegate to the standalone parser for file I/O and XML parsing
-        self._standalone_parser = StandalonePain001Parser(str(file_name))
+        self._standalone_parser = StandalonePain001Parser(
+            str(file_name)
+        )
         tree = self._standalone_parser.tree
 
         # Extract payment batches from the already-parsed XML tree.
-        self.batches: list[_Element] = tree.xpath('.//PmtInf')
+        self.batches: list[_Element] = tree.xpath(".//PmtInf")
         self.batches_count: int = len(self.batches)
 
         # Parse payments from each batch.
@@ -92,18 +97,20 @@ class Pain001Parser:
             Dict[str, str]: A dictionary containing header information of the batch.
         """
         # Extract relevant information from the batch header.
-        execution_date: str = batch.xpath('.//ReqdExctnDt')[0].text
-        debtor_name: str = batch.xpath('.//Dbtr/Nm')[0].text
+        execution_date: str = batch.xpath(".//ReqdExctnDt")[0].text
+        debtor_name: str = batch.xpath(".//Dbtr/Nm")[0].text
         debtor_account: str = (
-            batch.xpath('.//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id')[0].text
-            if batch.xpath('.//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id')
-            else ''
+            batch.xpath(".//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id")[
+                0
+            ].text
+            if batch.xpath(".//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id")
+            else ""
         )
 
         return {
-            'debtor_name': debtor_name,
-            'debtor_account': debtor_account,
-            'execution_date': execution_date
+            "debtor_name": debtor_name,
+            "debtor_account": debtor_account,
+            "execution_date": execution_date,
         }
 
     def _parse_batch(self, batch: _Element) -> list[dict[str, Any]]:
@@ -121,14 +128,18 @@ class Pain001Parser:
 
         # Parse each payment in the batch.
         payments: list[dict[str, Any]] = []
-        for payment in batch.xpath('.//CdtTrfTxInf'):
-            payment_dict: dict[str, Any] = self._parse_payment(payment, self._redact_pii)
+        for payment in batch.xpath(".//CdtTrfTxInf"):
+            payment_dict: dict[str, Any] = self._parse_payment(
+                payment, self._redact_pii
+            )
             payment_dict.update(header)
             payments.append(payment_dict)
 
         return payments
 
-    def _parse_payment(self, payment: _Element, redact_pii: bool = False) -> dict[str, Any]:
+    def _parse_payment(
+        self, payment: _Element, redact_pii: bool = False
+    ) -> dict[str, Any]:
         """
         Parses a single payment within a payment batch.
 
@@ -140,34 +151,44 @@ class Pain001Parser:
             Dict[str, Any]: A dictionary containing information about the payment.
         """
         # Extract relevant information from the payment.
-        amount: str = payment.xpath('.//InstdAmt')[0].text
-        currency: str = payment.xpath('.//InstdAmt/@Ccy')[0]
-        name: str = payment.xpath('.//Cdtr/Nm')[0].text
+        amount: str = payment.xpath(".//InstdAmt")[0].text
+        currency: str = payment.xpath(".//InstdAmt/@Ccy")[0]
+        name: str = payment.xpath(".//Cdtr/Nm")[0].text
         account: str = (
-            payment.xpath('.//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id')[0].text
-            if payment.xpath('.//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id')
-            else ''
+            payment.xpath(".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id")[
+                0
+            ].text
+            if payment.xpath(
+                ".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id"
+            )
+            else ""
         )
         country: str = (
-            payment.xpath('.//Ctry')[0].text if payment.xpath('.//Ctry') else ''
+            payment.xpath(".//Ctry")[0].text
+            if payment.xpath(".//Ctry")
+            else ""
         )
-        references: list[str] = [ref.text for ref in payment.xpath('.//RmtInf/Ustrd')]
-        reference: str = ' '.join(references)
-        address_lines: list[str] = [line.text for line in payment.xpath('.//AdrLine')]
-        address: str = ' '.join(address_lines)
+        references: list[str] = [
+            ref.text for ref in payment.xpath(".//RmtInf/Ustrd")
+        ]
+        reference: str = " ".join(references)
+        address_lines: list[str] = [
+            line.text for line in payment.xpath(".//AdrLine")
+        ]
+        address: str = " ".join(address_lines)
 
         # Apply PII redaction if requested
         if redact_pii:
-            address = '***REDACTED***' if address else address
+            address = "***REDACTED***" if address else address
 
         return {
-            'Name': name,
-            'Amount': float(amount),
-            'Currency': currency,
-            'Reference': reference,
-            'CreditorAccount': account,
-            'Country': country,
-            'Address': address
+            "Name": name,
+            "Amount": float(amount),
+            "Currency": currency,
+            "Reference": reference,
+            "CreditorAccount": account,
+            "Country": country,
+            "Address": address,
         }
 
     def __repr__(self) -> str:
@@ -196,12 +217,14 @@ class Camt053Parser:
 
     # Balance type definitions.
     DEFINITIONS = {
-        'OPBD': 'Opening booked balance',
-        'CLBD': 'Closing booked balance',
-        'CLAV': 'Closing available balance'
+        "OPBD": "Opening booked balance",
+        "CLBD": "Closing booked balance",
+        "CLAV": "Closing available balance",
     }
 
-    def __init__(self, file_name: Union[str, Path], redact_pii: bool = False) -> None:
+    def __init__(
+        self, file_name: Union[str, Path], redact_pii: bool = False
+    ) -> None:
         """
         Initializes the parser and parses statements and transactions from the given file.
 
@@ -220,32 +243,57 @@ class Camt053Parser:
 
             # Convert standalone parser output to original API format
             # Get data from enhanced parser
-            balances_df = self._parser.get_account_balances(redact_pii=redact_pii)
-            transactions_df = self._parser.get_transactions(redact_pii=redact_pii)
-            stats_df = self._parser.get_statement_stats(redact_pii=redact_pii)
+            balances_df = self._parser.get_account_balances(
+                redact_pii=redact_pii
+            )
+            transactions_df = self._parser.get_transactions(
+                redact_pii=redact_pii
+            )
+            stats_df = self._parser.get_statement_stats(
+                redact_pii=redact_pii
+            )
 
             # Convert to original format
-            self.statements = stats_df.to_dict('records') if not stats_df.empty else []
-            self.transactions = transactions_df.to_dict('records') if not transactions_df.empty else []
+            self.statements = (
+                stats_df.to_dict("records")
+                if not stats_df.empty
+                else []
+            )
+            self.transactions = (
+                transactions_df.to_dict("records")
+                if not transactions_df.empty
+                else []
+            )
 
             # Add balance information to statements if available
             if not balances_df.empty:
-                balances_by_account = balances_df.groupby('AccountId').apply(
-                    lambda x: {row['Code']: {'Amount': row['Amount'], 'Description': row['Description']}
-                             for _, row in x.iterrows()}
-                ).to_dict()
+                balances_by_account = (
+                    balances_df.groupby("AccountId")
+                    .apply(
+                        lambda x: {
+                            row["Code"]: {
+                                "Amount": row["Amount"],
+                                "Description": row["Description"],
+                            }
+                            for _, row in x.iterrows()
+                        }
+                    )
+                    .to_dict()
+                )
 
                 for stmt in self.statements:
-                    account_id = stmt.get('AccountId')
+                    account_id = stmt.get("AccountId")
                     if account_id in balances_by_account:
                         stmt.update(balances_by_account[account_id])
 
         except ValidationError as e:
-            raise FileParserError('Not a valid CAMT.053 file') from e
+            raise FileParserError("Not a valid CAMT.053 file") from e
         except FileNotFoundError as e:
-            raise FileNotFoundError(f"File {file_name} not found!") from e
+            raise FileNotFoundError(
+                f"File {file_name} not found!"
+            ) from e
         except Exception as e:
-            raise FileParserError('Not a valid CAMT.053 file') from e
+            raise FileParserError("Not a valid CAMT.053 file") from e
 
     def __repr__(self) -> str:
         """
@@ -261,7 +309,9 @@ class Camt053Parser:
         )
 
 
-def process_camt053_folder(folder: Union[str, Path], redact_pii: bool = False) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def process_camt053_folder(
+    folder: Union[str, Path], redact_pii: bool = False
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Processes all CAMT.053 files in a specified folder.
 
@@ -285,29 +335,33 @@ def process_camt053_folder(folder: Union[str, Path], redact_pii: bool = False) -
         if os.path.isfile(file_path):
             try:
                 # Attempt to parse the file using the compatibility wrapper.
-                parser: Camt053Parser = Camt053Parser(file_path, redact_pii=redact_pii)
+                parser: Camt053Parser = Camt053Parser(
+                    file_path, redact_pii=redact_pii
+                )
 
                 # Append parsed data to the respective DataFrames.
-                statement_rows: list[dict[str, Any]] = list(parser.statements)
+                statement_rows: list[dict[str, Any]] = list(
+                    parser.statements
+                )
                 statements_df = pd.concat(
                     [statements_df, pd.DataFrame(statement_rows)]
                 )
-                transaction_rows: list[dict[str, Any]] = list(parser.transactions)
+                transaction_rows: list[dict[str, Any]] = list(
+                    parser.transactions
+                )
                 transactions_df = pd.concat(
                     [transactions_df, pd.DataFrame(transaction_rows)]
                 )
 
                 # Record the successful processing of the file.
-                files_df_list.append({
-                    'FileName': file_name,
-                    'Status': 'Success'
-                })
+                files_df_list.append(
+                    {"FileName": file_name, "Status": "Success"}
+                )
             except Exception as e:
                 # Record any failures along with the associated error message.
-                files_df_list.append({
-                    'FileName': file_name,
-                    'Status': f'Failed: {e}'
-                })
+                files_df_list.append(
+                    {"FileName": file_name, "Status": f"Failed: {e}"}
+                )
 
     # Convert the list of file statuses to a DataFrame.
     files_df: pd.DataFrame = pd.DataFrame(files_df_list)

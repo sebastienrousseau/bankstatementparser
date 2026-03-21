@@ -19,8 +19,8 @@ from bankstatementparser.pain001_parser import Pain001Parser
 
 def _write_xml(content: str) -> str:
     """Write XML content to a temp file and return the path."""
-    fd, path = tempfile.mkstemp(suffix='.xml')
-    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+    fd, path = tempfile.mkstemp(suffix=".xml")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(content)
     return path
 
@@ -247,7 +247,7 @@ class TestPain001ParseMissingGrpHdr(unittest.TestCase):
             df = parser.parse()
             # Should still parse payments, just without header fields
             self.assertGreater(len(df), 0)
-            self.assertIn('EndToEndId', df.columns)
+            self.assertIn("EndToEndId", df.columns)
         finally:
             os.unlink(f)
 
@@ -257,8 +257,8 @@ class TestPain001ParseMissingGrpHdr(unittest.TestCase):
         try:
             parser = Pain001Parser(f)
             summary = parser.get_summary()
-            self.assertEqual(summary['account_id'], 'Unknown')
-            self.assertEqual(summary['message_id'], 'Unknown')
+            self.assertEqual(summary["account_id"], "Unknown")
+            self.assertEqual(summary["message_id"], "Unknown")
         finally:
             os.unlink(f)
 
@@ -273,8 +273,8 @@ class TestPain001UnrecognizedTags(unittest.TestCase):
             parser = Pain001Parser(f)
             df = parser.parse()
             self.assertEqual(len(df), 1)
-            self.assertEqual(df.iloc[0]['EndToEndId'], 'E2E001')
-            self.assertEqual(df.iloc[0]['CdtrBIC'], 'RCVRBICXXX')
+            self.assertEqual(df.iloc[0]["EndToEndId"], "E2E001")
+            self.assertEqual(df.iloc[0]["CdtrBIC"], "RCVRBICXXX")
         finally:
             os.unlink(f)
 
@@ -286,7 +286,7 @@ class TestPain001UnrecognizedTags(unittest.TestCase):
             payments = list(parser.parse_streaming())
             self.assertEqual(len(payments), 1)
             # Header fields should be extracted despite extra tags
-            self.assertEqual(payments[0]['MsgId'], 'M1')
+            self.assertEqual(payments[0]["MsgId"], "M1")
         finally:
             os.unlink(f)
 
@@ -297,8 +297,8 @@ class TestPain001UnrecognizedTags(unittest.TestCase):
             parser = Pain001Parser(f)
             payments = list(parser.parse_streaming())
             self.assertEqual(len(payments), 1)
-            self.assertEqual(payments[0]['EndToEndId'], 'E2E001')
-            self.assertEqual(payments[0]['CdtrBIC'], 'RCVRBICXXX')
+            self.assertEqual(payments[0]["EndToEndId"], "E2E001")
+            self.assertEqual(payments[0]["CdtrBIC"], "RCVRBICXXX")
         finally:
             os.unlink(f)
 
@@ -313,7 +313,7 @@ class TestPain001MissingInstdAmt(unittest.TestCase):
             df = parser.parse()
             self.assertEqual(len(df), 1)
             # InstdAmt should not be set since there's no InstdAmt element
-            self.assertNotIn('InstdAmt', df.columns)
+            self.assertNotIn("InstdAmt", df.columns)
         finally:
             os.unlink(f)
 
@@ -324,7 +324,7 @@ class TestPain001MissingInstdAmt(unittest.TestCase):
             parser = Pain001Parser(f)
             payments = list(parser.parse_streaming())
             self.assertEqual(len(payments), 1)
-            self.assertNotIn('InstdAmt', payments[0])
+            self.assertNotIn("InstdAmt", payments[0])
         finally:
             os.unlink(f)
 
@@ -335,8 +335,8 @@ class TestPain001MissingInstdAmt(unittest.TestCase):
             parser = Pain001Parser(f)
             summary = parser.get_summary()
             # Only the second tx has InstdAmt with 50.00
-            self.assertEqual(summary['total_amount'], 50.0)
-            self.assertEqual(summary['currency'], 'EUR')
+            self.assertEqual(summary["total_amount"], 50.0)
+            self.assertEqual(summary["currency"], "EUR")
         finally:
             os.unlink(f)
 
@@ -352,12 +352,14 @@ class TestPain001StreamingPmtInfData(unittest.TestCase):
             payments = list(parser.parse_streaming())
             self.assertEqual(len(payments), 1)
             # Verify PmtInf-level data was extracted
-            self.assertEqual(payments[0].get('PmtInfId'), 'PMT001')
-            self.assertEqual(payments[0].get('PmtMtd'), 'TRF')
-            self.assertEqual(payments[0].get('DbtrNm'), 'Sender')
-            self.assertEqual(payments[0].get('DbtrIBAN'), 'DE89370400440532013000')
-            self.assertEqual(payments[0].get('DbtrBIC'), 'BANKDEFFXXX')
-            self.assertEqual(payments[0].get('ChrgBr'), 'SLEV')
+            self.assertEqual(payments[0].get("PmtInfId"), "PMT001")
+            self.assertEqual(payments[0].get("PmtMtd"), "TRF")
+            self.assertEqual(payments[0].get("DbtrNm"), "Sender")
+            self.assertEqual(
+                payments[0].get("DbtrIBAN"), "DE89370400440532013000"
+            )
+            self.assertEqual(payments[0].get("DbtrBIC"), "BANKDEFFXXX")
+            self.assertEqual(payments[0].get("ChrgBr"), "SLEV")
         finally:
             os.unlink(f)
 
@@ -395,11 +397,11 @@ class TestPain001StreamingPmtInfData(unittest.TestCase):
             payments = list(parser.parse_streaming())
             self.assertEqual(len(payments), 1)
             # Dbtr has no Nm, should be None
-            self.assertIsNone(payments[0].get('DbtrNm'))
+            self.assertIsNone(payments[0].get("DbtrNm"))
             # DbtrAcct has no IBAN, should be None
-            self.assertIsNone(payments[0].get('DbtrIBAN'))
+            self.assertIsNone(payments[0].get("DbtrIBAN"))
             # DbtrAgt has no BIC, should be None
-            self.assertIsNone(payments[0].get('DbtrBIC'))
+            self.assertIsNone(payments[0].get("DbtrBIC"))
         finally:
             os.unlink(f)
 
@@ -414,8 +416,8 @@ class TestPain001GetSummaryEdgeCases(unittest.TestCase):
         try:
             parser = Pain001Parser(f)
             summary = parser.get_summary()
-            self.assertEqual(summary['initiating_party'], 'TestCo')
-            self.assertEqual(summary['message_id'], 'M1')
+            self.assertEqual(summary["initiating_party"], "TestCo")
+            self.assertEqual(summary["message_id"], "M1")
         finally:
             os.unlink(f)
 
@@ -427,7 +429,7 @@ class TestPain001GetSummaryEdgeCases(unittest.TestCase):
             parser = Pain001Parser(f)
             summary = parser.get_summary()
             # First tx has EqvtAmt (no InstdAmt), second has InstdAmt=50.00
-            self.assertEqual(summary['total_amount'], 50.0)
+            self.assertEqual(summary["total_amount"], 50.0)
         finally:
             os.unlink(f)
 
@@ -452,8 +454,8 @@ class TestCamtGetSummaryEdgeCases(unittest.TestCase):
         try:
             parser = CamtParser(f)
             summary = parser.get_summary()
-            self.assertEqual(summary['transaction_count'], 0)
-            self.assertEqual(summary['currency'], 'Unknown')
+            self.assertEqual(summary["transaction_count"], 0)
+            self.assertEqual(summary["currency"], "Unknown")
         finally:
             os.unlink(f)
 
@@ -463,8 +465,8 @@ class TestCamtGetSummaryEdgeCases(unittest.TestCase):
         try:
             parser = CamtParser(f)
             summary = parser.get_summary()
-            self.assertNotIn('opening_balance', summary)
-            self.assertNotIn('closing_balance', summary)
+            self.assertNotIn("opening_balance", summary)
+            self.assertNotIn("closing_balance", summary)
         finally:
             os.unlink(f)
 
@@ -475,9 +477,9 @@ class TestCamtGetSummaryEdgeCases(unittest.TestCase):
             parser = CamtParser(f)
             summary = parser.get_summary()
             # Has CLAV balance but no OPBD or CLBD
-            self.assertNotIn('opening_balance', summary)
-            self.assertNotIn('closing_balance', summary)
-            self.assertEqual(summary['transaction_count'], 1)
+            self.assertNotIn("opening_balance", summary)
+            self.assertNotIn("closing_balance", summary)
+            self.assertEqual(summary["transaction_count"], 1)
         finally:
             os.unlink(f)
 
@@ -491,9 +493,9 @@ class TestCamtStatsEntryMissingFields(unittest.TestCase):
         try:
             parser = CamtParser(f)
             stats = parser.get_statement_stats()
-            self.assertEqual(stats.iloc[0]['NumTransactions'], 3)
+            self.assertEqual(stats.iloc[0]["NumTransactions"], 3)
             # Only the third entry has both Amt and CdtDbtInd
-            self.assertEqual(stats.iloc[0]['NetAmount'], 300.0)
+            self.assertEqual(stats.iloc[0]["NetAmount"], 300.0)
         finally:
             os.unlink(f)
 
@@ -555,20 +557,21 @@ class TestBankStatementParsersEdgeCases(unittest.TestCase):
         tmpdir = tempfile.mkdtemp()
         try:
             # Create a subdirectory inside the folder
-            subdir = os.path.join(tmpdir, 'subdir')
+            subdir = os.path.join(tmpdir, "subdir")
             os.makedirs(subdir)
 
             # Create a valid CAMT file
-            camt_file = os.path.join(tmpdir, 'test.xml')
-            with open(camt_file, 'w', encoding='utf-8') as f:
+            camt_file = os.path.join(tmpdir, "test.xml")
+            with open(camt_file, "w", encoding="utf-8") as f:
                 f.write(CAMT_NO_TRANSACTIONS)
 
             files_df, stmts_df, txns_df = process_camt053_folder(tmpdir)
             # Only the XML file should be processed (not the subdirectory)
             self.assertEqual(len(files_df), 1)
-            self.assertEqual(files_df.iloc[0]['FileName'], 'test.xml')
+            self.assertEqual(files_df.iloc[0]["FileName"], "test.xml")
         finally:
             import shutil
+
             shutil.rmtree(tmpdir)
 
 
@@ -607,8 +610,8 @@ class TestPain001StreamingPiiRedactionMissingFields(unittest.TestCase):
             self.assertEqual(len(payments), 1)
             # DbtrNm is None, CdtrNm is None, DbtrIBAN is None, InitgPty is None
             # These should NOT be redacted (they're falsy)
-            self.assertIsNone(payments[0].get('DbtrNm'))
-            self.assertIsNone(payments[0].get('CdtrNm'))
+            self.assertIsNone(payments[0].get("DbtrNm"))
+            self.assertIsNone(payments[0].get("CdtrNm"))
         finally:
             os.unlink(f)
 
@@ -654,11 +657,11 @@ class TestPain001SummaryTxNoAmt(unittest.TestCase):
             parser = Pain001Parser(f)
             summary = parser.get_summary()
             # Only second tx has Amt, so total should be 75.0
-            self.assertEqual(summary['total_amount'], 75.0)
-            self.assertEqual(summary['currency'], 'EUR')
+            self.assertEqual(summary["total_amount"], 75.0)
+            self.assertEqual(summary["currency"], "EUR")
         finally:
             os.unlink(f)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

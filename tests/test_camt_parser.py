@@ -8,9 +8,7 @@ class TestCamtParser(unittest.TestCase):
     def setUp(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         file_path = os.path.join(
-            current_dir,
-            'test_data',
-            'camt.053.001.02.xml'
+            current_dir, "test_data", "camt.053.001.02.xml"
         )
         self.parser = CamtParser(file_path)
 
@@ -20,5 +18,5 @@ class TestCamtParser(unittest.TestCase):
         self.assertIsInstance(self.parser.definitions, dict)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

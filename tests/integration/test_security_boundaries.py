@@ -43,7 +43,7 @@ class TestSecurityBoundaries:
             </Stmt>
         </Document>"""
         file_path = temp_dir / filename
-        file_path.write_text(content, encoding='utf-8')
+        file_path.write_text(content, encoding="utf-8")
         return file_path
 
     def test_path_traversal_prevention(self, temp_dir, validator):
@@ -58,12 +58,14 @@ class TestSecurityBoundaries:
         ]
 
         for dangerous_path in dangerous_paths:
-            with pytest.raises(ValidationError, match="dangerous path|system directory"):
+            with pytest.raises(
+                ValidationError, match="dangerous path|system directory"
+            ):
                 validator.validate_input_file_path(dangerous_path)
 
     def test_system_directory_protection(self, temp_dir, validator):
         """Test protection against accessing system directories."""
-        if os.name == 'posix':
+        if os.name == "posix":
             system_paths = [
                 "/etc/passwd",
                 "/bin/bash",
@@ -80,7 +82,9 @@ class TestSecurityBoundaries:
             ]
 
         for sys_path in system_paths:
-            with pytest.raises(ValidationError, match="system directory"):
+            with pytest.raises(
+                ValidationError, match="system directory"
+            ):
                 validator.validate_input_file_path(sys_path)
 
     def test_variable_expansion_prevention(self, temp_dir, validator):
@@ -113,7 +117,9 @@ class TestSecurityBoundaries:
             file_path.write_text(content)
 
             # Should reject non-XML files
-            with pytest.raises(ValidationError, match="Invalid input file extension"):
+            with pytest.raises(
+                ValidationError, match="Invalid input file extension"
+            ):
                 CamtParser(str(file_path))
 
     def test_file_size_limits(self, temp_dir):
@@ -121,7 +127,11 @@ class TestSecurityBoundaries:
         validator = InputValidator(max_file_size=1024)  # 1KB limit
 
         # Create an oversized file
-        large_content = "<?xml version='1.0'?><Document>" + "x" * 2048 + "</Document>"
+        large_content = (
+            "<?xml version='1.0'?><Document>"
+            + "x" * 2048
+            + "</Document>"
+        )
         large_file = temp_dir / "large.xml"
         large_file.write_text(large_content)
 
@@ -158,7 +168,7 @@ class TestSecurityBoundaries:
 
     def test_symlink_traversal_prevention(self, temp_dir):
         """Test prevention of symlink-based attacks."""
-        if os.name != 'posix':
+        if os.name != "posix":
             pytest.skip("Symlink test only relevant on POSIX systems")
 
         # Create a symlink pointing to a sensitive file
@@ -184,7 +194,9 @@ class TestSecurityBoundaries:
         parser = CamtParser(str(xml_file))
 
         # Replace file with malicious content after initialization
-        xml_file.write_text("<?xml version='1.0'?><!DOCTYPE test [<!ENTITY xxe SYSTEM 'file:///etc/passwd'>]><Document>&xxe;</Document>")
+        xml_file.write_text(
+            "<?xml version='1.0'?><!DOCTYPE test [<!ENTITY xxe SYSTEM 'file:///etc/passwd'>]><Document>&xxe;</Document>"
+        )
 
         # Parser should work with original content loaded in memory
         # This tests that the parser doesn't re-read files after initialization
@@ -193,7 +205,9 @@ class TestSecurityBoundaries:
             # If this succeeds, the parser used the original safe content
         except Exception as e:
             # If it fails, it should be due to structure, not XXE
-            assert "entity" not in str(e).lower(), "Parser may be vulnerable to XXE after file replacement"
+            assert "entity" not in str(e).lower(), (
+                "Parser may be vulnerable to XXE after file replacement"
+            )
 
     def test_filename_sanitization(self, validator):
         """Test filename sanitization for safe output generation."""

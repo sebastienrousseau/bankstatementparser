@@ -29,12 +29,18 @@ class TestUnifiedParserInterface(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures with sample data files."""
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.test_data_dir = os.path.join(current_dir, 'test_data')
+        self.test_data_dir = os.path.join(current_dir, "test_data")
 
         # Valid test files
-        self.camt_file = os.path.join(self.test_data_dir, 'camt.053.001.02.xml')
-        self.pain001_file = os.path.join(self.test_data_dir, 'pain.001.001.03.xml')
-        self.invalid_xml_file = os.path.join(self.test_data_dir, 'invalid.xml')
+        self.camt_file = os.path.join(
+            self.test_data_dir, "camt.053.001.02.xml"
+        )
+        self.pain001_file = os.path.join(
+            self.test_data_dir, "pain.001.001.03.xml"
+        )
+        self.invalid_xml_file = os.path.join(
+            self.test_data_dir, "invalid.xml"
+        )
 
         # Initialize parsers if files exist
         self.camt_parser = None
@@ -61,15 +67,15 @@ class TestUnifiedParserInterface(unittest.TestCase):
 
         for parser in parsers:
             # Test required abstract methods exist and are callable
-            self.assertTrue(hasattr(parser, 'parse'))
+            self.assertTrue(hasattr(parser, "parse"))
             self.assertTrue(callable(parser.parse))
-            self.assertTrue(hasattr(parser, 'get_summary'))
+            self.assertTrue(hasattr(parser, "get_summary"))
             self.assertTrue(callable(parser.get_summary))
 
             # Test inherited concrete methods exist
-            self.assertTrue(hasattr(parser, 'export_csv'))
+            self.assertTrue(hasattr(parser, "export_csv"))
             self.assertTrue(callable(parser.export_csv))
-            self.assertTrue(hasattr(parser, 'export_json'))
+            self.assertTrue(hasattr(parser, "export_json"))
             self.assertTrue(callable(parser.export_json))
 
     def test_parse_method_returns_dataframe(self):
@@ -85,21 +91,35 @@ class TestUnifiedParserInterface(unittest.TestCase):
             self.assertIsInstance(result, pd.DataFrame)
 
             # Test DataFrame has expected structure
-            self.assertGreaterEqual(len(result.columns), 0)  # At least some columns
+            self.assertGreaterEqual(
+                len(result.columns), 0
+            )  # At least some columns
 
             # If data exists, verify it has reasonable structure
             if not result.empty:
                 # Common expected columns across formats (may vary by implementation)
-                expected_column_patterns = ['amount', 'currency', 'date', 'id']
-                column_names_lower = [col.lower() for col in result.columns]
+                expected_column_patterns = [
+                    "amount",
+                    "currency",
+                    "date",
+                    "id",
+                ]
+                column_names_lower = [
+                    col.lower() for col in result.columns
+                ]
 
                 # At least some expected patterns should be present
                 found_patterns = any(
-                    any(pattern in col for pattern in expected_column_patterns)
+                    any(
+                        pattern in col
+                        for pattern in expected_column_patterns
+                    )
                     for col in column_names_lower
                 )
-                self.assertTrue(found_patterns,
-                               f"No expected column patterns found in: {result.columns}")
+                self.assertTrue(
+                    found_patterns,
+                    f"No expected column patterns found in: {result.columns}",
+                )
 
     def test_get_summary_method_returns_consistent_structure(self):
         """Test that get_summary() returns consistent structure across parsers."""
@@ -115,34 +135,48 @@ class TestUnifiedParserInterface(unittest.TestCase):
 
             # Test required keys are present (based on ABC documentation)
             required_keys = [
-                'account_id', 'statement_date', 'transaction_count',
-                'total_amount', 'currency'
+                "account_id",
+                "statement_date",
+                "transaction_count",
+                "total_amount",
+                "currency",
             ]
             for key in required_keys:
-                self.assertIn(key, summary, f"Missing required key '{key}' in summary")
+                self.assertIn(
+                    key,
+                    summary,
+                    f"Missing required key '{key}' in summary",
+                )
 
             # Test value types are reasonable (allow numpy types too)
-            if summary.get('transaction_count') is not None:
+            if summary.get("transaction_count") is not None:
                 # Allow int, str, or numpy integer types
                 import numpy as np
+
                 self.assertTrue(
-                    isinstance(summary['transaction_count'], (int, str)) or
-                    np.issubdtype(type(summary['transaction_count']), np.integer),
-                    f"transaction_count has unexpected type: {type(summary['transaction_count'])}"
+                    isinstance(summary["transaction_count"], (int, str))
+                    or np.issubdtype(
+                        type(summary["transaction_count"]), np.integer
+                    ),
+                    f"transaction_count has unexpected type: {type(summary['transaction_count'])}",
                 )
-            if summary.get('total_amount') is not None:
-                self.assertIsInstance(summary['total_amount'], (int, float))
+            if summary.get("total_amount") is not None:
+                self.assertIsInstance(
+                    summary["total_amount"], (int, float)
+                )
 
     def test_export_csv_functionality(self):
         """Test CSV export functionality across all parsers."""
         parsers = []
         if self.camt_parser:
-            parsers.append(('CAMT', self.camt_parser))
+            parsers.append(("CAMT", self.camt_parser))
         if self.pain001_parser:
-            parsers.append(('PAIN001', self.pain001_parser))
+            parsers.append(("PAIN001", self.pain001_parser))
 
         for parser_name, parser in parsers:
-            with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp_file:
+            with tempfile.NamedTemporaryFile(
+                suffix=".csv", delete=False
+            ) as tmp_file:
                 try:
                     parser.export_csv(tmp_file.name)
 
@@ -152,8 +186,11 @@ class TestUnifiedParserInterface(unittest.TestCase):
                     # Verify file has content
                     with open(tmp_file.name) as f:
                         content = f.read()
-                        self.assertGreater(len(content), 0,
-                                         f"Empty CSV export for {parser_name}")
+                        self.assertGreater(
+                            len(content),
+                            0,
+                            f"Empty CSV export for {parser_name}",
+                        )
 
                     # Verify it's valid CSV (can be read back as DataFrame)
                     df = pd.read_csv(tmp_file.name)
@@ -168,12 +205,14 @@ class TestUnifiedParserInterface(unittest.TestCase):
         """Test JSON export functionality across all parsers."""
         parsers = []
         if self.camt_parser:
-            parsers.append(('CAMT', self.camt_parser))
+            parsers.append(("CAMT", self.camt_parser))
         if self.pain001_parser:
-            parsers.append(('PAIN001', self.pain001_parser))
+            parsers.append(("PAIN001", self.pain001_parser))
 
         for parser_name, parser in parsers:
-            with tempfile.NamedTemporaryFile(suffix='.json', delete=False) as tmp_file:
+            with tempfile.NamedTemporaryFile(
+                suffix=".json", delete=False
+            ) as tmp_file:
                 try:
                     parser.export_json(tmp_file.name)
 
@@ -183,22 +222,25 @@ class TestUnifiedParserInterface(unittest.TestCase):
                     # Verify file has content
                     with open(tmp_file.name) as f:
                         content = f.read()
-                        self.assertGreater(len(content), 0,
-                                         f"Empty JSON export for {parser_name}")
+                        self.assertGreater(
+                            len(content),
+                            0,
+                            f"Empty JSON export for {parser_name}",
+                        )
 
                     # Verify it's valid JSON with expected structure
                     with open(tmp_file.name) as f:
                         data = json.load(f)
                         self.assertIsInstance(data, dict)
-                        self.assertIn('summary', data)
-                        self.assertIn('transactions', data)
+                        self.assertIn("summary", data)
+                        self.assertIn("transactions", data)
 
                         # Verify summary structure
-                        summary = data['summary']
+                        summary = data["summary"]
                         self.assertIsInstance(summary, dict)
 
                         # Verify transactions structure
-                        transactions = data['transactions']
+                        transactions = data["transactions"]
                         self.assertIsInstance(transactions, list)
 
                 finally:
@@ -212,13 +254,18 @@ class TestUnifiedParserInterface(unittest.TestCase):
             self.skipTest("CAMT test data not available")
 
         # Test CSV atomic operation
-        with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            suffix=".csv", delete=False
+        ) as tmp_file:
             output_path = tmp_file.name
             temp_path = f"{output_path}.tmp"
 
             try:
                 # Mock an exception during the export to test cleanup
-                with patch('pandas.DataFrame.to_csv', side_effect=Exception("Test error")):
+                with patch(
+                    "pandas.DataFrame.to_csv",
+                    side_effect=Exception("Test error"),
+                ):
                     with self.assertRaises(IOError):
                         self.camt_parser.export_csv(output_path)
 
@@ -233,13 +280,17 @@ class TestUnifiedParserInterface(unittest.TestCase):
                     os.unlink(temp_path)
 
         # Test JSON atomic operation
-        with tempfile.NamedTemporaryFile(suffix='.json', delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            suffix=".json", delete=False
+        ) as tmp_file:
             output_path = tmp_file.name
             temp_path = f"{output_path}.tmp"
 
             try:
                 # Mock an exception during JSON export
-                with patch('builtins.open', side_effect=Exception("Test error")):
+                with patch(
+                    "builtins.open", side_effect=Exception("Test error")
+                ):
                     with self.assertRaises(IOError):
                         self.camt_parser.export_json(output_path)
 
@@ -254,15 +305,17 @@ class TestUnifiedParserInterface(unittest.TestCase):
         """Test __str__ and __repr__ methods work consistently."""
         parsers = []
         if self.camt_parser:
-            parsers.append(('CAMT', self.camt_parser))
+            parsers.append(("CAMT", self.camt_parser))
         if self.pain001_parser:
-            parsers.append(('PAIN001', self.pain001_parser))
+            parsers.append(("PAIN001", self.pain001_parser))
 
         for _parser_name, parser in parsers:
             # Test __repr__ - CamtParser returns statement stats, others might use default
             repr_str = repr(parser)
             self.assertIsInstance(repr_str, str)
-            self.assertGreater(len(repr_str), 0, "repr should return non-empty string")
+            self.assertGreater(
+                len(repr_str), 0, "repr should return non-empty string"
+            )
             # Don't assert specific content since CamtParser returns statement stats
 
             # Test __str__
@@ -311,18 +364,24 @@ class TestUnifiedParserInterface(unittest.TestCase):
             <missing_content />
         </invalid>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as tmp_file:
             tmp_file.write(malformed_xml)
             tmp_file.flush()
 
             try:
                 # Test CAMT parser with malformed input
-                with self.assertRaises((ValidationError, ParseError, Exception)):
+                with self.assertRaises(
+                    (ValidationError, ParseError, Exception)
+                ):
                     parser = CamtParser(tmp_file.name)
                     parser.parse()
 
                 # Test PAIN001 parser with malformed input
-                with self.assertRaises((ValidationError, ParseError, Exception)):
+                with self.assertRaises(
+                    (ValidationError, ParseError, Exception)
+                ):
                     parser = Pain001Parser(tmp_file.name)
                     parser.parse()
 
@@ -349,7 +408,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
         """
 
         # Add multiple transaction entries
-        for i in range(100):  # 100 transactions to make it moderately large
+        for i in range(
+            100
+        ):  # 100 transactions to make it moderately large
             large_xml_content += f"""
                     <Ntry>
                         <Amt Ccy="GBP">{10.00 + i}</Amt>
@@ -378,7 +439,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
             </BkToCstmrStmt>
         </Document>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as tmp_file:
             tmp_file.write(large_xml_content)
             tmp_file.flush()
 
@@ -387,10 +450,14 @@ class TestUnifiedParserInterface(unittest.TestCase):
                 parser = CamtParser(tmp_file.name)
                 df = parser.parse()
                 self.assertIsInstance(df, pd.DataFrame)
-                self.assertGreater(len(df), 50)  # Should have many transactions
+                self.assertGreater(
+                    len(df), 50
+                )  # Should have many transactions
 
                 # Test export functionality with larger dataset
-                with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as csv_file:
+                with tempfile.NamedTemporaryFile(
+                    suffix=".csv", delete=False
+                ) as csv_file:
                     try:
                         parser.export_csv(csv_file.name)
                         self.assertTrue(os.path.exists(csv_file.name))
@@ -404,9 +471,13 @@ class TestUnifiedParserInterface(unittest.TestCase):
     def test_edge_case_file_formats(self):
         """Test parser behavior with edge case file formats."""
         # Test empty XML file
-        empty_xml = """<?xml version="1.0" encoding="UTF-8"?><root></root>"""
+        empty_xml = (
+            """<?xml version="1.0" encoding="UTF-8"?><root></root>"""
+        )
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as tmp_file:
             tmp_file.write(empty_xml)
             tmp_file.flush()
 
@@ -439,7 +510,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
         <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
         </Document>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as tmp_file:
             tmp_file.write(minimal_camt_xml)
             tmp_file.flush()
 
@@ -464,7 +537,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
 
         # Test with Path object
         path_obj = Path(self.camt_file)
-        parser2 = CamtParser(str(path_obj))  # Constructor expects string
+        parser2 = CamtParser(
+            str(path_obj)
+        )  # Constructor expects string
         self.assertEqual(parser2.file_name, str(path_obj))
 
     def test_export_error_handling(self):
@@ -488,19 +563,21 @@ class TestParserFactoryPattern(unittest.TestCase):
     def test_parser_selection_by_file_format(self):
         """Test that appropriate parser can be selected based on file content."""
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        test_data_dir = os.path.join(current_dir, 'test_data')
+        test_data_dir = os.path.join(current_dir, "test_data")
 
-        camt_file = os.path.join(test_data_dir, 'camt.053.001.02.xml')
-        pain001_file = os.path.join(test_data_dir, 'pain.001.001.03.xml')
+        camt_file = os.path.join(test_data_dir, "camt.053.001.02.xml")
+        pain001_file = os.path.join(
+            test_data_dir, "pain.001.001.03.xml"
+        )
 
         parsers = {}
 
         # Create parsers if files exist
         if os.path.exists(camt_file):
-            parsers['CAMT'] = CamtParser(camt_file)
+            parsers["CAMT"] = CamtParser(camt_file)
 
         if os.path.exists(pain001_file):
-            parsers['PAIN001'] = Pain001Parser(pain001_file)
+            parsers["PAIN001"] = Pain001Parser(pain001_file)
 
         # Test that all created parsers implement the interface properly
         for _format_name, parser in parsers.items():
@@ -514,5 +591,5 @@ class TestParserFactoryPattern(unittest.TestCase):
             self.assertIsInstance(summary, dict)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

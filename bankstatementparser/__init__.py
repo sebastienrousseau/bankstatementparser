@@ -27,9 +27,9 @@ from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
 
 __all__ = [
-    'BankStatementParser',
-    'CamtParser',
-    'Pain001Parser',
-    'InputValidator',
-    'ValidationError',
+    "BankStatementParser",
+    "CamtParser",
+    "Pain001Parser",
+    "InputValidator",
+    "ValidationError",
 ]

@@ -29,9 +29,12 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+
 class ValidationError(Exception):
     """Custom exception for validation errors."""
+
     pass
+
 
 class InputValidator:
     """Comprehensive input validator for file operations."""
@@ -41,30 +44,50 @@ class InputValidator:
     MIN_FILE_SIZE_BYTES = 1  # 1 byte minimum
 
     # Allowed file extensions for input files
-    ALLOWED_INPUT_EXTENSIONS = {'.xml', '.XML'}
+    ALLOWED_INPUT_EXTENSIONS = {".xml", ".XML"}
 
     # Allowed file extensions for output files
-    ALLOWED_OUTPUT_EXTENSIONS = {'.csv', '.CSV', '.xlsx', '.XLSX', '.xls', '.XLS'}
+    ALLOWED_OUTPUT_EXTENSIONS = {
+        ".csv",
+        ".CSV",
+        ".xlsx",
+        ".XLSX",
+        ".xls",
+        ".XLS",
+    }
 
     # Dangerous path patterns to block
     DANGEROUS_PATTERNS = [
-        r'\.\.',   # Directory traversal (catches ../.. and ..\.. patterns)
-        r'/\./',   # Hidden directory traversal
-        r'~/',     # Home directory shortcuts (can be allowed if needed)
-        r'\$\{',   # Variable expansion
-        r'%[A-Z_]+%',  # Windows environment variables
+        r"\.\.",  # Directory traversal (catches ../.. and ..\.. patterns)
+        r"/\./",  # Hidden directory traversal
+        r"~/",  # Home directory shortcuts (can be allowed if needed)
+        r"\$\{",  # Variable expansion
+        r"%[A-Z_]+%",  # Windows environment variables
     ]
 
     # System directories to block (platform-specific)
     BLOCKED_DIRECTORIES = {
         # Unix/Linux/macOS
-        '/etc', '/bin', '/sbin', '/usr/bin', '/usr/sbin', '/sys', '/proc',
-        '/dev', '/boot', '/root',
+        "/etc",
+        "/bin",
+        "/sbin",
+        "/usr/bin",
+        "/usr/sbin",
+        "/sys",
+        "/proc",
+        "/dev",
+        "/boot",
+        "/root",
         # Windows
-        'C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)',
-        'C:\\System32', 'C:\\Windows\\System32',
+        "C:\\Windows",
+        "C:\\Program Files",
+        "C:\\Program Files (x86)",
+        "C:\\System32",
+        "C:\\Windows\\System32",
         # macOS specific
-        '/System', '/Library/System', '/private/var/db',
+        "/System",
+        "/Library/System",
+        "/private/var/db",
     }
 
     def __init__(self, max_file_size: Optional[int] = None):
@@ -91,7 +114,9 @@ class InputValidator:
             FileNotFoundError: If file doesn't exist.
         """
         if not isinstance(file_path, str):
-            raise ValidationError("File path must be a non-empty string")
+            raise ValidationError(
+                "File path must be a non-empty string"
+            )
 
         if not file_path:
             raise ValidationError("File path cannot be empty")
@@ -100,7 +125,9 @@ class InputValidator:
         file_path = file_path.strip()
 
         if not file_path:
-            raise ValidationError("File path cannot be empty or whitespace only")
+            raise ValidationError(
+                "File path cannot be empty or whitespace only"
+            )
 
         # Check for dangerous patterns FIRST - before checking file existence
         # This ensures security validation happens regardless of file existence
@@ -110,7 +137,9 @@ class InputValidator:
         try:
             path = Path(file_path).resolve()
         except (OSError, ValueError) as e:
-            raise ValidationError(f"Invalid file path format: {e}") from e
+            raise ValidationError(
+                f"Invalid file path format: {e}"
+            ) from e
 
         # Check for symlink attacks: reject if the original path is a symlink
         # pointing outside its parent directory
@@ -134,7 +163,9 @@ class InputValidator:
 
         # Check if it's actually a file
         if not os.path.isfile(str(path)):
-            raise ValidationError(f"Path exists but is not a file: {path}")
+            raise ValidationError(
+                f"Path exists but is not a file: {path}"
+            )
 
         # Check if we can read the file
         if not os.access(path, os.R_OK):
@@ -165,13 +196,17 @@ class InputValidator:
             ValidationError: If validation fails.
         """
         if not isinstance(file_path, str):
-            raise ValidationError("Output file path must be a non-empty string")
+            raise ValidationError(
+                "Output file path must be a non-empty string"
+            )
 
         # Remove leading/trailing whitespace
         file_path = file_path.strip()
 
         if not file_path:
-            raise ValidationError("Output file path cannot be empty or whitespace only")
+            raise ValidationError(
+                "Output file path cannot be empty or whitespace only"
+            )
 
         # Check for dangerous patterns
         self._check_dangerous_patterns(file_path)
@@ -180,7 +215,9 @@ class InputValidator:
         try:
             path = Path(file_path).resolve()
         except (OSError, ValueError) as e:
-            raise ValidationError(f"Invalid output file path format: {e}") from e
+            raise ValidationError(
+                f"Invalid output file path format: {e}"
+            ) from e
 
         # Check parent directory exists and is writable
         parent_dir = path.parent
@@ -188,17 +225,23 @@ class InputValidator:
             try:
                 parent_dir.mkdir(parents=True, exist_ok=True)
             except OSError as e:
-                raise ValidationError(f"Cannot create output directory: {e}") from e
+                raise ValidationError(
+                    f"Cannot create output directory: {e}"
+                ) from e
 
         if not os.access(parent_dir, os.W_OK):
-            raise ValidationError(f"Output directory is not writable: {parent_dir}")
+            raise ValidationError(
+                f"Output directory is not writable: {parent_dir}"
+            )
 
         # Validate output file extension
         self._validate_output_extension(path)
 
         # Check if file already exists and warn
         if path.exists():
-            logger.warning(f"Output file already exists and will be overwritten: {path}")
+            logger.warning(
+                f"Output file already exists and will be overwritten: {path}"
+            )
 
         return path
 
@@ -206,26 +249,30 @@ class InputValidator:
         """Check for dangerous patterns in file path."""
         # Check for dangerous Unicode characters (null bytes, BiDi overrides, etc.)
         dangerous_unicode = [
-            '\u0000',  # Null byte
-            '\u202e',  # Right-to-left override
-            '\u202d',  # Left-to-right override
-            '\u200f',  # Right-to-left mark
-            '\u200e',  # Left-to-right mark
-            '\u2066',  # Left-to-right isolate
-            '\u2067',  # Right-to-left isolate
-            '\u2068',  # First strong isolate
-            '\u2069',  # Pop directional isolate
-            '\u202a',  # Left-to-right embedding
-            '\u202b',  # Right-to-left embedding
-            '\u202c',  # Pop directional formatting
+            "\u0000",  # Null byte
+            "\u202e",  # Right-to-left override
+            "\u202d",  # Left-to-right override
+            "\u200f",  # Right-to-left mark
+            "\u200e",  # Left-to-right mark
+            "\u2066",  # Left-to-right isolate
+            "\u2067",  # Right-to-left isolate
+            "\u2068",  # First strong isolate
+            "\u2069",  # Pop directional isolate
+            "\u202a",  # Left-to-right embedding
+            "\u202b",  # Right-to-left embedding
+            "\u202c",  # Pop directional formatting
         ]
         for char in dangerous_unicode:
             if char in file_path:
-                raise ValidationError("Potentially dangerous path pattern detected")
+                raise ValidationError(
+                    "Potentially dangerous path pattern detected"
+                )
 
         for pattern in self.DANGEROUS_PATTERNS:
             if re.search(pattern, file_path, re.IGNORECASE):
-                raise ValidationError("Potentially dangerous path pattern detected")
+                raise ValidationError(
+                    "Potentially dangerous path pattern detected"
+                )
 
         # Check for blocked directories (case-insensitive comparison)
         # Also check the original path to catch Windows paths on Unix systems
@@ -234,13 +281,19 @@ class InputValidator:
 
         for blocked_dir in self.BLOCKED_DIRECTORIES:
             blocked_dir_lower = blocked_dir.lower()
-            if abs_path.startswith(blocked_dir_lower) or original_path.startswith(blocked_dir_lower):
-                raise ValidationError("Access to system directory blocked: file not found or not accessible")
+            if abs_path.startswith(
+                blocked_dir_lower
+            ) or original_path.startswith(blocked_dir_lower):
+                raise ValidationError(
+                    "Access to system directory blocked: file not found or not accessible"
+                )
 
     def _validate_input_extension(self, path: Path) -> None:
         """Validate input file extension."""
-        if path.suffix.lower() not in {ext.lower() for ext in self.ALLOWED_INPUT_EXTENSIONS}:
-            allowed = ', '.join(sorted(self.ALLOWED_INPUT_EXTENSIONS))
+        if path.suffix.lower() not in {
+            ext.lower() for ext in self.ALLOWED_INPUT_EXTENSIONS
+        }:
+            allowed = ", ".join(sorted(self.ALLOWED_INPUT_EXTENSIONS))
             raise ValidationError(
                 f"Invalid input file extension '{path.suffix}'. "
                 f"Allowed extensions: {allowed}"
@@ -248,8 +301,10 @@ class InputValidator:
 
     def _validate_output_extension(self, path: Path) -> None:
         """Validate output file extension."""
-        if path.suffix.lower() not in {ext.lower() for ext in self.ALLOWED_OUTPUT_EXTENSIONS}:
-            allowed = ', '.join(sorted(self.ALLOWED_OUTPUT_EXTENSIONS))
+        if path.suffix.lower() not in {
+            ext.lower() for ext in self.ALLOWED_OUTPUT_EXTENSIONS
+        }:
+            allowed = ", ".join(sorted(self.ALLOWED_OUTPUT_EXTENSIONS))
             raise ValidationError(
                 f"Invalid output file extension '{path.suffix}'. "
                 f"Allowed extensions: {allowed}"
@@ -260,10 +315,14 @@ class InputValidator:
         try:
             file_size = path.stat().st_size
         except OSError as e:
-            raise ValidationError(f"Cannot determine file size: {e}") from e
+            raise ValidationError(
+                f"Cannot determine file size: {e}"
+            ) from e
 
         if file_size < self.MIN_FILE_SIZE_BYTES:
-            raise ValidationError(f"File is too small ({file_size} bytes). Minimum: {self.MIN_FILE_SIZE_BYTES} bytes")
+            raise ValidationError(
+                f"File is too small ({file_size} bytes). Minimum: {self.MIN_FILE_SIZE_BYTES} bytes"
+            )
 
         if file_size > self.max_file_size:
             size_mb = file_size / (1024 * 1024)
@@ -285,60 +344,81 @@ class InputValidator:
         try:
             # Check MIME type
             mime_type, _ = mimetypes.guess_type(str(path))
-            if mime_type and not any(xml_type in mime_type for xml_type in ['xml', 'text']):
-                logger.warning(f"Unexpected MIME type '{mime_type}' for file: {path}")
+            if mime_type and not any(
+                xml_type in mime_type for xml_type in ["xml", "text"]
+            ):
+                logger.warning(
+                    f"Unexpected MIME type '{mime_type}' for file: {path}"
+                )
 
             # Read first few bytes to check for XML declaration
-            with open(path, 'rb') as f:
+            with open(path, "rb") as f:
                 header = f.read(1024)  # Read first 1KB
 
             # Check for known binary file signatures (magic bytes)
             binary_signatures = [
-                b'\x89PNG',      # PNG
-                b'GIF8',         # GIF
-                b'\xff\xd8\xff', # JPEG
-                b'PK',           # ZIP/XLSX/DOCX
-                b'\x7fELF',      # ELF executable
-                b'MZ',           # Windows executable
-                b'\x00\x00\x01\x00',  # ICO
-                b'%PDF',         # PDF
+                b"\x89PNG",  # PNG
+                b"GIF8",  # GIF
+                b"\xff\xd8\xff",  # JPEG
+                b"PK",  # ZIP/XLSX/DOCX
+                b"\x7fELF",  # ELF executable
+                b"MZ",  # Windows executable
+                b"\x00\x00\x01\x00",  # ICO
+                b"%PDF",  # PDF
             ]
             for sig in binary_signatures:
-                if header[:len(sig)] == sig:
-                    raise ValidationError(f"File appears to contain binary data, expected XML: {path}")
+                if header[: len(sig)] == sig:
+                    raise ValidationError(
+                        f"File appears to contain binary data, expected XML: {path}"
+                    )
 
             # Validate UTF-8 encoding
             try:
-                header.decode('utf-8')
+                header.decode("utf-8")
             except UnicodeDecodeError as exc:
-                raise ValidationError(f"File encoding is not valid UTF-8: {path}") from exc
+                raise ValidationError(
+                    f"File encoding is not valid UTF-8: {path}"
+                ) from exc
 
             # Check for XML declaration or root elements
-            header_str = header.decode('utf-8', errors='ignore').lower()
+            header_str = header.decode("utf-8", errors="ignore").lower()
 
             # Look for XML indicators
             xml_indicators = [
-                '<?xml',
-                '<document',
-                'xmlns',
-                'camt.053',
-                'pain.001',
-                'iso:std:iso:20022'
+                "<?xml",
+                "<document",
+                "xmlns",
+                "camt.053",
+                "pain.001",
+                "iso:std:iso:20022",
             ]
 
-            has_xml_indicator = any(indicator in header_str for indicator in xml_indicators)
+            has_xml_indicator = any(
+                indicator in header_str for indicator in xml_indicators
+            )
 
             if not has_xml_indicator:
                 # Check if it's binary data (control chars other than whitespace)
-                if any(c < 32 and c not in (9, 10, 13) for c in header[:100]):
-                    raise ValidationError(f"File appears to contain binary data, expected XML: {path}")
+                if any(
+                    c < 32 and c not in (9, 10, 13)
+                    for c in header[:100]
+                ):
+                    raise ValidationError(
+                        f"File appears to contain binary data, expected XML: {path}"
+                    )
                 else:
-                    logger.warning(f"File may not be a valid XML document: {path}")
+                    logger.warning(
+                        f"File may not be a valid XML document: {path}"
+                    )
 
         except UnicodeDecodeError as exc:
-            raise ValidationError(f"File encoding is not valid UTF-8: {path}") from exc
+            raise ValidationError(
+                f"File encoding is not valid UTF-8: {path}"
+            ) from exc
         except OSError as e:
-            raise ValidationError(f"Cannot read file for format validation: {e}") from e
+            raise ValidationError(
+                f"Cannot read file for format validation: {e}"
+            ) from e
 
     def get_safe_filename(self, filename: str) -> str:
         """
@@ -351,18 +431,18 @@ class InputValidator:
             str: Safe filename.
         """
         # Remove or replace dangerous characters
-        safe_chars = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', filename)
+        safe_chars = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", filename)
 
         # Remove leading/trailing dots and spaces
-        safe_chars = safe_chars.strip('. ')
+        safe_chars = safe_chars.strip(". ")
 
         # Ensure filename is not empty
         if not safe_chars:
-            safe_chars = 'unnamed_file'
+            safe_chars = "unnamed_file"
 
         # Truncate if too long (keeping extension)
         if len(safe_chars) > 255:
             name, ext = os.path.splitext(safe_chars)
-            safe_chars = name[:255 - len(ext)] + ext
+            safe_chars = name[: 255 - len(ext)] + ext
 
         return safe_chars

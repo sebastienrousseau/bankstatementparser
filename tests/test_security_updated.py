@@ -26,35 +26,42 @@ class TestInputValidationSecurity(unittest.TestCase):
     def test_path_traversal_prevention(self):
         """Test that path traversal attacks are properly blocked."""
         dangerous_paths = [
-            '../../../etc/passwd',
-            '..\\..\\..\\windows\\system32\\config\\sam',
-            '....//....//etc//passwd',
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config\\sam",
+            "....//....//etc//passwd",
         ]
 
         for dangerous_path in dangerous_paths:
             with self.assertRaises(ValidationError) as cm:
                 CamtParser(dangerous_path)
 
-            self.assertIn("Potentially dangerous path pattern detected", str(cm.exception))
+            self.assertIn(
+                "Potentially dangerous path pattern detected",
+                str(cm.exception),
+            )
 
     def test_system_directory_protection(self):
         """Test that access to system directories is blocked."""
         system_paths = [
-            '/etc/passwd',
-            '/bin/bash',
-            '/usr/bin/whoami',
+            "/etc/passwd",
+            "/bin/bash",
+            "/usr/bin/whoami",
         ]
 
         for system_path in system_paths:
             with self.assertRaises(ValidationError) as cm:
                 CamtParser(system_path)
 
-            self.assertIn("Access to system directory blocked", str(cm.exception))
+            self.assertIn(
+                "Access to system directory blocked", str(cm.exception)
+            )
 
     def test_file_size_validation(self):
         """Test file size limits are enforced."""
         # Test empty file rejection
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as f:
             empty_file = f.name
 
         try:
@@ -66,30 +73,36 @@ class TestInputValidationSecurity(unittest.TestCase):
 
     def test_file_extension_validation(self):
         """Test that only allowed file extensions are accepted."""
-        invalid_extensions = ['.txt', '.exe', '.py', '.sh', '.bat']
+        invalid_extensions = [".txt", ".exe", ".py", ".sh", ".bat"]
 
         for ext in invalid_extensions:
-            with tempfile.NamedTemporaryFile(mode='w', suffix=ext, delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=ext, delete=False
+            ) as f:
                 f.write("<?xml version='1.0'?><Document></Document>")
                 invalid_file = f.name
 
             try:
                 with self.assertRaises(ValidationError) as cm:
                     CamtParser(invalid_file)
-                self.assertIn("Invalid input file extension", str(cm.exception))
+                self.assertIn(
+                    "Invalid input file extension", str(cm.exception)
+                )
             finally:
                 os.unlink(invalid_file)
 
     def test_nonexistent_file_handling(self):
         """Test handling of non-existent files."""
         with self.assertRaises(FileNotFoundError):
-            CamtParser('/nonexistent/path/file.xml')
+            CamtParser("/nonexistent/path/file.xml")
 
     def test_directory_access_prevention(self):
         """Test that directories are rejected as input files."""
         with self.assertRaises(ValidationError) as cm:
-            CamtParser('/tmp')
-        self.assertIn("Path exists but is not a file", str(cm.exception))
+            CamtParser("/tmp")
+        self.assertIn(
+            "Path exists but is not a file", str(cm.exception)
+        )
 
 
 class TestXMLParsingSecurity(unittest.TestCase):
@@ -97,7 +110,7 @@ class TestXMLParsingSecurity(unittest.TestCase):
 
     def test_xxe_attack_mitigation(self):
         """Test that XXE attacks are mitigated by secure parsing."""
-        xxe_payload = '''<?xml version="1.0" encoding="UTF-8"?>
+        xxe_payload = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE foo [
 <!ENTITY xxe SYSTEM "file:///etc/passwd">
 ]>
@@ -111,9 +124,11 @@ class TestXMLParsingSecurity(unittest.TestCase):
             </Acct>
         </Stmt>
     </BkToCstmrStmt>
-</Document>'''
+</Document>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as f:
             f.write(xxe_payload)
             xxe_file = f.name
 
@@ -126,14 +141,14 @@ class TestXMLParsingSecurity(unittest.TestCase):
             # XXE content should not be present
             for _, row in statements.iterrows():
                 row_str = str(row.to_dict())
-                self.assertNotIn('root:', row_str)
-                self.assertNotIn('/bin/bash', row_str)
+                self.assertNotIn("root:", row_str)
+                self.assertNotIn("/bin/bash", row_str)
         finally:
             os.unlink(xxe_file)
 
     def test_billion_laughs_mitigation(self):
         """Test protection against billion laughs attacks."""
-        xml_bomb = '''<?xml version="1.0" encoding="UTF-8"?>
+        xml_bomb = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE lolz [
 <!ENTITY lol "lol">
 <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
@@ -148,9 +163,11 @@ class TestXMLParsingSecurity(unittest.TestCase):
             <Acct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></Acct>
         </Stmt>
     </BkToCstmrStmt>
-</Document>'''
+</Document>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as f:
             f.write(xml_bomb)
             bomb_file = f.name
 
@@ -166,15 +183,17 @@ class TestXMLParsingSecurity(unittest.TestCase):
         """Test resilience to malformed XML."""
         malformed_cases = [
             # Unclosed tags - should be handled by recovery parser
-            '<Document><Stmt><Id>test</Id></Document>',
+            "<Document><Stmt><Id>test</Id></Document>",
             # Nested CDATA
             '<Document><![CDATA[<script>alert("test")</script>]]></Document>',
             # Invalid XML characters
-            '<Document>Valid\x00Content</Document>',
+            "<Document>Valid\x00Content</Document>",
         ]
 
         for i, malformed_xml in enumerate(malformed_cases):
-            with tempfile.NamedTemporaryFile(mode='w', suffix=f'_malformed_{i}.xml', delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=f"_malformed_{i}.xml", delete=False
+            ) as f:
                 f.write(malformed_xml)
                 malformed_file = f.name
 
@@ -195,7 +214,9 @@ class TestXMLParsingSecurity(unittest.TestCase):
         # Test with UTF-8 BOM
         bom_xml = b'\xef\xbb\xbf<?xml version="1.0" encoding="UTF-8"?><Document></Document>'
 
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", suffix=".xml", delete=False
+        ) as f:
             f.write(bom_xml)
             bom_file = f.name
 
@@ -218,12 +239,12 @@ class TestResourceProtection(unittest.TestCase):
         """Test handling of large files within limits."""
         # Create a reasonably large XML file (but within limits)
         large_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
-        large_content += '<Document>\n'
-        large_content += '  <BkToCstmrStmt>\n'
+        large_content += "<Document>\n"
+        large_content += "  <BkToCstmrStmt>\n"
 
         # Generate moderate number of statements
         for i in range(100):  # Reasonable number
-            large_content += f'''    <Stmt>
+            large_content += f"""    <Stmt>
       <Id>STMT_{i:06d}</Id>
       <Acct><Id><IBAN>GB29NWBK60161331926{i:03d}</IBAN></Id></Acct>
       <Bal>
@@ -232,11 +253,13 @@ class TestResourceProtection(unittest.TestCase):
         <Tp><Cd>CLBD</Cd></Tp>
         <Dt><Dt>2023-01-01</Dt></Dt>
       </Bal>
-    </Stmt>\n'''
+    </Stmt>\n"""
 
-        large_content += '  </BkToCstmrStmt>\n</Document>'
+        large_content += "  </BkToCstmrStmt>\n</Document>"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as f:
             f.write(large_content)
             large_file = f.name
 
@@ -253,7 +276,7 @@ class TestResourceProtection(unittest.TestCase):
         import gc
         import sys
 
-        test_xml = '''<?xml version="1.0"?>
+        test_xml = """<?xml version="1.0"?>
 <Document>
     <BkToCstmrStmt>
         <Stmt>
@@ -267,9 +290,11 @@ class TestResourceProtection(unittest.TestCase):
             </Bal>
         </Stmt>
     </BkToCstmrStmt>
-</Document>'''
+</Document>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as f:
             f.write(test_xml)
             test_file = f.name
 
@@ -279,7 +304,7 @@ class TestResourceProtection(unittest.TestCase):
             parser = CamtParser(test_file)
             parser.get_statement_stats()
 
-            if hasattr(sys, 'getsizeof'):
+            if hasattr(sys, "getsizeof"):
                 tree_size = sys.getsizeof(parser.tree)
                 # Should be reasonable for a small file
                 self.assertLess(tree_size, 1024 * 1024)  # <1MB
@@ -295,7 +320,7 @@ class TestErrorHandlingSecurity(unittest.TestCase):
         """Test that error messages don't leak sensitive information."""
         # Test with non-existent file in sensitive location
         try:
-            CamtParser('/etc/nonexistent_file.xml')
+            CamtParser("/etc/nonexistent_file.xml")
         except (ValidationError, FileNotFoundError) as e:
             error_msg = str(e)
             # Should contain useful error info but not leak system details
@@ -305,15 +330,15 @@ class TestErrorHandlingSecurity(unittest.TestCase):
         """Test that consistent exception types are raised for security errors."""
         # Path traversal should raise ValidationError
         with self.assertRaises(ValidationError):
-            CamtParser('../../../etc/passwd')
+            CamtParser("../../../etc/passwd")
 
         # System directory access should raise ValidationError
         with self.assertRaises(ValidationError):
-            CamtParser('/etc/hosts')
+            CamtParser("/etc/hosts")
 
         # Non-existent files should raise FileNotFoundError or ValidationError
         with self.assertRaises((FileNotFoundError, ValidationError)):
-            CamtParser('/nonexistent/file.xml')
+            CamtParser("/nonexistent/file.xml")
 
 
 class TestSecurityIntegration(unittest.TestCase):
@@ -322,7 +347,7 @@ class TestSecurityIntegration(unittest.TestCase):
     def test_pain001_security_integration(self):
         """Test Pain001 parser security integration."""
         # Test with potentially malicious but valid XML
-        test_xml = '''<?xml version="1.0"?>
+        test_xml = """<?xml version="1.0"?>
 <Document>
     <CstmrCdtTrfInitn>
         <GrpHdr>
@@ -331,9 +356,11 @@ class TestSecurityIntegration(unittest.TestCase):
             <InitgPty><Nm>Safe &amp; Secure Bank</Nm></InitgPty>
         </GrpHdr>
     </CstmrCdtTrfInitn>
-</Document>'''
+</Document>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as f:
             f.write(test_xml)
             test_file = f.name
 
@@ -350,7 +377,7 @@ class TestSecurityIntegration(unittest.TestCase):
     def test_bank_statement_parsers_security(self):
         """Test security measures in bank statement parsers module."""
         # Test with valid but minimal CAMT file
-        test_xml = '''<?xml version="1.0"?>
+        test_xml = """<?xml version="1.0"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
     <BkToCstmrStmt>
         <Stmt>
@@ -358,16 +385,20 @@ class TestSecurityIntegration(unittest.TestCase):
             <Acct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></Acct>
         </Stmt>
     </BkToCstmrStmt>
-</Document>'''
+</Document>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as f:
             f.write(test_xml)
             test_file = f.name
 
         try:
             parser = Camt053Parser(test_file)
             self.assertEqual(len(parser.statements), 1)
-            self.assertEqual(parser.statements[0]['StatementId'], 'SECURE_TEST')
+            self.assertEqual(
+                parser.statements[0]["StatementId"], "SECURE_TEST"
+            )
         finally:
             os.unlink(test_file)
 
@@ -381,7 +412,7 @@ class TestSecurityIntegration(unittest.TestCase):
         test_dir = tempfile.mkdtemp()
         try:
             # Valid file
-            valid_xml = '''<?xml version="1.0"?>
+            valid_xml = """<?xml version="1.0"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
     <BkToCstmrStmt>
         <Stmt>
@@ -389,21 +420,24 @@ class TestSecurityIntegration(unittest.TestCase):
             <Acct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></Acct>
         </Stmt>
     </BkToCstmrStmt>
-</Document>'''
+</Document>"""
 
-            with open(os.path.join(test_dir, 'valid.xml'), 'w') as f:
+            with open(os.path.join(test_dir, "valid.xml"), "w") as f:
                 f.write(valid_xml)
 
             # Should process the directory safely
-            files_df, statements_df, transactions_df = process_camt053_folder(test_dir)
+            files_df, statements_df, transactions_df = (
+                process_camt053_folder(test_dir)
+            )
             self.assertGreaterEqual(len(files_df), 1)
 
             # Check that processing was successful for valid file
-            success_files = files_df[files_df['Status'] == 'Success']
+            success_files = files_df[files_df["Status"] == "Success"]
             self.assertGreaterEqual(len(success_files), 1)
 
         finally:
             import shutil
+
             shutil.rmtree(test_dir)
 
 
@@ -412,7 +446,7 @@ class TestDataSanitization(unittest.TestCase):
 
     def test_special_character_handling(self):
         """Test proper handling of special characters in data."""
-        special_chars_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+        special_chars_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <Document>
     <BkToCstmrStmt>
         <Stmt>
@@ -435,9 +469,11 @@ class TestDataSanitization(unittest.TestCase):
             </Ntry>
         </Stmt>
     </BkToCstmrStmt>
-</Document>'''
+</Document>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as f:
             f.write(special_chars_xml)
             test_file = f.name
 
@@ -447,13 +483,15 @@ class TestDataSanitization(unittest.TestCase):
 
             # Verify special characters are properly handled
             self.assertEqual(len(transactions), 1)
-            self.assertIn('goods & services', transactions.iloc[0]['Reference'])
+            self.assertIn(
+                "goods & services", transactions.iloc[0]["Reference"]
+            )
         finally:
             os.unlink(test_file)
 
     def test_output_file_security(self):
         """Test security of output file operations."""
-        test_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+        test_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <Document>
     <BkToCstmrStmt>
         <Stmt>
@@ -461,9 +499,11 @@ class TestDataSanitization(unittest.TestCase):
             <Acct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></Acct>
         </Stmt>
     </BkToCstmrStmt>
-</Document>'''
+</Document>"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as f:
             f.write(test_xml)
             test_file = f.name
 
@@ -471,7 +511,9 @@ class TestDataSanitization(unittest.TestCase):
             parser = CamtParser(test_file)
 
             # Test safe output file creation
-            with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as excel_f:
+            with tempfile.NamedTemporaryFile(
+                suffix=".xlsx", delete=False
+            ) as excel_f:
                 excel_file = excel_f.name
 
             try:
@@ -488,5 +530,5 @@ class TestDataSanitization(unittest.TestCase):
             os.unlink(test_file)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main(verbosity=2)

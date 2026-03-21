@@ -25,8 +25,8 @@ setup_requirements = []
 test_requirements = ["pytest>=7.4.2"]
 
 setup(
-    name='bankstatementparser',
-    version='0.0.1',
+    name="bankstatementparser",
+    version="0.0.1",
     description="""
 BankStatementParser is your essential tool for easy bank statement management.
 Designed with finance and treasury experts in mind, it offers a simple way to
@@ -56,18 +56,18 @@ free way to stay on top of your transactions.
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     install_requires=[
-        'lxml>=4.9.3',
-        'openpyxl>=3.1.2',
-        'pandas>=2.1.1'
+        "lxml>=4.9.3",
+        "openpyxl>=3.1.2",
+        "pandas>=2.1.1",
     ],
     keywords="""
         banking, finance, parsing, CAMT, ISO20022, treasury, SEPA, analysis,
         transactions, reporting
     """,
     license="Apache Software License",
-    packages=find_packages(exclude=['docs', 'tests*']),
-    python_requires='>=3.9,<3.13',
-    setup_requires=['pytest-runner'],
-    tests_require=['pytest'],
+    packages=find_packages(exclude=["docs", "tests*"]),
+    python_requires=">=3.9,<3.13",
+    setup_requires=["pytest-runner"],
+    tests_require=["pytest"],
     test_suite="tests",
 )

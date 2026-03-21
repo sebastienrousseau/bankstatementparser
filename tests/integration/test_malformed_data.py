@@ -26,10 +26,12 @@ class TestMalformedDataHandling:
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
 
-    def create_test_file(self, temp_dir: Path, filename: str, content: str) -> Path:
+    def create_test_file(
+        self, temp_dir: Path, filename: str, content: str
+    ) -> Path:
         """Helper to create test files with specified content."""
         file_path = temp_dir / filename
-        file_path.write_text(content, encoding='utf-8')
+        file_path.write_text(content, encoding="utf-8")
         return file_path
 
     def test_malformed_xml_structure(self, temp_dir):
@@ -41,7 +43,9 @@ class TestMalformedDataHandling:
                 <!-- Missing closing tag -->
         </Document>"""
 
-        file_path = self.create_test_file(temp_dir, "malformed.xml", malformed_xml)
+        file_path = self.create_test_file(
+            temp_dir, "malformed.xml", malformed_xml
+        )
 
         with pytest.raises(etree.XMLSyntaxError):
             CamtParser(str(file_path))
@@ -56,7 +60,9 @@ class TestMalformedDataHandling:
             <data>&xxe;</data>
         </Document>"""
 
-        file_path = self.create_test_file(temp_dir, "xxe_attempt.xml", dangerous_xml)
+        file_path = self.create_test_file(
+            temp_dir, "xxe_attempt.xml", dangerous_xml
+        )
 
         # Should not raise an exception due to entity resolution being disabled
         # But should parse without executing the entity
@@ -66,9 +72,15 @@ class TestMalformedDataHandling:
     def test_extremely_large_xml_file(self, temp_dir):
         """Test handling of files that exceed size limits."""
         # Create a large XML file that exceeds the default 100MB limit
-        large_content = "<?xml version='1.0'?><Document>" + "x" * (101 * 1024 * 1024) + "</Document>"
+        large_content = (
+            "<?xml version='1.0'?><Document>"
+            + "x" * (101 * 1024 * 1024)
+            + "</Document>"
+        )
 
-        file_path = self.create_test_file(temp_dir, "oversized.xml", large_content)
+        file_path = self.create_test_file(
+            temp_dir, "oversized.xml", large_content
+        )
 
         with pytest.raises(ValidationError, match="too large"):
             CamtParser(str(file_path))
@@ -82,7 +94,9 @@ class TestMalformedDataHandling:
 
     def test_binary_file_disguised_as_xml(self, temp_dir):
         """Test handling of binary files with XML extension."""
-        binary_content = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+        binary_content = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+        )
         file_path = temp_dir / "fake.xml"
         file_path.write_bytes(binary_content)
 
@@ -99,7 +113,9 @@ class TestMalformedDataHandling:
             nested_xml += f"</level{i}>"
         nested_xml += "</Document>"
 
-        file_path = self.create_test_file(temp_dir, "deeply_nested.xml", nested_xml)
+        file_path = self.create_test_file(
+            temp_dir, "deeply_nested.xml", nested_xml
+        )
 
         # Parser should handle this gracefully or fail with proper error
         try:
@@ -115,7 +131,9 @@ class TestMalformedDataHandling:
             <InvalidChar>\x00\x01\x02</InvalidChar>
         </Document>"""
 
-        file_path = self.create_test_file(temp_dir, "invalid_chars.xml", invalid_xml)
+        file_path = self.create_test_file(
+            temp_dir, "invalid_chars.xml", invalid_xml
+        )
 
         with pytest.raises((etree.XMLSyntaxError, UnicodeDecodeError)):
             CamtParser(str(file_path))
@@ -133,7 +151,9 @@ class TestMalformedDataHandling:
             </Stmt>
         </Document>"""
 
-        file_path = self.create_test_file(temp_dir, "malformed_camt.xml", malformed_camt)
+        file_path = self.create_test_file(
+            temp_dir, "malformed_camt.xml", malformed_camt
+        )
 
         parser = CamtParser(str(file_path))
 
@@ -150,7 +170,9 @@ class TestMalformedDataHandling:
             </Stmt>
         </Document>"""
 
-        file_path = self.create_test_file(temp_dir, "concurrent.xml", valid_xml)
+        file_path = self.create_test_file(
+            temp_dir, "concurrent.xml", valid_xml
+        )
 
         # This test verifies the parser handles files atomically
         parser = CamtParser(str(file_path))
@@ -168,10 +190,16 @@ class TestMalformedDataHandling:
 
     def test_permission_denied_file(self, temp_dir):
         """Test handling of files with restricted permissions."""
-        if os.name != 'posix':
-            pytest.skip("Permission test only relevant on POSIX systems")
+        if os.name != "posix":
+            pytest.skip(
+                "Permission test only relevant on POSIX systems"
+            )
 
-        file_path = self.create_test_file(temp_dir, "restricted.xml", "<?xml version='1.0'?><Document></Document>")
+        file_path = self.create_test_file(
+            temp_dir,
+            "restricted.xml",
+            "<?xml version='1.0'?><Document></Document>",
+        )
 
         # Remove read permissions
         file_path.chmod(0o000)

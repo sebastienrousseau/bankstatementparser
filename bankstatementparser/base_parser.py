@@ -129,10 +129,10 @@ class BankStatementParser(ABC):
             # Create structured JSON with summary and transactions
             data = {
                 "summary": self.get_summary(),
-                "transactions": df.to_dict('records')
+                "transactions": df.to_dict("records"),
             }
 
-            with open(temp_path, 'w', encoding='utf-8') as f:
+            with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, default=str)
 
             # Atomic rename to prevent corruption
@@ -161,8 +161,10 @@ class BankStatementParser(ABC):
         """
         try:
             summary = self.get_summary()
-            return (f"{self.__class__.__name__}: "
-                   f"Account {summary.get('account_id', 'Unknown')}, "
-                   f"{summary.get('transaction_count', 0)} transactions")
+            return (
+                f"{self.__class__.__name__}: "
+                f"Account {summary.get('account_id', 'Unknown')}, "
+                f"{summary.get('transaction_count', 0)} transactions"
+            )
         except Exception:
             return f"{self.__class__.__name__}(file='{self.file_name}')"

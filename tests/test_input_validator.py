@@ -27,12 +27,15 @@ class TestInputValidator(unittest.TestCase):
     def tearDown(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_init_default(self):
         """Test default initialization."""
         validator = InputValidator()
-        self.assertEqual(validator.max_file_size, InputValidator.MAX_FILE_SIZE_BYTES)
+        self.assertEqual(
+            validator.max_file_size, InputValidator.MAX_FILE_SIZE_BYTES
+        )
 
     def test_init_custom_size(self):
         """Test initialization with custom max file size."""
@@ -62,7 +65,9 @@ class TestInputValidator(unittest.TestCase):
         """Test validation with whitespace-only string."""
         with self.assertRaises(ValidationError) as cm:
             self.validator.validate_input_file_path("   \t\n  ")
-        self.assertIn("cannot be empty or whitespace only", str(cm.exception))
+        self.assertIn(
+            "cannot be empty or whitespace only", str(cm.exception)
+        )
 
     def test_validate_input_file_path_dangerous_patterns(self):
         """Test detection of dangerous path patterns."""
@@ -99,7 +104,7 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_file_path_invalid_format(self):
         """Test handling of invalid path formats."""
         # This is tricky to test portably, but we can try some edge cases
-        with patch('pathlib.Path.resolve') as mock_resolve:
+        with patch("pathlib.Path.resolve") as mock_resolve:
             mock_resolve.side_effect = ValueError("Invalid path")
             with self.assertRaises(ValidationError) as cm:
                 self.validator.validate_input_file_path("test.xml")
@@ -108,7 +113,9 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_file_path_file_not_found(self):
         """Test handling of non-existent files."""
         with self.assertRaises(FileNotFoundError) as cm:
-            self.validator.validate_input_file_path("/nonexistent/file.xml")
+            self.validator.validate_input_file_path(
+                "/nonexistent/file.xml"
+            )
         self.assertIn("Input file not found", str(cm.exception))
 
     def test_validate_input_file_path_not_a_file(self):
@@ -121,7 +128,7 @@ class TestInputValidator(unittest.TestCase):
         """Test handling of unreadable files."""
         # Create a file and remove read permissions
         test_file = os.path.join(self.temp_dir, "test.xml")
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("<?xml version='1.0'?><Document></Document>")
         os.chmod(test_file, 0o000)
 
@@ -130,12 +137,14 @@ class TestInputValidator(unittest.TestCase):
                 self.validator.validate_input_file_path(test_file)
             self.assertIn("not readable", str(cm.exception))
         finally:
-            os.chmod(test_file, 0o644)  # Restore permissions for cleanup
+            os.chmod(
+                test_file, 0o644
+            )  # Restore permissions for cleanup
 
     def test_validate_input_file_path_invalid_extension(self):
         """Test rejection of invalid file extensions."""
         test_file = os.path.join(self.temp_dir, "test.txt")
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("content")
 
         with self.assertRaises(ValidationError) as cm:
@@ -145,7 +154,7 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_file_path_file_too_small(self):
         """Test rejection of files that are too small."""
         test_file = os.path.join(self.temp_dir, "empty.xml")
-        with open(test_file, 'w'):
+        with open(test_file, "w"):
             pass  # Create empty file
 
         with self.assertRaises(ValidationError) as cm:
@@ -158,8 +167,12 @@ class TestInputValidator(unittest.TestCase):
         small_validator = InputValidator(max_file_size=100)  # 100 bytes
 
         test_file = os.path.join(self.temp_dir, "large.xml")
-        with open(test_file, 'w') as f:
-            f.write("<?xml version='1.0'?><Document>" + "A" * 200 + "</Document>")
+        with open(test_file, "w") as f:
+            f.write(
+                "<?xml version='1.0'?><Document>"
+                + "A" * 200
+                + "</Document>"
+            )
 
         with self.assertRaises(ValidationError) as cm:
             small_validator.validate_input_file_path(test_file)
@@ -168,7 +181,7 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_file_path_valid_file(self):
         """Test successful validation of a valid file."""
         test_file = os.path.join(self.temp_dir, "valid.xml")
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("<?xml version='1.0'?><Document></Document>")
 
         result = self.validator.validate_input_file_path(test_file)
@@ -179,7 +192,9 @@ class TestInputValidator(unittest.TestCase):
         """Test output validation with empty string."""
         with self.assertRaises(ValidationError) as cm:
             self.validator.validate_output_file_path("")
-        self.assertIn("cannot be empty or whitespace only", str(cm.exception))
+        self.assertIn(
+            "cannot be empty or whitespace only", str(cm.exception)
+        )
 
     def test_validate_output_file_path_none(self):
         """Test output validation with None."""
@@ -195,11 +210,13 @@ class TestInputValidator(unittest.TestCase):
 
     def test_validate_output_file_path_invalid_format(self):
         """Test handling of invalid output path formats."""
-        with patch('pathlib.Path.resolve') as mock_resolve:
+        with patch("pathlib.Path.resolve") as mock_resolve:
             mock_resolve.side_effect = OSError("Invalid path")
             with self.assertRaises(ValidationError) as cm:
                 self.validator.validate_output_file_path("output.csv")
-            self.assertIn("Invalid output file path format", str(cm.exception))
+            self.assertIn(
+                "Invalid output file path format", str(cm.exception)
+            )
 
     def test_validate_output_file_path_create_directory(self):
         """Test creating output directory when it doesn't exist."""
@@ -212,13 +229,17 @@ class TestInputValidator(unittest.TestCase):
 
     def test_validate_output_file_path_cannot_create_directory(self):
         """Test handling when output directory cannot be created."""
-        with patch('pathlib.Path.mkdir') as mock_mkdir:
+        with patch("pathlib.Path.mkdir") as mock_mkdir:
             mock_mkdir.side_effect = OSError("Permission denied")
 
-            output_file = os.path.join(self.temp_dir, "newdir", "output.csv")
+            output_file = os.path.join(
+                self.temp_dir, "newdir", "output.csv"
+            )
             with self.assertRaises(ValidationError) as cm:
                 self.validator.validate_output_file_path(output_file)
-            self.assertIn("Cannot create output directory", str(cm.exception))
+            self.assertIn(
+                "Cannot create output directory", str(cm.exception)
+            )
 
     def test_validate_output_file_path_directory_not_writable(self):
         """Test handling when output directory is not writable."""
@@ -239,16 +260,22 @@ class TestInputValidator(unittest.TestCase):
         output_file = os.path.join(self.temp_dir, "output.txt")
         with self.assertRaises(ValidationError) as cm:
             self.validator.validate_output_file_path(output_file)
-        self.assertIn("Invalid output file extension", str(cm.exception))
+        self.assertIn(
+            "Invalid output file extension", str(cm.exception)
+        )
 
     def test_validate_output_file_path_file_exists_warning(self):
         """Test warning when output file already exists."""
         output_file = os.path.join(self.temp_dir, "existing.csv")
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             f.write("existing content")
 
-        with patch('bankstatementparser.input_validator.logger') as mock_logger:
-            result = self.validator.validate_output_file_path(output_file)
+        with patch(
+            "bankstatementparser.input_validator.logger"
+        ) as mock_logger:
+            result = self.validator.validate_output_file_path(
+                output_file
+            )
             mock_logger.warning.assert_called_once()
             self.assertIsInstance(result, Path)
 
@@ -261,22 +288,35 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_file_size_cannot_stat(self):
         """Test file size validation when stat fails."""
         test_file = os.path.join(self.temp_dir, "test.xml")
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("<?xml version='1.0'?><Document></Document>")
 
-        with patch.object(InputValidator, '_validate_file_size', side_effect=ValidationError("Cannot determine file size: Cannot stat")):
+        with patch.object(
+            InputValidator,
+            "_validate_file_size",
+            side_effect=ValidationError(
+                "Cannot determine file size: Cannot stat"
+            ),
+        ):
             with self.assertRaises(ValidationError) as cm:
                 self.validator.validate_input_file_path(test_file)
-            self.assertIn("Cannot determine file size", str(cm.exception))
+            self.assertIn(
+                "Cannot determine file size", str(cm.exception)
+            )
 
     def test_validate_input_format_mime_type_warning(self):
         """Test warning for unexpected MIME types."""
         test_file = os.path.join(self.temp_dir, "test.xml")
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("<?xml version='1.0'?><Document></Document>")
 
-        with patch('mimetypes.guess_type', return_value=('application/octet-stream', None)):
-            with patch('bankstatementparser.input_validator.logger') as mock_logger:
+        with patch(
+            "mimetypes.guess_type",
+            return_value=("application/octet-stream", None),
+        ):
+            with patch(
+                "bankstatementparser.input_validator.logger"
+            ) as mock_logger:
                 # This should still pass but log a warning
                 self.validator.validate_input_file_path(test_file)
                 mock_logger.warning.assert_called()
@@ -284,10 +324,12 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_format_no_xml_indicators(self):
         """Test validation when file has no XML indicators."""
         test_file = os.path.join(self.temp_dir, "notxml.xml")
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("This is plain text without XML indicators")
 
-        with patch('bankstatementparser.input_validator.logger') as mock_logger:
+        with patch(
+            "bankstatementparser.input_validator.logger"
+        ) as mock_logger:
             # Should pass with a warning
             self.validator.validate_input_file_path(test_file)
             mock_logger.warning.assert_called()
@@ -295,8 +337,8 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_format_binary_data(self):
         """Test rejection of binary data."""
         test_file = os.path.join(self.temp_dir, "binary.xml")
-        with open(test_file, 'wb') as f:
-            f.write(b'\x00\x01\x02\x03\x04\x05' * 20)  # Binary data
+        with open(test_file, "wb") as f:
+            f.write(b"\x00\x01\x02\x03\x04\x05" * 20)  # Binary data
 
         with self.assertRaises(ValidationError) as cm:
             self.validator.validate_input_file_path(test_file)
@@ -305,8 +347,8 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_format_unicode_decode_error(self):
         """Test handling of Unicode decode errors."""
         test_file = os.path.join(self.temp_dir, "bad_encoding.xml")
-        with open(test_file, 'wb') as f:
-            f.write(b'\xff\xfe\x00\x00')  # Invalid UTF-8
+        with open(test_file, "wb") as f:
+            f.write(b"\xff\xfe\x00\x00")  # Invalid UTF-8
 
         with self.assertRaises(ValidationError) as cm:
             self.validator.validate_input_file_path(test_file)
@@ -315,57 +357,66 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_format_read_error(self):
         """Test handling of file read errors during format validation."""
         test_file = os.path.join(self.temp_dir, "test.xml")
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("<?xml version='1.0'?><Document></Document>")
 
-        with patch('builtins.open', side_effect=OSError("Read error")):
+        with patch("builtins.open", side_effect=OSError("Read error")):
             with self.assertRaises(ValidationError) as cm:
                 self.validator.validate_input_file_path(test_file)
-            self.assertIn("Cannot read file for format validation", str(cm.exception))
+            self.assertIn(
+                "Cannot read file for format validation",
+                str(cm.exception),
+            )
 
     def test_get_safe_filename_dangerous_chars(self):
         """Test safe filename generation with dangerous characters."""
         dangerous_filename = 'file<>:"/\\|?*.xml'
-        safe_filename = self.validator.get_safe_filename(dangerous_filename)
-        self.assertEqual(safe_filename, 'file_________.xml')
+        safe_filename = self.validator.get_safe_filename(
+            dangerous_filename
+        )
+        self.assertEqual(safe_filename, "file_________.xml")
 
     def test_get_safe_filename_leading_trailing_dots(self):
         """Test safe filename generation removes leading/trailing dots and spaces."""
-        filename = '...  file.xml  ...'
+        filename = "...  file.xml  ..."
         safe_filename = self.validator.get_safe_filename(filename)
-        self.assertEqual(safe_filename, 'file.xml')
+        self.assertEqual(safe_filename, "file.xml")
 
     def test_get_safe_filename_empty_result(self):
         """Test safe filename generation with empty result."""
-        filename = '   ...   '  # This will become empty after stripping
+        filename = "   ...   "  # This will become empty after stripping
         safe_filename = self.validator.get_safe_filename(filename)
-        self.assertEqual(safe_filename, 'unnamed_file')
+        self.assertEqual(safe_filename, "unnamed_file")
 
     def test_get_safe_filename_too_long(self):
         """Test safe filename generation with very long names."""
-        long_name = 'a' * 300 + '.xml'
+        long_name = "a" * 300 + ".xml"
         safe_filename = self.validator.get_safe_filename(long_name)
         self.assertTrue(len(safe_filename) <= 255)
-        self.assertTrue(safe_filename.endswith('.xml'))
+        self.assertTrue(safe_filename.endswith(".xml"))
 
     def test_class_constants(self):
         """Test class constants are defined correctly."""
         self.assertIsInstance(InputValidator.MAX_FILE_SIZE_BYTES, int)
         self.assertIsInstance(InputValidator.MIN_FILE_SIZE_BYTES, int)
-        self.assertIsInstance(InputValidator.ALLOWED_INPUT_EXTENSIONS, set)
-        self.assertIsInstance(InputValidator.ALLOWED_OUTPUT_EXTENSIONS, set)
+        self.assertIsInstance(
+            InputValidator.ALLOWED_INPUT_EXTENSIONS, set
+        )
+        self.assertIsInstance(
+            InputValidator.ALLOWED_OUTPUT_EXTENSIONS, set
+        )
         self.assertIsInstance(InputValidator.DANGEROUS_PATTERNS, list)
         self.assertIsInstance(InputValidator.BLOCKED_DIRECTORIES, set)
 
         # Verify some expected values
-        self.assertIn('.xml', InputValidator.ALLOWED_INPUT_EXTENSIONS)
-        self.assertIn('.csv', InputValidator.ALLOWED_OUTPUT_EXTENSIONS)
-        self.assertIn('/etc', InputValidator.BLOCKED_DIRECTORIES)
+        self.assertIn(".xml", InputValidator.ALLOWED_INPUT_EXTENSIONS)
+        self.assertIn(".csv", InputValidator.ALLOWED_OUTPUT_EXTENSIONS)
+        self.assertIn("/etc", InputValidator.BLOCKED_DIRECTORIES)
 
     def test_case_insensitive_extensions(self):
         """Test that file extensions are handled case-insensitively."""
         test_file = os.path.join(self.temp_dir, "test.XML")  # Uppercase
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("<?xml version='1.0'?><Document></Document>")
 
         # Should work with uppercase extension
@@ -375,13 +426,15 @@ class TestInputValidator(unittest.TestCase):
     def test_whitespace_stripping(self):
         """Test that whitespace is properly stripped from paths."""
         test_file = os.path.join(self.temp_dir, "test.xml")
-        with open(test_file, 'w') as f:
+        with open(test_file, "w") as f:
             f.write("<?xml version='1.0'?><Document></Document>")
 
         # Test with leading/trailing whitespace
-        result = self.validator.validate_input_file_path(f"  {test_file}  \t\n")
+        result = self.validator.validate_input_file_path(
+            f"  {test_file}  \t\n"
+        )
         self.assertIsInstance(result, Path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main(verbosity=2)
