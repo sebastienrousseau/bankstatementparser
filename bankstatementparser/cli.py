@@ -384,7 +384,7 @@ class BankStatementCLI:
             # argparse failed, which means required arguments are missing
             print("Error: Missing required arguments")
             sys.exit(1)
-            return  # Defensive programming: ensure we don't continue if sys.exit is mocked
+            return  # pragma: no cover
 
         # Check if required arguments are present (safety check)
         if not hasattr(args, 'input') or args.input is None or not hasattr(args, 'type') or args.type is None:
@@ -446,6 +446,6 @@ class BankStatementCLI:
             sys.exit(1)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     cli = BankStatementCLI()
     cli.run()

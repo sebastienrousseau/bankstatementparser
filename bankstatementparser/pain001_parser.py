@@ -300,19 +300,38 @@ class Pain001Parser(BankStatementParser):
                     # Reset payment info for new payment
                     current_payment_info = {}
 
-                elif event == 'end' and elem.tag == 'PmtInf':
-                    # Extract payment-level information
-                    for child in elem:
-                        if child.tag in ['PmtInfId', 'PmtMtd', 'NbOfTxs', 'CtrlSum', 'ReqdExctnDt', 'ChrgBr']:
-                            current_payment_info[child.tag] = child.text
-                        elif child.tag == 'Dbtr':
-                            dbtr_name = child.find('Nm')
-                            current_payment_info['DbtrNm'] = dbtr_name.text if dbtr_name is not None else None
-                            dbtr_acct = child.find('DbtrAcct/Id/IBAN')
-                            current_payment_info['DbtrIBAN'] = dbtr_acct.text if dbtr_acct is not None else None
-                        elif child.tag == 'DbtrAgt':
-                            dbtr_agt = child.find('FinInstnId/BIC')
-                            current_payment_info['DbtrBIC'] = dbtr_agt.text if dbtr_agt is not None else None
+                elif event == 'end' and elem.tag in (
+                    'PmtInfId', 'PmtMtd', 'NbOfTxs',
+                    'CtrlSum', 'ReqdExctnDt', 'ChrgBr',
+                ):
+                    # Capture PmtInf-level scalar fields as they complete
+                    parent = elem.getparent()
+                    if parent is not None and parent.tag == 'PmtInf':
+                        current_payment_info[elem.tag] = elem.text
+
+                elif event == 'end' and elem.tag == 'Dbtr':
+                    parent = elem.getparent()
+                    if parent is not None and parent.tag == 'PmtInf':  # pragma: no branch
+                        dbtr_name = elem.find('Nm')
+                        current_payment_info['DbtrNm'] = (
+                            dbtr_name.text if dbtr_name is not None else None
+                        )
+
+                elif event == 'end' and elem.tag == 'DbtrAcct':
+                    parent = elem.getparent()
+                    if parent is not None and parent.tag == 'PmtInf':  # pragma: no branch
+                        iban = elem.find('Id/IBAN')
+                        current_payment_info['DbtrIBAN'] = (
+                            iban.text if iban is not None else None
+                        )
+
+                elif event == 'end' and elem.tag == 'DbtrAgt':
+                    parent = elem.getparent()
+                    if parent is not None and parent.tag == 'PmtInf':  # pragma: no branch
+                        bic = elem.find('FinInstnId/BIC')
+                        current_payment_info['DbtrBIC'] = (
+                            bic.text if bic is not None else None
+                        )
 
                 elif event == 'end' and elem.tag == 'CdtTrfTxInf':
                     # Process completed credit transfer transaction
