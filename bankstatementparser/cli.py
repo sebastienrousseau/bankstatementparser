@@ -242,7 +242,7 @@ class BankStatementCLI:
                                 )
 
                     # Atomically move temp file to final location
-                    os.rename(temp_output, safe_output_path)
+                    os.replace(temp_output, safe_output_path)
                     print(
                         f"Parsed {transaction_count} transactions in streaming mode, saved to {safe_output_path}"
                     )
@@ -383,7 +383,7 @@ class BankStatementCLI:
                                 )
 
                     # Atomically move temp file to final location
-                    os.rename(temp_output, safe_output_path)
+                    os.replace(temp_output, safe_output_path)
                     print(
                         f"Parsed {payment_count} payments in streaming mode, saved to {safe_output_path}"
                     )

@@ -305,7 +305,7 @@ class Pain001Parser(BankStatementParser):
                 # Use atomic write operation with temp file
                 temp_file = f"{output_file}.tmp"
                 df.to_csv(temp_file, index=False)
-                os.rename(temp_file, output_file)
+                os.replace(temp_file, output_file)
                 logger.info("Parsed data saved to %s", output_file)
 
             return df

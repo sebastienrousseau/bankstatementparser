@@ -37,7 +37,7 @@ class TestBankStatementCLI(unittest.TestCase):
         """Test sanitization of absolute paths."""
         test_path = "/tmp/test.xml"
         result = self.cli._sanitize_file_path(test_path)
-        self.assertEqual(result, test_path)
+        self.assertEqual(result, os.path.abspath(test_path))
 
     def test_sanitize_file_path_traversal_attempt(self):
         """Test handling of path traversal attempts."""

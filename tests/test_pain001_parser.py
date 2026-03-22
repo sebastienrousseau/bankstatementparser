@@ -165,6 +165,7 @@ class TestPain001Parser(unittest.TestCase):
             suffix=".csv", delete=False
         ) as output_file:
             output_path = output_file.name
+            output_file.write(b"existing,data\n1,2\n")
 
         try:
             # Test parsing with output
@@ -173,8 +174,11 @@ class TestPain001Parser(unittest.TestCase):
             # Check that DataFrame was returned
             self.assertIsNotNone(result)
 
-            # Check that output file was created
+            # Check that output file was created and overwritten safely
             self.assertTrue(os.path.exists(output_path))
+            with open(output_path, encoding="utf-8") as handle:
+                contents = handle.read()
+            self.assertIn("MsgId", contents)
 
         finally:
             # Cleanup
