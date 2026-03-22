@@ -156,9 +156,9 @@ pandas==2.1.2 ; python_version >= "3.9" and python_version < "3.13" \
     --hash=sha256:e90c95abb3285d06f6e4feedafc134306a8eced93cb78e08cf50e224d5ce22e2 \
     --hash=sha256:eff794eeb7883c5aefb1ed572e7ff533ae779f6c6277849eab9e77986e352688 \
     --hash=sha256:fc4944dc004ca6cc701dfa19afb8bdb26ad36b9bed5bcec617d2a11e9cae6902
-python-dateutil==2.8.2 ; python_version >= "3.9" and python_version < "3.13" \
-    --hash=sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86 \
-    --hash=sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9
+python-dateutil==2.9.0.post0 ; python_version >= "3.9" and python_version < "3.13" \
+    --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
+    --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
 pytz==2023.3.post1 ; python_version >= "3.9" and python_version < "3.13" \
     --hash=sha256:7b4fddbeb94a1eba4b557da24f19fdf9db575192544270a9101d8509f9f43d7b \
     --hash=sha256:ce42d816b81b68506614c11e8937d3aa9e41007ceb50bfdcb0749b921bf646c7
