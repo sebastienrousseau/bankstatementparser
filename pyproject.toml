@@ -17,6 +17,8 @@ lxml = "^4.9.3"
 openpyxl = "^3.1.5"
 pandas = "^2.3.3"
 defusedxml = "^0.7.1"
+pydantic = "^2.11.0"
+polars = {version = "^1.32.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
@@ -24,6 +26,9 @@ pytest-cov = "^7.1.0"
 ruff = "^0.15.7"
 mypy = "^1.5.0"
 bandit = "^1.7.0"
+
+[tool.poetry.extras]
+polars = ["polars"]
 
 [build-system]
 requires = ["poetry-core"]
@@ -75,6 +80,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["defusedxml", "defusedxml.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["polars", "polars.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

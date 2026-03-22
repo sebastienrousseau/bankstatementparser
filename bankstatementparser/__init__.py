@@ -33,6 +33,13 @@ from .base_parser import BankStatementParser
 from .camt_parser import CamtParser
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
+from .transaction_deduplicator import (
+    DeduplicationResult,
+    Deduplicator,
+    ExactDuplicateGroup,
+    MatchGroup,
+)
+from .transaction_models import Transaction
 from .zip_security import (
     ZipSecurityError,
     ZipXMLSource,
@@ -49,6 +56,11 @@ __all__ = [
     "detect_statement_format",
     "create_parser",
     "Pain001Parser",
+    "Transaction",
+    "Deduplicator",
+    "DeduplicationResult",
+    "ExactDuplicateGroup",
+    "MatchGroup",
     "InputValidator",
     "ValidationError",
     "ZipSecurityError",

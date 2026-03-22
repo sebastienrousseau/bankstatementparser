@@ -20,6 +20,7 @@ Abstract base class for bank statement parsers providing a standardized
 interface for parsing different bank statement formats.
 """
 
+import importlib
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -142,6 +143,34 @@ class BankStatementParser(ABC):
             if Path(temp_path).exists():
                 Path(temp_path).unlink()
             raise OSError(f"Failed to export JSON: {e}") from e
+
+    def to_polars(self) -> Any:
+        """
+        Convert parsed transaction data to a Polars DataFrame.
+
+        Returns:
+            Any: ``polars.DataFrame`` for the parsed data.
+
+        Raises:
+            ImportError: If the optional ``polars`` dependency is not installed.
+        """
+        try:
+            polars = importlib.import_module("polars")
+        except ImportError as exc:
+            raise ImportError(
+                "Run 'pip install bankstatementparser[polars]' to use this feature."
+            ) from exc
+
+        return polars.from_pandas(self.parse())
+
+    def to_polars_lazy(self) -> Any:
+        """
+        Convert parsed transaction data to a Polars LazyFrame.
+
+        Returns:
+            Any: ``polars.LazyFrame`` for the parsed data.
+        """
+        return self.to_polars().lazy()
 
     def __repr__(self) -> str:
         """
