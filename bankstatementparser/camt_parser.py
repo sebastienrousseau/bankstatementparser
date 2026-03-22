@@ -24,13 +24,19 @@ import re
 from collections.abc import Generator
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 import pandas as pd
 from lxml import etree
 
 from .base_parser import BankStatementParser
 from .input_validator import InputValidator, ValidationError
+from .record_types import (
+    BalanceRecord,
+    StatementStatsRecord,
+    SummaryRecord,
+    TransactionRecord,
+)
 
 # Configuring the logging
 logger = logging.getLogger(__name__)
@@ -177,7 +183,7 @@ class CamtParser(BankStatementParser):
             raise ValidationError(
                 f"Permission denied reading file: {file_name}"
             ) from exc
-        except Exception as e:
+        except OSError as e:
             logger.error(
                 "An error occurred while reading the file: %s", str(e)
             )
@@ -303,7 +309,7 @@ class CamtParser(BankStatementParser):
 
     def _get_balances_for_statement(
         self, statement: etree._Element
-    ) -> list[dict[str, Any]]:
+    ) -> list[BalanceRecord]:
         """
         Helper method to extract balances for a single statement.
 
@@ -319,7 +325,7 @@ class CamtParser(BankStatementParser):
         if not bal_elems:
             return []
 
-        balances = []
+        balances: list[BalanceRecord] = []
 
         for elem in bal_elems:
             # Safely extract required fields, skipping malformed balance elements
@@ -411,7 +417,7 @@ class CamtParser(BankStatementParser):
 
     def _get_transactions_for_statement(
         self, statement: etree._Element, redact_pii: bool = False
-    ) -> list[dict[str, Any]]:
+    ) -> list[TransactionRecord]:
         """
         Helper method to extract transactions for a single statement.
 
@@ -514,7 +520,7 @@ class CamtParser(BankStatementParser):
             )
             creditor_addresses.append(creditor_addr)
 
-        transactions = []
+        transactions: list[TransactionRecord] = []
 
         # Reconstruct transactions from batched data
         for _i, (
@@ -554,7 +560,7 @@ class CamtParser(BankStatementParser):
                     creditor_addr = "***REDACTED***"
 
             # Build transaction dictionary
-            result = {
+            result: TransactionRecord = {
                 "Amount": amount,
                 "Currency": currency,
                 "DrCr": cdt_dbt,
@@ -632,7 +638,7 @@ class CamtParser(BankStatementParser):
 
     def _get_statement_stats(
         self, statement: etree._Element, redact_pii: bool = False
-    ) -> dict[str, Any]:
+    ) -> StatementStatsRecord:
         """
         Extracts statistics for a single bank statement.
 
@@ -704,7 +710,7 @@ class CamtParser(BankStatementParser):
 
     def parse_streaming(
         self, redact_pii: bool = False
-    ) -> Generator[dict[str, Any], None, None]:
+    ) -> Generator[TransactionRecord, None, None]:
         """
         Parse the CAMT file using streaming XML parsing for large files.
         Yields transaction data incrementally to keep memory usage low.
@@ -765,7 +771,7 @@ class CamtParser(BankStatementParser):
         entry_elem: etree._Element,
         account_id: str,
         redact_pii: bool = False,
-    ) -> dict[str, Any]:
+    ) -> TransactionRecord:
         """
         Parse a single transaction entry element for streaming mode.
 
@@ -844,7 +850,7 @@ class CamtParser(BankStatementParser):
                 creditor_addr = "***REDACTED***"
 
         # Build transaction dictionary
-        result = {
+        result: TransactionRecord = {
             "Amount": amount,
             "Currency": currency,
             "DrCr": cdt_dbt,
@@ -864,7 +870,7 @@ class CamtParser(BankStatementParser):
 
         return result
 
-    def get_summary(self) -> dict[str, Any]:
+    def get_summary(self) -> SummaryRecord:
         """
         Get a summary of the parsed CAMT statement data.
 
@@ -876,7 +882,7 @@ class CamtParser(BankStatementParser):
         balances_df = self.get_account_balances()
 
         # Get the first statement's summary (most files have one statement)
-        summary = {}
+        summary: SummaryRecord = {}
         if not stats_df.empty:
             first_stat = stats_df.iloc[0]
             summary = {

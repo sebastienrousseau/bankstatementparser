@@ -24,9 +24,15 @@ import importlib
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Union
+from typing import TYPE_CHECKING, Union
 
 import pandas as pd
+
+from .exceptions import ExportError
+from .record_types import SummaryRecord
+
+if TYPE_CHECKING:
+    import polars as pl
 
 
 class BankStatementParser(ABC):
@@ -70,7 +76,7 @@ class BankStatementParser(ABC):
         pass
 
     @abstractmethod
-    def get_summary(self) -> dict[str, Any]:
+    def get_summary(self) -> SummaryRecord:
         """
         Get a summary of the parsed bank statement data.
 
@@ -100,18 +106,20 @@ class BankStatementParser(ABC):
         Raises:
             IOError: If file cannot be written.
         """
-        temp_path = f"{output_path}.tmp"
+        temp_path = Path(f"{output_path}.tmp")
         try:
             df = self.parse()
             df.to_csv(temp_path, index=False)
 
             # Atomic rename to prevent corruption
-            Path(temp_path).replace(output_path)
-        except Exception as e:
+            temp_path.replace(output_path)
+        except Exception as exc:
             # Clean up temp file if it exists
-            if Path(temp_path).exists():
-                Path(temp_path).unlink()
-            raise OSError(f"Failed to export CSV: {e}") from e
+            if temp_path.exists():
+                temp_path.unlink()
+            raise ExportError(
+                f"Failed to export CSV: {exc}"
+            ) from exc
 
     def export_json(self, output_path: Union[str, Path]) -> None:
         """
@@ -123,7 +131,7 @@ class BankStatementParser(ABC):
         Raises:
             IOError: If file cannot be written.
         """
-        temp_path = f"{output_path}.tmp"
+        temp_path = Path(f"{output_path}.tmp")
         try:
             df = self.parse()
 
@@ -137,14 +145,16 @@ class BankStatementParser(ABC):
                 json.dump(data, f, indent=2, default=str)
 
             # Atomic rename to prevent corruption
-            Path(temp_path).replace(output_path)
-        except Exception as e:
+            temp_path.replace(output_path)
+        except Exception as exc:
             # Clean up temp file if it exists
-            if Path(temp_path).exists():
-                Path(temp_path).unlink()
-            raise OSError(f"Failed to export JSON: {e}") from e
+            if temp_path.exists():
+                temp_path.unlink()
+            raise ExportError(
+                f"Failed to export JSON: {exc}"
+            ) from exc
 
-    def to_polars(self) -> Any:
+    def to_polars(self) -> "pl.DataFrame":
         """
         Convert parsed transaction data to a Polars DataFrame.
 
@@ -163,7 +173,7 @@ class BankStatementParser(ABC):
 
         return polars.from_pandas(self.parse())
 
-    def to_polars_lazy(self) -> Any:
+    def to_polars_lazy(self) -> "pl.LazyFrame":
         """
         Convert parsed transaction data to a Polars LazyFrame.
 

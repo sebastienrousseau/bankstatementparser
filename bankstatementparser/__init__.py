@@ -31,6 +31,12 @@ from .additional_parsers import (
 )
 from .base_parser import BankStatementParser
 from .camt_parser import CamtParser
+from .exceptions import (
+    BankStatementParserError,
+    ExportError,
+    Pain001ParseError,
+    ParserError,
+)
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
 from .transaction_deduplicator import (
@@ -48,14 +54,18 @@ from .zip_security import (
 
 __all__ = [
     "BankStatementParser",
+    "BankStatementParserError",
     "CamtParser",
     "CsvStatementParser",
+    "ExportError",
     "OfxParser",
     "QfxParser",
     "Mt940Parser",
     "detect_statement_format",
     "create_parser",
     "Pain001Parser",
+    "Pain001ParseError",
+    "ParserError",
     "Transaction",
     "Deduplicator",
     "DeduplicationResult",

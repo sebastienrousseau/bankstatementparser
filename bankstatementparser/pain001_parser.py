@@ -24,14 +24,15 @@ import os
 import re
 import tempfile
 from collections.abc import Generator
-from typing import Any, Optional
+from typing import Optional, cast
 
 import pandas as pd
-from defusedxml.ElementTree import ParseError
 from lxml import etree
 
 from .base_parser import BankStatementParser
+from .exceptions import Pain001ParseError
 from .input_validator import InputValidator, ValidationError
+from .record_types import PaymentRecord, SummaryRecord
 
 # Configuring the logging
 logger = logging.getLogger(__name__)
@@ -96,7 +97,7 @@ class Pain001Parser(BankStatementParser):
             raise ValidationError(
                 f"Permission denied reading file: {file_name}"
             ) from exc
-        except Exception as e:
+        except OSError as e:
             logger.error(
                 "An error occurred while reading the file: %s", str(e)
             )
@@ -137,7 +138,7 @@ class Pain001Parser(BankStatementParser):
                 raise ValidationError(
                     f"Invalid XML format: {error_msg}"
                 ) from e
-        except Exception as e:
+        except etree.LxmlError as e:
             logger.error(
                 "An error occurred while parsing the XML: %s", str(e)
             )
@@ -189,7 +190,7 @@ class Pain001Parser(BankStatementParser):
 
             # Pre-extract header information once
             group_header = root.find(".//CstmrCdtTrfInitn/GrpHdr")
-            header_fields = {}
+            header_fields: dict[str, Optional[str]] = {}
             if group_header is not None:
                 # Batch extract all header fields in single iteration
                 for child in group_header:
@@ -208,11 +209,11 @@ class Pain001Parser(BankStatementParser):
             payment_info_records = root.findall(
                 ".//CstmrCdtTrfInitn/PmtInf"
             )
-            payments = []
+            payments: list[dict[str, Optional[str]]] = []
 
             for pmt in payment_info_records:
                 # Pre-extract all payment-level fields in single iteration
-                pmt_fields = {}
+                pmt_fields: dict[str, Optional[str]] = {}
                 for child in pmt:
                     if child.tag in [
                         "PmtInfId",
@@ -250,7 +251,7 @@ class Pain001Parser(BankStatementParser):
                 # Batch process all transactions for this payment
                 transactions = pmt.findall("CdtTrfTxInf")
                 for tx in transactions:
-                    payment = (
+                    payment: dict[str, Optional[str]] = (
                         pmt_fields.copy()
                     )  # Start with payment-level data
 
@@ -309,12 +310,19 @@ class Pain001Parser(BankStatementParser):
                 logger.info("Parsed data saved to %s", output_file)
 
             return df
-        except Exception as e:
-            raise ParseError(f"Error parsing PAIN.001 file: {e}") from e
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+            etree.LxmlError,
+        ) as e:
+            raise Pain001ParseError(
+                f"Error parsing PAIN.001 file: {e}"
+            ) from e
 
     def parse_streaming(
         self, redact_pii: bool = False
-    ) -> Generator[dict[str, Any], None, None]:
+    ) -> Generator[PaymentRecord, None, None]:
         """
         Parse the PAIN.001 file using streaming XML parsing for large files.
         Yields payment data incrementally to keep memory usage low.
@@ -361,7 +369,7 @@ class Pain001Parser(BankStatementParser):
             raise ValidationError(
                 f"Permission denied reading file: {file_path}"
             ) from exc
-        except Exception as e:
+        except OSError as e:
             logger.error("Error reading file for streaming: %s", str(e))
             raise ValidationError(
                 f"Error reading file {file_path}: {str(e)}"
@@ -391,8 +399,8 @@ class Pain001Parser(BankStatementParser):
             )
 
             # Track context for header and payment info
-            header_fields: dict[str, Any] = {}
-            current_payment_info: dict[str, Any] = {}
+            header_fields: dict[str, Optional[str]] = {}
+            current_payment_info: dict[str, Optional[str]] = {}
 
             # Use iterparse to process elements incrementally
             for event, elem in etree.iterparse(
@@ -495,10 +503,10 @@ class Pain001Parser(BankStatementParser):
     def _parse_streaming_payment(
         self,
         tx_elem: etree._Element,
-        payment_info: dict[str, Any],
-        header_fields: dict[str, Any],
+        payment_info: dict[str, Optional[str]],
+        header_fields: dict[str, Optional[str]],
         redact_pii: bool = False,
-    ) -> dict[str, Any]:
+    ) -> PaymentRecord:
         """
         Parse a single credit transfer transaction element for streaming mode.
 
@@ -512,7 +520,7 @@ class Pain001Parser(BankStatementParser):
             Dict[str, Any]: Parsed payment data.
         """
         # Start with payment-level data
-        payment = payment_info.copy()
+        payment: dict[str, Optional[str]] = payment_info.copy()
 
         # Extract transaction-specific fields
         for child in tx_elem:
@@ -558,9 +566,9 @@ class Pain001Parser(BankStatementParser):
                 if payment.get(field):
                     payment[field] = "***REDACTED***"
 
-        return payment
+        return cast(PaymentRecord, payment)
 
-    def get_summary(self, redact_pii: bool = False) -> dict[str, Any]:
+    def get_summary(self, redact_pii: bool = False) -> SummaryRecord:
         """
         Get a summary of the parsed PAIN.001 statement data.
 

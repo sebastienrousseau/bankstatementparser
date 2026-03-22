@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 
@@ -12,6 +11,7 @@ from .base_parser import BankStatementParser
 from .camt_parser import CamtParser
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
+from .record_types import SummaryRecord, TransactionRecord
 
 CSV_COLUMN_GROUPS = {
     "date": {"date", "bookingdate", "transactiondate", "valuedate"},
@@ -43,7 +43,7 @@ def _read_validated_text(file_name: str | Path) -> tuple[Path, str]:
     return path, path.read_text(encoding="utf-8", errors="ignore")
 
 
-def _parse_amount(value: Any) -> float | None:
+def _parse_amount(value: object) -> float | None:
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None
     text = str(value).strip()
@@ -128,7 +128,7 @@ class CsvStatementParser(BankStatementParser):
         self._parsed_df = parsed.fillna(value={"amount": 0.0})
         return self._parsed_df.copy()
 
-    def get_summary(self) -> dict[str, Any]:
+    def get_summary(self) -> SummaryRecord:
         df = self.parse()
         balance = (
             df["balance"] if "balance" in df.columns else pd.Series()
@@ -186,7 +186,7 @@ class OfxParser(BankStatementParser):
 
         currency = self._tag_value(self._text, "CURDEF")
         account_id = self._tag_value(self._text, "ACCTID")
-        rows: list[dict[str, Any]] = []
+        rows: list[TransactionRecord] = []
         blocks = re.findall(
             r"<STMTTRN>(.*?)(?:</STMTTRN>|(?=<STMTTRN>|</BANKTRANLIST>))",
             self._text,
@@ -217,7 +217,7 @@ class OfxParser(BankStatementParser):
         self._parsed_df = pd.DataFrame(rows)
         return self._parsed_df.copy()
 
-    def get_summary(self) -> dict[str, Any]:
+    def get_summary(self) -> SummaryRecord:
         df = self.parse()
         return {
             "account_id": (
@@ -260,8 +260,8 @@ class Mt940Parser(BankStatementParser):
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
-        rows: list[dict[str, Any]] = []
-        current: dict[str, Any] | None = None
+        rows: list[TransactionRecord] = []
+        current: TransactionRecord | None = None
 
         for raw_line in self._text.splitlines():
             line = raw_line.strip()
@@ -285,7 +285,7 @@ class Mt940Parser(BankStatementParser):
                 )
                 if match is not None:
                     sign = -1.0 if match.group(2) == "D" else 1.0
-                    current = {
+                    current_record: TransactionRecord = {
                         "date": match.group(1),
                         "amount": sign
                         * (_parse_amount(match.group(3)) or 0.0),
@@ -295,14 +295,15 @@ class Mt940Parser(BankStatementParser):
                         "currency": self._currency,
                         "description": None,
                     }
-                    rows.append(current)
+                    current = current_record
+                    rows.append(current_record)
             elif line.startswith(":86:") and current is not None:
                 current["description"] = line[4:].strip() or None
 
         self._parsed_df = pd.DataFrame(rows)
         return self._parsed_df.copy()
 
-    def get_summary(self) -> dict[str, Any]:
+    def get_summary(self) -> SummaryRecord:
         df = self.parse()
         return {
             "account_id": self._account_id,

@@ -18,21 +18,22 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-def _coerce_decimal(value: Any) -> Decimal:
+def _coerce_decimal(value: object) -> Decimal:
     text = str(value).strip()
     if not text:
         raise ValueError("amount is required")
     return Decimal(text)
 
 
-def _parse_date(value: Any) -> date | None:
+def _parse_date(value: object) -> date | None:
     if value in (None, ""):
         return None
     if isinstance(value, date) and not isinstance(value, datetime):
@@ -63,7 +64,9 @@ def normalize_description(value: str | None) -> str:
     return re.sub(r"[^a-z0-9 ]+", "", collapsed)
 
 
-def _first_value(record: dict[str, Any], *keys: str) -> Any:
+def _first_value(
+    record: Mapping[str, object], *keys: str
+) -> object | None:
     for key in keys:
         if key in record and record[key] not in (None, ""):
             return record[key]
@@ -91,7 +94,7 @@ class Transaction(BaseModel):
     @classmethod
     def from_record(
         cls,
-        record: dict[str, Any],
+        record: Mapping[str, object],
         *,
         source: str | None = None,
         source_index: int | None = None,
