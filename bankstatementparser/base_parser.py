@@ -117,9 +117,7 @@ class BankStatementParser(ABC):
             # Clean up temp file if it exists
             if temp_path.exists():
                 temp_path.unlink()
-            raise ExportError(
-                f"Failed to export CSV: {exc}"
-            ) from exc
+            raise ExportError(f"Failed to export CSV: {exc}") from exc
 
     def export_json(self, output_path: Union[str, Path]) -> None:
         """
@@ -150,9 +148,7 @@ class BankStatementParser(ABC):
             # Clean up temp file if it exists
             if temp_path.exists():
                 temp_path.unlink()
-            raise ExportError(
-                f"Failed to export JSON: {exc}"
-            ) from exc
+            raise ExportError(f"Failed to export JSON: {exc}") from exc
 
     def to_polars(self) -> "pl.DataFrame":
         """
