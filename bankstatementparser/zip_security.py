@@ -38,7 +38,9 @@ def iter_secure_xml_entries(
     untrusted banks, middleware, or user uploads.
     """
     if max_entry_size <= 0:
-        raise ZipSecurityError("max_entry_size must be greater than zero")
+        raise ZipSecurityError(
+            "max_entry_size must be greater than zero"
+        )
     if max_total_uncompressed_size <= 0:
         raise ZipSecurityError(
             "max_total_uncompressed_size must be greater than zero"
@@ -56,7 +58,9 @@ def iter_secure_xml_entries(
         with ZipFile(archive_path) as zf:
             members = zf.infolist()
             if not members:
-                raise ZipSecurityError("ZIP archive does not contain any entries")
+                raise ZipSecurityError(
+                    "ZIP archive does not contain any entries"
+                )
 
             for member in members:
                 if member.is_dir():
@@ -71,15 +75,20 @@ def iter_secure_xml_entries(
                 )
 
                 total_uncompressed_size += member.file_size
-                if total_uncompressed_size > max_total_uncompressed_size:
+                if (
+                    total_uncompressed_size
+                    > max_total_uncompressed_size
+                ):
                     raise ZipSecurityError(
                         "ZIP archive exceeds the total allowed uncompressed XML size"
                     )
 
                 xml_bytes = zf.read(member)
                 try:
-                    xml_bytes, safe_name = validator.validate_xml_content(
-                        xml_bytes, source_name=member.filename
+                    xml_bytes, safe_name = (
+                        validator.validate_xml_content(
+                            xml_bytes, source_name=member.filename
+                        )
                     )
                 except ValidationError as exc:
                     raise ZipSecurityError(str(exc)) from exc

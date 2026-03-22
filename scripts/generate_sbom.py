@@ -8,7 +8,7 @@ import importlib.metadata
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote
 
 try:
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def load_toml(path: Path) -> dict[str, Any]:
     with path.open("rb") as handle:
-        return tomllib.load(handle)
+        return cast(dict[str, Any], tomllib.load(handle))
 
 
 def normalize_distribution_name(name: str) -> str:
@@ -62,7 +62,9 @@ def cyclonedx_component(package: dict[str, Any]) -> dict[str, Any]:
     for file_entry in package.get("files", []):
         digest = file_entry.get("hash", "")
         if digest.startswith("sha256:"):
-            hashes.append({"alg": "SHA-256", "content": digest.split(":", 1)[1]})
+            hashes.append(
+                {"alg": "SHA-256", "content": digest.split(":", 1)[1]}
+            )
 
     groups = ",".join(package.get("groups", [])) or "runtime"
     license_name = resolve_license(name)
@@ -73,7 +75,9 @@ def cyclonedx_component(package: dict[str, Any]) -> dict[str, Any]:
         "name": name,
         "version": version,
         "purl": package_ref(name, version),
-        "scope": "optional" if package.get("optional", False) else "required",
+        "scope": "optional"
+        if package.get("optional", False)
+        else "required",
         "hashes": hashes,
         "properties": [
             {"name": "bankstatementparser:groups", "value": groups},
@@ -92,7 +96,9 @@ def cyclonedx_component(package: dict[str, Any]) -> dict[str, Any]:
     return component
 
 
-def build_dependency_edges(packages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def build_dependency_edges(
+    packages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     available_refs = {
         normalize_distribution_name(package["name"]): package_ref(
             package["name"], package["version"]
@@ -103,7 +109,9 @@ def build_dependency_edges(packages: list[dict[str, Any]]) -> list[dict[str, Any
     for package in packages:
         dependency_refs = []
         for dependency_name in package.get("dependencies", {}):
-            ref = available_refs.get(normalize_distribution_name(dependency_name))
+            ref = available_refs.get(
+                normalize_distribution_name(dependency_name)
+            )
             if ref is not None:
                 dependency_refs.append(ref)
         edges.append(
@@ -145,10 +153,22 @@ def build_sbom(
                 "type": "application",
                 "name": poetry["name"],
                 "version": poetry["version"],
-                "licenses": [{"license": {"name": poetry.get("license", "UNKNOWN")}}],
+                "licenses": [
+                    {
+                        "license": {
+                            "name": poetry.get("license", "UNKNOWN")
+                        }
+                    }
+                ],
                 "externalReferences": [
-                    {"type": "vcs", "url": poetry.get("repository", "")},
-                    {"type": "website", "url": poetry.get("homepage", "")},
+                    {
+                        "type": "vcs",
+                        "url": poetry.get("repository", ""),
+                    },
+                    {
+                        "type": "website",
+                        "url": poetry.get("homepage", ""),
+                    },
                 ],
             },
         },
@@ -167,7 +187,9 @@ def write_markdown_report(
         "| Package | Version | Groups | License | SHA256 Hashes |",
         "| --- | --- | --- | --- | --- |",
     ]
-    for package in sorted(packages, key=lambda item: item["name"].lower()):
+    for package in sorted(
+        packages, key=lambda item: item["name"].lower()
+    ):
         hashes = [
             entry["hash"].split(":", 1)[1]
             for entry in package.get("files", [])
@@ -177,7 +199,8 @@ def write_markdown_report(
             "| {name} | {version} | {groups} | {license_name} | {hash_count} |".format(
                 name=package["name"],
                 version=package["version"],
-                groups=", ".join(package.get("groups", [])) or "runtime",
+                groups=", ".join(package.get("groups", []))
+                or "runtime",
                 license_name=resolve_license(package["name"]),
                 hash_count=len(hashes),
             )
@@ -211,8 +234,12 @@ def main() -> int:
     sbom = build_sbom(pyproject, lock_data)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(sbom, indent=2) + "\n", encoding="utf-8")
-    write_markdown_report(lock_data.get("package", []), args.markdown_output)
+    args.output.write_text(
+        json.dumps(sbom, indent=2) + "\n", encoding="utf-8"
+    )
+    write_markdown_report(
+        lock_data.get("package", []), args.markdown_output
+    )
     print(f"SBOM written to {args.output}")
     print(f"Dependency report written to {args.markdown_output}")
     return 0

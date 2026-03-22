@@ -78,6 +78,10 @@ module = ["defusedxml", "defusedxml.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = ["tomli", "tomllib"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["tests.*", "setup"]
 ignore_errors = true
 

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     import tomllib
@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def load_lockfile() -> dict[str, Any]:
     with (ROOT / "poetry.lock").open("rb") as handle:
-        return tomllib.load(handle)
+        return cast(dict[str, Any], tomllib.load(handle))
 
 
 def verify_packages(packages: list[dict[str, Any]]) -> list[str]:
@@ -46,7 +46,9 @@ def main() -> int:
             print(f" - {failure}")
         return 1
 
-    print(f"Verified SHA-256 hashes for {len(packages)} locked packages.")
+    print(
+        f"Verified SHA-256 hashes for {len(packages)} locked packages."
+    )
     return 0
 
 

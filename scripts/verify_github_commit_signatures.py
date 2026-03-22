@@ -9,7 +9,7 @@ import os
 import sys
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -21,7 +21,9 @@ VALID_REASONS = {"valid"}
 def github_get_json(url: str, token: str) -> dict[str, Any]:
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.netloc != "api.github.com":
-        raise RuntimeError(f"Refusing to call unexpected GitHub API URL: {url}")
+        raise RuntimeError(
+            f"Refusing to call unexpected GitHub API URL: {url}"
+        )
 
     request = Request(
         url,
@@ -33,9 +35,11 @@ def github_get_json(url: str, token: str) -> dict[str, Any]:
     )
     try:
         with urlopen(request) as response:  # nosec B310
-            return json.load(response)
+            return cast(dict[str, Any], json.load(response))
     except HTTPError as exc:  # pragma: no cover
-        raise RuntimeError(f"GitHub API request failed: {url} ({exc.code})") from exc
+        raise RuntimeError(
+            f"GitHub API request failed: {url} ({exc.code})"
+        ) from exc
 
 
 def compare_commits(
@@ -48,7 +52,7 @@ def compare_commits(
         f"{API_ROOT}/repos/{repo}/compare/{base}...{head}",
         token,
     )
-    commits = compare.get("commits", [])
+    commits = cast(list[dict[str, Any]], compare.get("commits", []))
     if not commits:
         head_commit = github_get_json(
             f"{API_ROOT}/repos/{repo}/commits/{head}",
@@ -80,7 +84,9 @@ def verify_commits(commits: Iterable[dict[str, Any]]) -> list[str]:
         verified = verification.get("verified", False)
         reason = verification.get("reason", "unknown")
         if not verified or reason not in VALID_REASONS:
-            failures.append(f"{commit['sha']}: verified={verified}, reason={reason}")
+            failures.append(
+                f"{commit['sha']}: verified={verified}, reason={reason}"
+            )
     return failures
 
 
@@ -88,23 +94,32 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Verify that all commits in the current GitHub event are signed."
     )
-    parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY"))
+    parser.add_argument(
+        "--repo", default=os.environ.get("GITHUB_REPOSITORY")
+    )
     parser.add_argument("--base-sha")
     parser.add_argument("--head-sha")
-    parser.add_argument("--event-name", default=os.environ.get("GITHUB_EVENT_NAME"))
+    parser.add_argument(
+        "--event-name", default=os.environ.get("GITHUB_EVENT_NAME")
+    )
     parser.add_argument(
         "--event-path",
         type=Path,
         default=Path(os.environ.get("GITHUB_EVENT_PATH", "")),
     )
-    parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN"))
+    parser.add_argument(
+        "--token", default=os.environ.get("GITHUB_TOKEN")
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     if not args.repo or not args.token:
-        print("GITHUB_REPOSITORY and GITHUB_TOKEN are required.", file=sys.stderr)
+        print(
+            "GITHUB_REPOSITORY and GITHUB_TOKEN are required.",
+            file=sys.stderr,
+        )
         return 2
 
     if args.base_sha and args.head_sha:
@@ -118,7 +133,9 @@ def main() -> int:
             )
             return 2
         event = json.loads(args.event_path.read_text(encoding="utf-8"))
-        base_sha, head_sha = commit_range_from_event(args.event_name, event)
+        base_sha, head_sha = commit_range_from_event(
+            args.event_name, event
+        )
 
     commits = compare_commits(args.repo, base_sha, head_sha, args.token)
     failures = verify_commits(commits)

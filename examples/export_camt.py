@@ -19,9 +19,7 @@ from common import CAMT_FIXTURE  # noqa: E402
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--output-dir", default="example-output/camt"
-    )
+    parser.add_argument("--output-dir", default="example-output/camt")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir).resolve()

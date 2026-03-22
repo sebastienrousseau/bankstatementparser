@@ -55,21 +55,39 @@ class TestZipSecurity:
 
     def test_rejects_invalid_archive(self, temp_zip):
         temp_zip.write_bytes(b"not a zip")
-        with pytest.raises(ZipSecurityError, match="Invalid ZIP archive"):
+        with pytest.raises(
+            ZipSecurityError, match="Invalid ZIP archive"
+        ):
             list(iter_secure_xml_entries(temp_zip))
 
-    def test_rejects_invalid_security_threshold_arguments(self, temp_zip):
+    def test_rejects_invalid_security_threshold_arguments(
+        self, temp_zip
+    ):
         with pytest.raises(ZipSecurityError, match="max_entry_size"):
             list(iter_secure_xml_entries(temp_zip, max_entry_size=0))
-        with pytest.raises(ZipSecurityError, match="max_total_uncompressed_size"):
-            list(iter_secure_xml_entries(temp_zip, max_total_uncompressed_size=0))
-        with pytest.raises(ZipSecurityError, match="max_compression_ratio"):
-            list(iter_secure_xml_entries(temp_zip, max_compression_ratio=0))
+        with pytest.raises(
+            ZipSecurityError, match="max_total_uncompressed_size"
+        ):
+            list(
+                iter_secure_xml_entries(
+                    temp_zip, max_total_uncompressed_size=0
+                )
+            )
+        with pytest.raises(
+            ZipSecurityError, match="max_compression_ratio"
+        ):
+            list(
+                iter_secure_xml_entries(
+                    temp_zip, max_compression_ratio=0
+                )
+            )
 
     def test_rejects_empty_archive(self, temp_zip):
         with ZipFile(temp_zip, "w"):
             pass
-        with pytest.raises(ZipSecurityError, match="does not contain any entries"):
+        with pytest.raises(
+            ZipSecurityError, match="does not contain any entries"
+        ):
             list(iter_secure_xml_entries(temp_zip))
 
     def test_skips_directory_and_non_xml_members(self, temp_zip):
@@ -89,7 +107,9 @@ class TestZipSecurity:
         with ZipFile(temp_zip) as zf:
             encrypted_member = zf.infolist()[0]
             encrypted_member.flag_bits |= 0x1
-            with pytest.raises(ZipSecurityError, match="Encrypted ZIP entries"):
+            with pytest.raises(
+                ZipSecurityError, match="Encrypted ZIP entries"
+            ):
                 _validate_zip_member(
                     encrypted_member,
                     max_entry_size=10 * 1024 * 1024,
@@ -100,7 +120,9 @@ class TestZipSecurity:
         with ZipFile(temp_zip, "w", compression=ZIP_STORED) as zf:
             zf.writestr("statement.xml", CAMT_XML)
 
-        with pytest.raises(ZipSecurityError, match="uncompressed size limit"):
+        with pytest.raises(
+            ZipSecurityError, match="uncompressed size limit"
+        ):
             list(iter_secure_xml_entries(temp_zip, max_entry_size=100))
 
     def test_rejects_total_uncompressed_limit(self, temp_zip):
@@ -108,15 +130,33 @@ class TestZipSecurity:
             zf.writestr("a.xml", CAMT_XML)
             zf.writestr("b.xml", CAMT_XML)
 
-        with pytest.raises(ZipSecurityError, match="total allowed uncompressed XML size"):
-            list(iter_secure_xml_entries(temp_zip, max_total_uncompressed_size=300))
+        with pytest.raises(
+            ZipSecurityError,
+            match="total allowed uncompressed XML size",
+        ):
+            list(
+                iter_secure_xml_entries(
+                    temp_zip, max_total_uncompressed_size=300
+                )
+            )
 
     def test_rejects_extreme_compression_ratio(self, temp_zip):
         with ZipFile(temp_zip, "w", compression=ZIP_DEFLATED) as zf:
-            zf.writestr("statement.xml", "<?xml version='1.0'?><Document>" + ("A" * 50000) + "</Document>")
+            zf.writestr(
+                "statement.xml",
+                "<?xml version='1.0'?><Document>"
+                + ("A" * 50000)
+                + "</Document>",
+            )
 
-        with pytest.raises(ZipSecurityError, match="compression ratio exceeds"):
-            list(iter_secure_xml_entries(temp_zip, max_compression_ratio=2.0))
+        with pytest.raises(
+            ZipSecurityError, match="compression ratio exceeds"
+        ):
+            list(
+                iter_secure_xml_entries(
+                    temp_zip, max_compression_ratio=2.0
+                )
+            )
 
     def test_rejects_invalid_member_sizes(self, temp_zip):
         with ZipFile(temp_zip, "w", compression=ZIP_STORED) as zf:
@@ -125,7 +165,9 @@ class TestZipSecurity:
         with ZipFile(temp_zip) as zf:
             invalid_member = zf.infolist()[0]
             invalid_member.file_size = 0
-            with pytest.raises(ZipSecurityError, match="empty or invalid"):
+            with pytest.raises(
+                ZipSecurityError, match="empty or invalid"
+            ):
                 _validate_zip_member(
                     invalid_member,
                     max_entry_size=10 * 1024 * 1024,
@@ -139,7 +181,9 @@ class TestZipSecurity:
         with ZipFile(temp_zip) as zf:
             invalid_member = zf.infolist()[0]
             invalid_member.compress_size = 0
-            with pytest.raises(ZipSecurityError, match="invalid compressed size"):
+            with pytest.raises(
+                ZipSecurityError, match="invalid compressed size"
+            ):
                 _validate_zip_member(
                     invalid_member,
                     max_entry_size=10 * 1024 * 1024,

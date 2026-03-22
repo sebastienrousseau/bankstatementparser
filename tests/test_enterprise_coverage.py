@@ -24,10 +24,14 @@ class DummyParser(BankStatementParser):
     def __init__(self, file_name="dummy.xml", df=None, summary=None):
         super().__init__(file_name)
         self._df = df if df is not None else pd.DataFrame([{"a": 1}])
-        self._summary = summary if summary is not None else {
-            "account_id": "ACC",
-            "transaction_count": 1,
-        }
+        self._summary = (
+            summary
+            if summary is not None
+            else {
+                "account_id": "ACC",
+                "transaction_count": 1,
+            }
+        )
 
     def parse(self):
         return self._df
@@ -47,7 +51,9 @@ class TestBaseParserCoverage(unittest.TestCase):
         output = Path(tempfile.gettempdir()) / "broken-export.csv"
         temp_output = Path(f"{output}.tmp")
 
-        with patch.object(parser, "parse", side_effect=RuntimeError("x")):
+        with patch.object(
+            parser, "parse", side_effect=RuntimeError("x")
+        ):
             with self.assertRaises(OSError):
                 parser.export_csv(output)
 
@@ -68,7 +74,9 @@ class TestBaseParserCoverage(unittest.TestCase):
 
     def test_str_fallback_on_summary_error(self):
         parser = ExplodingSummaryParser("broken.xml")
-        self.assertEqual(str(parser), "ExplodingSummaryParser(file='broken.xml')")
+        self.assertEqual(
+            str(parser), "ExplodingSummaryParser(file='broken.xml')"
+        )
 
     def test_abstract_methods_pass_lines(self):
         parser = DummyParser()
@@ -84,7 +92,9 @@ class TestInputValidatorCoverage(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             target_dir = tempfile.mkdtemp()
             target_file = Path(target_dir) / "target.xml"
-            target_file.write_text("<?xml version='1.0'?><Document></Document>")
+            target_file.write_text(
+                "<?xml version='1.0'?><Document></Document>"
+            )
             link_path = Path(tmpdir) / "link.xml"
             link_path.symlink_to(target_file)
 
@@ -92,7 +102,9 @@ class TestInputValidatorCoverage(unittest.TestCase):
                 self.validator.validate_input_file_path(str(link_path))
 
     def test_sanitize_source_name_none_and_invalid_type(self):
-        self.assertEqual(self.validator.sanitize_source_name(None), "<memory>")
+        self.assertEqual(
+            self.validator.sanitize_source_name(None), "<memory>"
+        )
         with self.assertRaises(ValidationError):
             self.validator.sanitize_source_name(123)
 
@@ -114,7 +126,9 @@ class TestInputValidatorCoverage(unittest.TestCase):
                 self.validator._validate_file_size(Path("x.xml"))
 
     def test_validate_input_format_binary_control_chars(self):
-        with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            suffix=".xml", delete=False
+        ) as f:
             f.write(b"Hello\x00World")
             path = f.name
         try:
@@ -129,7 +143,9 @@ class TestInputValidatorCoverage(unittest.TestCase):
                 self.validator._validate_input_format(Path("x.xml"))
 
     def test_validate_xml_bytes_format_warning_path(self):
-        with patch("bankstatementparser.input_validator.logger.warning") as warn:
+        with patch(
+            "bankstatementparser.input_validator.logger.warning"
+        ) as warn:
             self.validator._validate_xml_bytes_format(
                 b"plain text but not xml", "source.xml"
             )
@@ -148,7 +164,9 @@ class TestInputValidatorCoverage(unittest.TestCase):
             )
 
     def test_validate_input_format_binary_signature(self):
-        with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            suffix=".xml", delete=False
+        ) as f:
             f.write(b"%PDF-1.7")
             path = f.name
         try:
@@ -201,7 +219,10 @@ class TestCamtParserCoverageExtra(unittest.TestCase):
         )
         results = parser.get_transactions(redact_pii=True)
         self.assertTrue(
-            all(val == "***REDACTED***" for val in results["DebtorAddress"].dropna())
+            all(
+                val == "***REDACTED***"
+                for val in results["DebtorAddress"].dropna()
+            )
         )
 
     def test_streaming_transaction_redaction_and_dttm_fallback(self):
@@ -217,11 +238,15 @@ class TestCamtParserCoverageExtra(unittest.TestCase):
             "_parse_streaming_transaction",
             side_effect=RuntimeError("broken"),
         ):
-            with patch("bankstatementparser.camt_parser.logger.warning") as warn:
+            with patch(
+                "bankstatementparser.camt_parser.logger.warning"
+            ) as warn:
                 self.assertEqual(list(parser.parse_streaming()), [])
                 warn.assert_called()
 
-    def test_streaming_transaction_valdt_dttm_fallback_and_missing_booking(self):
+    def test_streaming_transaction_valdt_dttm_fallback_and_missing_booking(
+        self,
+    ):
         entry = CamtParser.from_string(
             """<?xml version="1.0" encoding="UTF-8"?>
             <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
@@ -316,43 +341,93 @@ class TestCLICoverageExtra(unittest.TestCase):
             self.cli._sanitize_file_path(None)
 
         with patch("os.path.commonpath", side_effect=ValueError("bad")):
-            with patch("bankstatementparser.cli.logger.warning") as warn:
+            with patch(
+                "bankstatementparser.cli.logger.warning"
+            ) as warn:
                 self.cli._sanitize_file_path("test.xml")
                 warn.assert_called_once()
 
     def test_parse_camt_streaming_console_limit_and_show_pii(self):
         parser = MagicMock()
-        parser.parse_streaming.return_value = ({"AccountId": "1", "Name": "x"} for _ in range(101))
-        with patch("bankstatementparser.cli.CamtParser", return_value=parser):
+        parser.parse_streaming.return_value = (
+            {"AccountId": "1", "Name": "x"} for _ in range(101)
+        )
+        with patch(
+            "bankstatementparser.cli.CamtParser", return_value=parser
+        ):
             with patch("builtins.print") as mock_print:
-                self.cli.parse_camt(Path("x.xml"), None, show_pii=True, streaming=True)
-        printed = "\n".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
-        self.assertIn("WARNING: Displaying unredacted PII data", printed)
+                self.cli.parse_camt(
+                    Path("x.xml"), None, show_pii=True, streaming=True
+                )
+        printed = "\n".join(
+            str(call.args[0])
+            for call in mock_print.call_args_list
+            if call.args
+        )
+        self.assertIn(
+            "WARNING: Displaying unredacted PII data", printed
+        )
         self.assertIn("showing first 100 transactions", printed)
 
     def test_parse_pain_streaming_console_limit_and_show_pii(self):
         parser = MagicMock()
-        parser.parse_streaming.return_value = ({"AccountId": "1", "Name": "x"} for _ in range(101))
-        with patch("bankstatementparser.cli.Pain001Parser", return_value=parser):
+        parser.parse_streaming.return_value = (
+            {"AccountId": "1", "Name": "x"} for _ in range(101)
+        )
+        with patch(
+            "bankstatementparser.cli.Pain001Parser", return_value=parser
+        ):
             with patch("builtins.print") as mock_print:
-                self.cli.parse_pain(Path("x.xml"), None, show_pii=True, streaming=True)
-        printed = "\n".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
-        self.assertIn("WARNING: Displaying unredacted PII data", printed)
+                self.cli.parse_pain(
+                    Path("x.xml"), None, show_pii=True, streaming=True
+                )
+        printed = "\n".join(
+            str(call.args[0])
+            for call in mock_print.call_args_list
+            if call.args
+        )
+        self.assertIn(
+            "WARNING: Displaying unredacted PII data", printed
+        )
         self.assertIn("showing first 100 payments", printed)
 
     def test_parse_pain_non_stream_output_and_show_pii(self):
         parser = MagicMock()
         parser.parse.return_value = pd.DataFrame([{"Name": "Alice"}])
-        with patch("bankstatementparser.cli.Pain001Parser", return_value=parser):
+        with patch(
+            "bankstatementparser.cli.Pain001Parser", return_value=parser
+        ):
             with patch("builtins.print") as mock_print:
-                self.cli.parse_pain(Path("x.xml"), None, show_pii=True, streaming=False)
-        self.assertTrue(any("WARNING: Displaying unredacted PII data" in str(c.args[0]) for c in mock_print.call_args_list if c.args))
+                self.cli.parse_pain(
+                    Path("x.xml"), None, show_pii=True, streaming=False
+                )
+        self.assertTrue(
+            any(
+                "WARNING: Displaying unredacted PII data"
+                in str(c.args[0])
+                for c in mock_print.call_args_list
+                if c.args
+            )
+        )
 
-    def test_run_argparse_failure_and_missing_required_and_parse_failure(self):
-        with patch.object(self.cli.parser, "parse_args", side_effect=SystemExit(2)):
-            with patch("builtins.print") as mock_print, patch("sys.exit") as mock_exit:
+    def test_run_argparse_failure_and_missing_required_and_parse_failure(
+        self,
+    ):
+        with patch.object(
+            self.cli.parser, "parse_args", side_effect=SystemExit(2)
+        ):
+            with (
+                patch("builtins.print") as mock_print,
+                patch("sys.exit") as mock_exit,
+            ):
                 self.cli.run()
-        self.assertTrue(any("Missing required arguments" in str(c.args[0]) for c in mock_print.call_args_list if c.args))
+        self.assertTrue(
+            any(
+                "Missing required arguments" in str(c.args[0])
+                for c in mock_print.call_args_list
+                if c.args
+            )
+        )
         self.assertEqual(mock_exit.call_args_list[-1].args[0], 1)
 
         args = MagicMock()
@@ -363,28 +438,81 @@ class TestCLICoverageExtra(unittest.TestCase):
         args.verbose = False
         args.show_pii = False
         args.streaming = False
-        with patch.object(self.cli.parser, "parse_args", return_value=args):
-            with patch("builtins.print") as mock_print, patch("sys.exit") as mock_exit:
+        with patch.object(
+            self.cli.parser, "parse_args", return_value=args
+        ):
+            with (
+                patch("builtins.print") as mock_print,
+                patch("sys.exit") as mock_exit,
+            ):
                 self.cli.run()
-        self.assertTrue(any("Missing required arguments" in str(c.args[0]) for c in mock_print.call_args_list if c.args))
+        self.assertTrue(
+            any(
+                "Missing required arguments" in str(c.args[0])
+                for c in mock_print.call_args_list
+                if c.args
+            )
+        )
         self.assertEqual(mock_exit.call_args_list[-1].args[0], 1)
 
         args.input = "x.xml"
         args.type = "unsupported-type"
-        with patch.object(self.cli.parser, "parse_args", return_value=args):
-            with patch.object(self.cli, "_sanitize_file_path", return_value="/tmp/x.xml"):
-                with patch.object(self.cli.validator, "validate_input_file_path", return_value=Path("/tmp/x.xml")):
-                    with patch("builtins.print") as mock_print, patch("sys.exit") as mock_exit:
+        with patch.object(
+            self.cli.parser, "parse_args", return_value=args
+        ):
+            with patch.object(
+                self.cli,
+                "_sanitize_file_path",
+                return_value="/tmp/x.xml",
+            ):
+                with patch.object(
+                    self.cli.validator,
+                    "validate_input_file_path",
+                    return_value=Path("/tmp/x.xml"),
+                ):
+                    with (
+                        patch("builtins.print") as mock_print,
+                        patch("sys.exit") as mock_exit,
+                    ):
                         self.cli.run()
-        self.assertTrue(any("specified type is not supported" in str(c.args[0]) for c in mock_print.call_args_list if c.args))
+        self.assertTrue(
+            any(
+                "specified type is not supported" in str(c.args[0])
+                for c in mock_print.call_args_list
+                if c.args
+            )
+        )
         self.assertEqual(mock_exit.call_args_list[-1].args[0], 1)
 
         args.type = "camt"
-        with patch.object(self.cli.parser, "parse_args", return_value=args):
-            with patch.object(self.cli, "_sanitize_file_path", return_value="/tmp/x.xml"):
-                with patch.object(self.cli.validator, "validate_input_file_path", return_value=Path("/tmp/x.xml")):
-                    with patch.object(self.cli, "parse_camt", side_effect=RuntimeError("boom")):
-                        with patch("builtins.print") as mock_print, patch("sys.exit") as mock_exit:
+        with patch.object(
+            self.cli.parser, "parse_args", return_value=args
+        ):
+            with patch.object(
+                self.cli,
+                "_sanitize_file_path",
+                return_value="/tmp/x.xml",
+            ):
+                with patch.object(
+                    self.cli.validator,
+                    "validate_input_file_path",
+                    return_value=Path("/tmp/x.xml"),
+                ):
+                    with patch.object(
+                        self.cli,
+                        "parse_camt",
+                        side_effect=RuntimeError("boom"),
+                    ):
+                        with (
+                            patch("builtins.print") as mock_print,
+                            patch("sys.exit") as mock_exit,
+                        ):
                             self.cli.run()
-        self.assertTrue(any("Parsing failed" in str(c.args[0]) for c in mock_print.call_args_list if c.args))
+        self.assertTrue(
+            any(
+                "Parsing failed" in str(c.args[0])
+                for c in mock_print.call_args_list
+                if c.args
+            )
+        )
         self.assertEqual(mock_exit.call_args_list[-1].args[0], 1)

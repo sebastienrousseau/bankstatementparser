@@ -82,7 +82,8 @@ jobs:
             tests/test_edge_cases.py \
             tests/test_branch_coverage.py \
             tests/test_coverage_gaps.py \
-            tests/test_enterprise_coverage.py
+            tests/test_enterprise_coverage.py \
+            tests/integration/test_zip_security.py
 
   integration-tests:
     name: Integration Tests
@@ -142,9 +143,10 @@ jobs:
         run: poetry install --with dev
 
       - name: Run cross-platform smoke suite
-        run: |
-          poetry run pytest --no-cov \
-            tests/test_camt_parser.py \
-            tests/test_pain001_parser.py \
-            tests/test_cli.py \
-            tests/integration/test_supply_chain_tools.py
+        shell: bash
+        run: >
+          poetry run pytest --no-cov
+          tests/test_camt_parser.py
+          tests/test_pain001_parser.py
+          tests/test_cli.py
+          tests/integration/test_supply_chain_tools.py

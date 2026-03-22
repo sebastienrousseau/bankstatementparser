@@ -31,7 +31,9 @@ jobs:
           poetry-version: "2.3.2"
 
       - name: Install build dependencies
-        run: poetry install --with dev
+        run: |
+          poetry install --with dev
+          poetry self add poetry-plugin-export@">=1.8"
 
       - name: Verify lockfile hashes
         run: poetry run python scripts/verify_locked_hashes.py

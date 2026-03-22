@@ -239,7 +239,9 @@ class CamtParser(BankStatementParser):
                     return etree.fromstring(data_bytes, recovery_parser)
                 raise
         except etree.XMLSyntaxError as e:
-            logger.error("XML syntax error in %s: %s", source_name, str(e))
+            logger.error(
+                "XML syntax error in %s: %s", source_name, str(e)
+            )
             raise
         except Exception as e:
             logger.error(

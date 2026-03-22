@@ -84,6 +84,7 @@ jobs:
       - name: Install project and audit tools
         run: |
           poetry install --with dev
+          poetry self add poetry-plugin-export@">=1.8"
           python -m pip install --upgrade pip
           python -m pip install bandit pip-audit
 

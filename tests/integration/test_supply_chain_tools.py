@@ -9,7 +9,9 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-VERIFY_SIGNATURES_PATH = ROOT / "scripts" / "verify_github_commit_signatures.py"
+VERIFY_SIGNATURES_PATH = (
+    ROOT / "scripts" / "verify_github_commit_signatures.py"
+)
 
 
 def load_signature_module():
@@ -42,9 +44,13 @@ def test_generate_sbom_script(tmp_path: Path) -> None:
 
     sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
     assert sbom["bomFormat"] == "CycloneDX"
-    assert sbom["metadata"]["component"]["name"] == "bankstatementparser"
+    assert (
+        sbom["metadata"]["component"]["name"] == "bankstatementparser"
+    )
     assert sbom["components"]
-    assert report_path.read_text(encoding="utf-8").startswith("# Dependency Report")
+    assert report_path.read_text(encoding="utf-8").startswith(
+        "# Dependency Report"
+    )
 
 
 def test_generate_checksums_script(tmp_path: Path) -> None:
@@ -71,7 +77,10 @@ def test_generate_checksums_script(tmp_path: Path) -> None:
 
 def test_verify_locked_hashes_script() -> None:
     subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "verify_locked_hashes.py")],
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "verify_locked_hashes.py"),
+        ],
         check=True,
         cwd=ROOT,
     )
@@ -84,4 +93,6 @@ def test_commit_signature_script_rejects_unexpected_urls() -> None:
     except RuntimeError as exc:
         assert "unexpected GitHub API URL" in str(exc)
     else:  # pragma: no cover
-        raise AssertionError("Expected URL allowlist enforcement to fail")
+        raise AssertionError(
+            "Expected URL allowlist enforcement to fail"
+        )
