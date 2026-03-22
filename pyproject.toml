@@ -62,7 +62,10 @@ select = [
     "C4",     # flake8-comprehensions
     "UP",     # pyupgrade
 ]
-ignore = ["E501"]
+ignore = [
+    "E501",
+    "UP045",
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["bankstatementparser"]

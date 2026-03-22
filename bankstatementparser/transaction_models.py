@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -75,18 +75,18 @@ class Transaction(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    account_id: str | None = None
-    currency: str | None = None
+    account_id: Optional[str] = None
+    currency: Optional[str] = None
     amount: Decimal
-    booking_date: date | None = None
-    value_date: date | None = None
-    description: str | None = None
+    booking_date: Optional[date] = None
+    value_date: Optional[date] = None
+    description: Optional[str] = None
     normalized_description: str = Field(default="")
-    reference: str | None = None
-    transaction_id: str | None = None
-    counterparty: str | None = None
-    source: str | None = None
-    source_index: int | None = None
+    reference: Optional[str] = None
+    transaction_id: Optional[str] = None
+    counterparty: Optional[str] = None
+    source: Optional[str] = None
+    source_index: Optional[int] = None
 
     @classmethod
     def from_record(
