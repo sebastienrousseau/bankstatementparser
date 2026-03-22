@@ -14,7 +14,7 @@ poetry-plugin-export = ">=1.8"
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
 lxml = "^4.9.3"
-openpyxl = "^3.1.2"
+openpyxl = "^3.1.5"
 pandas = "^2.1.1"
 defusedxml = "^0.7.1"
 
