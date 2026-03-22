@@ -1,58 +1,87 @@
-# Contributing to `Pain001`
+# Contributing
 
-Welcome! We're thrilled that you're interested in contributing to the `Pain001` library. Whether you're looking to evangelize, submit feedback, or contribute code, we appreciate your involvement in making `Pain001` a better tool for everyone. Here's how you can get started.
+Keep changes small. Keep behavior clear. Keep history signed.
 
-## Evangelize
+## Requirements
 
-One of the simplest ways to help us out is by spreading the word about Pain001. We believe that a bigger, more involved community makes for a better framework, and that better frameworks make the world a better place. If you know people who might benefit from using Pain001, please let them know!
+- Use a signed commit for every change.
+- Open a pull request against `main`.
+- Add or update tests for every behavior change.
+- Keep documentation aligned with the code.
 
-## How to Contribute
+## Local Setup
 
-If you're interested in making a more direct contribution, there are several ways you can help us improve Pain001. Here are some guidelines for submitting feedback, bug reports, and code contributions.
+### macOS
 
-### Feedback
+```bash
+git clone https://github.com/sebastienrousseau/bankstatementparser.git
+cd bankstatementparser
+python3 -m venv .venv
+source .venv/bin/activate
+pip install poetry
+poetry install --with dev
+```
 
-Your feedback is incredibly valuable to us, and we're always looking for ways to make Pain001 better. If you have ideas, suggestions, or questions about Pain001, we'd love to hear them. Here's how you can provide feedback:
+### Linux
 
-- Click [here][2] to submit a new feedback.
-- Use a descriptive title that clearly summarizes your feedback.
-- Provide a detailed description of the issue or suggestion.
-- Be patient while we review and respond to your feedback.
+```bash
+git clone https://github.com/sebastienrousseau/bankstatementparser.git
+cd bankstatementparser
+python3 -m venv .venv
+source .venv/bin/activate
+pip install poetry
+poetry install --with dev
+```
 
-### Bug Reports
+### WSL
 
-If you encounter a bug while using Pain001, please let us know so we can fix it. Here's how you can submit a bug report:
+```bash
+git clone https://github.com/sebastienrousseau/bankstatementparser.git
+cd bankstatementparser
+python3 -m venv .venv
+source .venv/bin/activate
+pip install poetry
+poetry install --with dev
+```
 
-- Click [here][2] to submit a new issue.
-- Use a descriptive title that clearly summarizes the bug.
-- Provide a detailed description of the issue, including steps to reproduce it.
-- Be patient while we review and respond to your bug report.
+## Run Before Opening a Pull Request
 
-### Code Contributions
+```bash
+ruff check bankstatementparser tests examples scripts
+python -m mypy bankstatementparser
+python -m pytest
+bandit -r bankstatementparser examples scripts -q
+```
 
-If you're interested in contributing code to Pain001, we're excited to have your help! Here's what you need to know:
+## Signed Commits
 
-#### Feature Requests
+Configure Git to sign every commit:
 
-If you have an idea for a new feature or improvement, we'd love to hear it. Here's how you can contribute code for a new feature to Pain001:
+```bash
+git config --global commit.gpgsign true
+git config --global tag.gpgSign true
+git config --global gpg.format ssh
+git config --global user.signingkey "<signing-key>"
+```
 
-- Fork the repo.
-- Clone the Pain001[1] repo by running:
-  `git clone {repository}`
-- Edit files in the `src/` folder. The `src/` folder contains the source code for Pain001.
-- Submit a pull request, and we'll review and merge your changes if they fit with our vision for Pain001.
+The repository also verifies signed commits in CI.
 
-#### Submitting Code
+## Pull Request Rules
 
-If you've identified a bug or have a specific code improvement in mind, we welcome your pull requests. Here's how to submit your code changes:
+- Use a focused branch.
+- Describe the behavior change clearly.
+- Link the relevant issue when one exists.
+- Include tests for parser, validation, or CLI changes.
+- Update examples or docs when public behavior changes.
 
-- Fork the repo.
-- Clone the Pain001 repo by running:
-  `git clone {repository}`
-- Edit files in the `src/` folder. The `src/` folder contains the source code for Pain001.
-- Submit a pull request, and we'll review and merge your changes if they fit with our vision for Pain001.
+## Reporting Bugs
 
-We hope that this guide has been helpful in explaining how you can contribute to Pain001. Thank you for your interest and involvement in our project!
+Open an issue with:
 
-[1]: https://github.com/sebastienrousseau/dtt
-[2]: https://github.com/sebastienrousseau/dtt/issues/new
+- the input format
+- the expected behavior
+- the actual behavior
+- a minimal reproduction path
+- the affected version or commit
+
+For security issues, use [VULNERABILITY_REPORTING.md](VULNERABILITY_REPORTING.md).

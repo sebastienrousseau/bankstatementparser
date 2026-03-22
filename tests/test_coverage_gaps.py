@@ -321,33 +321,32 @@ class TestCamtParserCoverage(unittest.TestCase):
             self.assertGreater(len(transactions), 0)
 
     def test_streaming_file_not_found(self):
-        """Cover streaming FileNotFoundError (lines 540-542)."""
+        """Streaming should use the normalized in-memory XML buffer."""
         parser = CamtParser(self.camt_file)
         parser._file_path = "/nonexistent/file.xml"
-        with self.assertRaises(FileNotFoundError):
-            list(parser.parse_streaming())
+        transactions = list(parser.parse_streaming())
+        self.assertGreater(len(transactions), 0)
 
     def test_streaming_permission_error(self):
-        """Cover streaming PermissionError (lines 543-545)."""
+        """Streaming should not reopen the original file."""
         parser = CamtParser(self.camt_file)
         with patch(
             "builtins.open", side_effect=PermissionError("no access")
         ):
-            with self.assertRaises(ValidationError):
-                list(parser.parse_streaming())
+            transactions = list(parser.parse_streaming())
+            self.assertGreater(len(transactions), 0)
 
     def test_streaming_generic_error(self):
-        """Cover streaming generic Exception (lines 546-548)."""
+        """Streaming should be independent of later file I/O failures."""
         parser = CamtParser(self.camt_file)
         with patch("builtins.open", side_effect=OSError("disk error")):
-            with self.assertRaises(ValidationError):
-                list(parser.parse_streaming())
+            transactions = list(parser.parse_streaming())
+            self.assertGreater(len(transactions), 0)
 
     def test_streaming_cleanup_failure(self):
-        """Cover streaming cleanup OSError path (lines 605-606)."""
+        """Streaming no longer uses temp files for CAMT input."""
         parser = CamtParser(self.camt_file)
         with patch("os.unlink", side_effect=OSError("cannot delete")):
-            # Should still work, just cleanup fails silently
             transactions = list(parser.parse_streaming())
             self.assertGreater(len(transactions), 0)
 

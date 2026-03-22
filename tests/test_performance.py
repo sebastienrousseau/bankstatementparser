@@ -265,6 +265,19 @@ class TestStreamingFunctionality(unittest.TestCase):
                 "Element count should not grow monotonically (indicates memory cleanup)",
             )
 
+    def test_camt_streaming_supports_memory_backed_parser(self):
+        """Test streaming parsing for memory-backed CAMT parser instances."""
+        with open(self.camt_file, "rb") as f:
+            xml_bytes = f.read()
+
+        parser = CamtParser.from_bytes(
+            xml_bytes, source_name="bundle/camt.053.001.02.xml"
+        )
+        streaming_results = list(parser.parse_streaming())
+
+        self.assertGreater(len(streaming_results), 0)
+        self.assertIn("AccountId", streaming_results[0])
+
     def _get_process_memory(self):
         """Get current process memory usage in bytes."""
         try:

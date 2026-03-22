@@ -1,0 +1,111 @@
+name: Security
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main, "feat/**"]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+  pull-requests: read
+  security-events: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@45c373516f557556c15d420e3f5e0aa3d64366bc
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@45c373516f557556c15d420e3f5e0aa3d64366bc
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@45c373516f557556c15d420e3f5e0aa3d64366bc
+
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  python-security:
+    name: Python Security Scans
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install project and audit tools
+        run: |
+          poetry install --with dev
+          python -m pip install --upgrade pip
+          python -m pip install bandit pip-audit
+
+      - name: Verify lockfile hashes
+        run: poetry run python scripts/verify_locked_hashes.py
+
+      - name: Verify hashed dependency export
+        run: |
+          poetry export --format=requirements.txt --with dev > /tmp/requirements-hashed.txt
+          python -m pip install --dry-run --require-hashes -r /tmp/requirements-hashed.txt
+
+      - name: Bandit SAST
+        run: |
+          poetry run bandit -r bankstatementparser examples scripts -c pyproject.toml
+
+      - name: Generate SBOM
+        run: |
+          poetry run python scripts/generate_sbom.py \
+            --output /tmp/sbom.cyclonedx.json \
+            --markdown-output /tmp/dependency-report.md
+
+      - name: Pip audit
+        run: |
+          poetry export --format=requirements.txt --without-hashes --with dev > /tmp/requirements-audit.txt
+          pip-audit -r /tmp/requirements-audit.txt

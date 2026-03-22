@@ -1,0 +1,21 @@
+repository:
+  delete_branch_on_merge: true
+  allow_merge_commit: false
+  allow_squash_merge: true
+  allow_rebase_merge: false
+
+branches:
+  - name: main
+    protection:
+      enforce_admins: true
+      required_signatures: true
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: true
+      required_status_checks:
+        strict: true
+        contexts:
+          - "Python CI"
+          - "Verify Commit Signatures"
+      restrictions: null

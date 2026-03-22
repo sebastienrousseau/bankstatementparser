@@ -25,9 +25,9 @@ import re
 import tempfile
 from collections.abc import Generator
 from typing import Any, Optional
-from xml.etree.ElementTree import ParseError
 
 import pandas as pd
+from defusedxml.ElementTree import ParseError
 from lxml import etree
 
 from .base_parser import BankStatementParser

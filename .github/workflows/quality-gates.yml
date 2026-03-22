@@ -1,0 +1,150 @@
+name: Quality Gates
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main, "feat/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-typecheck:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Ruff
+        run: poetry run ruff check bankstatementparser tests examples scripts
+
+      - name: Mypy
+        run: poetry run mypy bankstatementparser
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run unit and package-quality suite
+        run: |
+          poetry run pytest \
+            tests/test_input_validator.py \
+            tests/test_camt_parser.py \
+            tests/test_security_updated.py \
+            tests/test_performance.py \
+            tests/test_unified_interface.py \
+            tests/test_security.py \
+            tests/test_pain001_parser.py \
+            tests/test_bank_statement_parsers.py \
+            tests/test_cli.py \
+            tests/test_pii_redaction.py \
+            tests/test_edge_cases.py \
+            tests/test_branch_coverage.py \
+            tests/test_coverage_gaps.py \
+            tests/test_enterprise_coverage.py
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, unit-tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run integration regression suite
+        run: |
+          poetry run pytest --no-cov tests/integration tests/test_enterprise_coverage.py
+
+  platform-parity:
+    name: Platform Parity
+    runs-on: ${{ matrix.os }}
+    needs: [lint-and-typecheck]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        python-version: ["3.11"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run cross-platform smoke suite
+        run: |
+          poetry run pytest --no-cov \
+            tests/test_camt_parser.py \
+            tests/test_pain001_parser.py \
+            tests/test_cli.py \
+            tests/integration/test_supply_chain_tools.py

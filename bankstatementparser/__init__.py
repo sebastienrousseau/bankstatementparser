@@ -25,6 +25,11 @@ from .base_parser import BankStatementParser
 from .camt_parser import CamtParser
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
+from .zip_security import (
+    ZipSecurityError,
+    ZipXMLSource,
+    iter_secure_xml_entries,
+)
 
 __all__ = [
     "BankStatementParser",
@@ -32,4 +37,7 @@ __all__ = [
     "Pain001Parser",
     "InputValidator",
     "ValidationError",
+    "ZipSecurityError",
+    "ZipXMLSource",
+    "iter_secure_xml_entries",
 ]

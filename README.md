@@ -1,212 +1,224 @@
-<!-- markdownlint-disable MD033 MD041 -->
+# Bank Statement Parser
 
-<img
-    src="https://kura.pro/bankstatementparser/images/logos/bankstatementparser.webp"
-    alt="Logo of Bank Statement Parser"
-    width="261"
-    align="right" />
+Parse CAMT and PAIN.001 XML files. Export structured data. Process ZIP
+archives safely without extracting every file to disk.
 
-<!-- markdownlint-enable MD033 MD041 -->
+[![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge)](https://pypi.org/project/bankstatementparser/)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge)](https://pypi.org/project/bankstatementparser/)
+[![Codecov](https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge)](https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main)
+[![License](https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge)](LICENSE)
 
-# Bank Statement Parser: Automate Your Bank Statement Processing
+## What It Does
 
-![Bank Statement Parser banner][banner]
+- Parse CAMT bank statements with `CamtParser`
+- Parse SEPA PAIN.001 payment files with `Pain001Parser`
+- Parse CAMT XML from memory with `from_string(...)` and `from_bytes(...)`
+- Read XML entries from ZIP archives with `iter_secure_xml_entries(...)`
+- Export results to CSV and JSON
+- Stream large files incrementally
 
-## The Bank Statement Parser is a Python library built for Finance and Treasury Professionals
+## Requirements
 
-[![PyPI][pypi-badge]][03] [![PyPI Downloads][pypi-downloads-badge]][07] [![License][license-badge]][01] [![Codecov][codecov-badge]][06]
+- Python `3.9` to `3.12`
+- Poetry for local development
 
-## Overview
+## Install
 
-The Bank Statement Parser is an essential Python library for financial data management. Developed for the busy finance and treasury professional, it simplifies the task of parsing bank statements.
-
-This tool simplifies the process of analysing CAMT and SEPA transaction files. Its streamlined design removes cumbersome manual data review and provides you with a concise, accurate report to facilitate further analysis.
-
-Bank Statement Parser helps you save time by quickly and accurately processing data, allowing you to focus on your financial insights and decisions. Its reliable precision is powered by Python, making it the smarter, more efficient way to manage bank statements.
-
-## Key Features
-
-- **Versatile Parsing**: Easily handle formats like CAMT (ISO 20022) and beyond.
-- **Financial Insights**: Unlock detailed analysis with powerful calculation utilities.
-- **Simple CLI**: Automate and integrate with a straightforward command-line interface.
-
-### Why Choose the Bank Statement Parser
-
-- **Designed for Finance**: Tailored features for the finance sector's needs.
-- **Efficiency at Heart**: Transform complex data tasks into simple ones.
-- **Community First**: Built and enhanced by experts, for experts.
-
-### Functionality
-
-- **CamtParser**: Parse CAMT format files with ease.
-- **Pain001Parser**: Handle SEPA PAIN.001 files effortlessly.
-
-## Installation
-
-### Create a Virtual Environment
-
-We recommend creating a virtual environment to install the Bank Statement Parser. This will ensure that the package is installed in an isolated environment and will not affect other projects.
-
-```bash
-python3 -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-```
-
-### Getting Started
-
-Install `bankstatementparser` with just one command:
+### Package
 
 ```bash
 pip install bankstatementparser
 ```
 
-## Usage
+### Repository
 
-### CAMT Files
+#### macOS
+
+```bash
+git clone https://github.com/sebastienrousseau/bankstatementparser.git
+cd bankstatementparser
+python3 -m venv .venv
+source .venv/bin/activate
+pip install poetry
+poetry install --with dev
+```
+
+#### Linux
+
+```bash
+git clone https://github.com/sebastienrousseau/bankstatementparser.git
+cd bankstatementparser
+python3 -m venv .venv
+source .venv/bin/activate
+pip install poetry
+poetry install --with dev
+```
+
+#### WSL
+
+```bash
+git clone https://github.com/sebastienrousseau/bankstatementparser.git
+cd bankstatementparser
+python3 -m venv .venv
+source .venv/bin/activate
+pip install poetry
+poetry install --with dev
+```
+
+## First Run
+
+### Parse a CAMT file
 
 ```python
 from bankstatementparser import CamtParser
 
-# Initialize the parser with the CAMT file path
-camt_parser = CamtParser('path/to/camt/file.xml')
-
-# Parse the file and get the results
-results = camt_parser.parse()
+parser = CamtParser("tests/test_data/camt.053.001.02.xml")
+transactions = parser.parse()
+print(transactions.head())
 ```
 
-### PAIN.001 Files
+### Parse a PAIN.001 file
 
 ```python
 from bankstatementparser import Pain001Parser
 
-# Initialize the parser with the PAIN.001 file path
-pain_parser = Pain001Parser('path/to/pain/file.xml')
-
-# Parse the file and get the results
-results = pain_parser.parse()
+parser = Pain001Parser("tests/test_data/pain.001.001.03.xml")
+payments = parser.parse()
+print(payments.head())
 ```
 
-## Command Line Interface (CLI) Guide
+### Parse CAMT XML from memory
 
-Leverage the CLI for quick parsing tasks:
+```python
+from bankstatementparser import CamtParser
 
-### Basic Command
-
-```bash
-python cli.py --type <file_type> --input <input_file> [--output <output_file>]
+xml_bytes = open("tests/test_data/camt.053.001.02.xml", "rb").read()
+parser = CamtParser.from_bytes(xml_bytes, source_name="statement.xml")
+transactions = parser.parse()
 ```
 
-- `--type`: Type of the bank statement file. Currently supported types are "camt" and "pain001".
-- `--input`: Path to the bank statement file.
-- `--output`: (Optional) Path to save the parsed data. If not provided, data is printed to the console.
+Use `from_string(...)` or `from_bytes(...)` only with decompressed XML
+content. Do not pass raw ZIP archive bytes to the parser.
 
-### Examples for CAMT Files
+### Parse XML files inside a ZIP archive
 
-1. Parse a CAMT file and print the results to the console:
+```python
+from bankstatementparser import CamtParser, iter_secure_xml_entries
 
-   ```bash
-   python cli.py --type camt --input path/to/camt/camt_file.xml
-   ```
-
-   Using the test data:
-
-   ```bash
-   python ./bankstatementparser/cli.py --type camt --input ./tests/test_data/camt.053.001.02.xml
-   ```
-
-2. Parse a CAMT file and save the results to a CSV file:
-
-   ```bash
-   python cli.py --type camt --input path/to/camt/file.xml --output path/to/output/file.csv
-   ```
-
-   Using the test data:
-
-   ```bash
-   python ./bankstatementparser/cli.py --type camt --input ./tests/test_data/camt.053.001.02.xml --output ./tests/test_data/camt_file.csv
-   ```
-
-### Examples for PAIN.001 Files
-
-1. Parse a PAIN.001.001.03 file and print the results to the console:
-
-```bash
-python cli.py --type pain001 --input path/to/pain.001.001.03.xml
+for entry in iter_secure_xml_entries("statements.zip"):
+    parser = CamtParser.from_bytes(
+        entry.xml_bytes,
+        source_name=entry.source_name,
+    )
+    transactions = parser.parse()
+    print(entry.source_name, len(transactions))
 ```
 
-Using the test data:
+`iter_secure_xml_entries(...)` rejects encrypted entries, enforces size
+limits, and blocks suspicious compression ratios before parsing.
+
+## Command Line
+
+Run the CLI as a module:
 
 ```bash
-python ./bankstatementparser/cli.py --type pain001 --input ./tests/test_data/pain.001.001.03.xml
+python -m bankstatementparser.cli --type camt --input ./tests/test_data/camt.053.001.02.xml
 ```
 
-2. Parse a PAIN.001.001.03 file and save the results to a CSV file:
+Export CAMT output:
 
 ```bash
-python cli.py --type pain001 --input path/to/pain.001.001.03.xml --output path/to/output/file.csv
+python -m bankstatementparser.cli \
+  --type camt \
+  --input ./tests/test_data/camt.053.001.02.xml \
+  --output ./example-output/camt.csv
 ```
 
-Using the test data:
+Export PAIN.001 output:
 
 ```bash
-python ./bankstatementparser/cli.py --type pain001 --input ./tests/test_data/pain.001.001.03.xml --output ./tests/test_data/pain_file.csv
+python -m bankstatementparser.cli \
+  --type pain001 \
+  --input ./tests/test_data/pain.001.001.03.xml \
+  --output ./example-output/pain001.csv
+```
+
+## Streaming
+
+Stream CAMT transactions:
+
+```python
+from bankstatementparser import CamtParser
+
+parser = CamtParser("tests/test_data/camt.053.001.02.xml")
+for transaction in parser.parse_streaming(redact_pii=True):
+    print(transaction)
+    break
+```
+
+Stream PAIN.001 payments:
+
+```python
+from bankstatementparser import Pain001Parser
+
+parser = Pain001Parser("tests/test_data/pain.001.001.03.xml")
+for payment in parser.parse_streaming(redact_pii=True):
+    print(payment)
+    break
+```
+
+## Examples
+
+See [examples/README.md](examples/README.md) for runnable examples covering:
+
+- basic CAMT parsing
+- CAMT inspection
+- CAMT export
+- CAMT streaming
+- secure ZIP processing
+- basic PAIN.001 parsing
+- PAIN.001 export
+- PAIN.001 streaming
+- compatibility wrappers
+- CLI usage
+
+## Project Layout
+
+```text
+bankstatementparser/  Package code
+docs/                 Compliance and validation docs
+examples/             Runnable examples
+scripts/              Supply-chain and release tooling
+tests/                Unit and integration tests
+```
+
+## Verify the Repository
+
+Run the full local validation suite:
+
+```bash
+ruff check bankstatementparser tests examples scripts
+python -m mypy bankstatementparser
+python -m pytest
+bandit -r bankstatementparser examples scripts -q
+pip-audit --cache-dir /tmp/pip-audit-cache
 ```
 
 ## Security
 
-Bank Statement Parser processes sensitive financial data including bank account numbers, transaction details, and personally identifiable information (PII). Security and regulatory compliance are critical priorities.
+Bank statement files can contain sensitive financial and personal data.
 
-### Security Documentation
-- **[Security Policy](SECURITY.md)** - Comprehensive security practices and data protection requirements
-- **[Vulnerability Reporting](VULNERABILITY_REPORTING.md)** - How to report security vulnerabilities responsibly
+- See [SECURITY.md](SECURITY.md)
+- See [VULNERABILITY_REPORTING.md](VULNERABILITY_REPORTING.md)
+- See [docs/compliance/SOFTWARE_VALIDATION_PROCEDURE.md](docs/compliance/SOFTWARE_VALIDATION_PROCEDURE.md)
+- See [docs/compliance/TRACEABILITY_MATRIX.md](docs/compliance/TRACEABILITY_MATRIX.md)
 
-### Key Security Considerations
-- **Data Protection**: All financial data processing must comply with GDPR, PCI DSS, and local regulations
-- **PII Handling**: Personal information is extracted from bank statements and must be protected
-- **Secure Usage**: Use only with trusted bank statement files and secure output handling
+## Contributing
 
-### Reporting Security Issues
-If you discover a security vulnerability, please report it through our [vulnerability disclosure process](VULNERABILITY_REPORTING.md). Do not create public issues for security concerns.
+Signed commits are required.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-The project is licensed under the terms of both the MIT license and the
-Apache License (Version 2.0).
-
-- [Apache License, Version 2.0][01]
-- [MIT license][02]
-
-## Contribution
-
-We welcome contributions to **bankstatementparser**. Please see the
-[contributing instructions][04] for more information.
-
-Unless you explicitly state otherwise, any contribution intentionally
-submitted for inclusion in the work by you, as defined in the
-Apache-2.0 license, shall be dual licensed as above, without any
-additional terms or conditions.
-
-## Acknowledgements
-
-We would like to extend a big thank you to all the awesome contributors
-of [bankstatementparser][05] for their help and support.
-
-This repo was inspired by [khorevkp/KK_Tools][08]'s innovative use of data
-structures and algorithms, and was forked to build upon its foundation. Thank
-you to [Konstantin Khorev][09]
-
-[01]: https://opensource.org/license/apache-2-0/ "Apache License, Version 2.0"
-[02]: http://opensource.org/licenses/MIT "MIT license"
-[03]: https://github.com/sebastienrousseau/bankstatementparser "Bank Statement Parser on GitHub"
-[04]: https://github.com/sebastienrousseau/bankstatementparser/blob/main/CONTRIBUTING.md "Contributing instructions"
-[05]: https://github.com/sebastienrousseau/bankstatementparser/graphs/contributors "Contributors"
-[06]: https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main "Codecov"
-[07]: https://pypi.org/project/bankstatementparser/ "Bank Statement Parser on PyPI"
-[08]: https://github.com/khorevkp/KK_Tools "KK_Tools on GitHub"
-[09]: https://github.com/khorevkp "Konstantin Khorev on GitHub"
-
-[banner]: https://kura.pro/bankstatementparser/images/titles/title-bankstatementparser.webp "Bank Statement Parser banner"
-[codecov-badge]: https://img.shields.io/codecov/c/github/sebastienrousseau/pain001?style=for-the-badge&token=AaUxKfRiou 'Codecov badge'
-[license-badge]: https://img.shields.io/pypi/l/pain001?style=for-the-badge 'License badge'
-[pypi-badge]: https://img.shields.io/pypi/pyversions/pain001.svg?style=for-the-badge 'PyPI badge'
-[pypi-downloads-badge]:https://img.shields.io/pypi/dm/pain001.svg?style=for-the-badge 'PyPI Downloads badge'
+See [LICENSE](LICENSE).

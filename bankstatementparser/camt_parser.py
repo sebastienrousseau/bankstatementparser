@@ -20,11 +20,11 @@ Provides a class CamtParser for parsing CAMT format bank statement files.
 """
 
 import logging
-import os
 import re
-import tempfile
 from collections.abc import Generator
-from typing import Any
+from io import BytesIO
+from pathlib import Path
+from typing import Any, Optional, Union
 
 import pandas as pd
 from lxml import etree
@@ -46,7 +46,12 @@ class CamtParser(BankStatementParser):
         definitions (dict): Dictionary mapping balance codes to descriptions.
     """
 
-    def __init__(self, file_name: str) -> None:
+    _file_path: Optional[str]
+    _source_name: str
+    _source_is_memory: bool
+    _xml_bytes: bytes
+
+    def __init__(self, file_name: Union[str, Path]) -> None:
         """
         Initializes the parser with the given file.
 
@@ -59,30 +64,107 @@ class CamtParser(BankStatementParser):
             etree.XMLSyntaxError: If there is an issue parsing the XML.
         """
         super().__init__(file_name)
+        self._initialize_from_file(file_name)
+        self._set_definitions()
 
-        # Store original file name and validate input file if it's a raw string path
-        self._original_file_name = file_name
+    @classmethod
+    def from_string(
+        cls,
+        xml_content: str,
+        *,
+        source_name: str = "<memory>",
+        max_bytes: Optional[int] = None,
+    ) -> "CamtParser":
+        """Create a parser from an in-memory XML string."""
+        return cls._from_memory(
+            xml_content, source_name=source_name, max_bytes=max_bytes
+        )
+
+    @classmethod
+    def from_bytes(
+        cls,
+        xml_content: bytes,
+        *,
+        source_name: str = "<memory>",
+        max_bytes: Optional[int] = None,
+    ) -> "CamtParser":
+        """Create a parser from in-memory XML bytes."""
+        return cls._from_memory(
+            xml_content, source_name=source_name, max_bytes=max_bytes
+        )
+
+    @classmethod
+    def _from_memory(
+        cls,
+        xml_content: Union[str, bytes],
+        *,
+        source_name: str,
+        max_bytes: Optional[int],
+    ) -> "CamtParser":
+        """Internal constructor for memory-backed XML sources."""
+        validator = InputValidator(max_file_size=max_bytes)
+        raw_bytes, safe_source_name = validator.validate_xml_content(
+            xml_content, source_name=source_name
+        )
+
+        parser = cls.__new__(cls)
+        BankStatementParser.__init__(parser, safe_source_name)
+        parser._original_file_name = safe_source_name
+        parser._file_path = None
+        parser._source_name = safe_source_name
+        parser._source_is_memory = True
+        parser._xml_bytes = parser._normalize_xml_bytes(raw_bytes)
+        parser.tree = parser._parse_xml_bytes(
+            parser._xml_bytes, parser._source_name
+        )
+        parser._set_definitions()
+        return parser
+
+    def _initialize_from_file(
+        self, file_name: Union[str, Path]
+    ) -> None:
+        """Initialize parser state from a validated filesystem path."""
+        validator = InputValidator()
+        validated_path: Union[str, Path] = file_name
+
         if isinstance(file_name, str):
-            validator = InputValidator()
             try:
                 validated_path = validator.validate_input_file_path(
                     file_name
                 )
-                file_name = str(validated_path)
-                logger.info(f"Input file validated: {file_name}")
+                logger.info("Input file validated: %s", validated_path)
             except (ValidationError, FileNotFoundError) as e:
                 logger.error(
-                    f"File validation failed for {file_name}: {e}"
+                    "File validation failed for %s: %s", file_name, e
                 )
                 raise
 
-        # Store the validated file path
-        self._file_path = file_name
+        self._original_file_name = file_name
+        self._file_path = str(validated_path)
+        self._source_name = str(validated_path)
+        self._source_is_memory = False
 
+        raw_bytes = self._read_xml_file_bytes(self._file_path)
+        self._xml_bytes = self._normalize_xml_bytes(raw_bytes)
+        self.tree = self._parse_xml_bytes(
+            self._xml_bytes, self._source_name
+        )
+
+    def _set_definitions(self) -> None:
+        """Set static balance code definitions."""
+        self.definitions = {
+            "OPBD": "Opening Booked balance",
+            "CLBD": "Closing Booked balance",
+            "CLAV": "Closing Available balance",
+            "PRCD": "Previously Closed Booked balance",
+            "FWAV": "Forward Available balance",
+        }
+
+    def _read_xml_file_bytes(self, file_name: str) -> bytes:
+        """Read XML file bytes without exposing payload contents in errors."""
         try:
-            # Attempt to open and read the file content
-            with open(file_name, encoding="utf-8") as f:
-                data = f.read()
+            with open(file_name, "rb") as f:
+                return f.read()
         except FileNotFoundError as exc:
             logger.error("File %s not found!", file_name)
             raise FileNotFoundError(
@@ -103,28 +185,36 @@ class CamtParser(BankStatementParser):
                 f"Error reading file {file_name}: {str(e)}"
             ) from e
 
-        try:
-            # Remove the namespace from the XML data for easier parsing
-            data = re.sub(
-                r'\s+xmlns="urn:iso:std:iso:20022:tech:xsd:camt\.\d{3}\.\d{3}\.\d{2}"',
-                "",
-                data,
-            )
-            data_bytes = bytes(data, "utf-8")
+    def _normalize_xml_bytes(self, raw_bytes: bytes) -> bytes:
+        """Normalize namespace handling while preserving UTF-8-only parsing."""
+        validator = InputValidator()
+        validated_bytes, _safe_source = validator.validate_xml_content(
+            raw_bytes, source_name=self._source_name
+        )
+        data = validated_bytes.decode("utf-8")
+        data = re.sub(
+            r'\s+xmlns="urn:iso:std:iso:20022:tech:xsd:camt\.\d{3}\.\d{3}\.\d{2}"',
+            "",
+            data,
+        )
+        return data.encode("utf-8")
 
-            # First try strict parsing to validate XML structure
+    def _parse_xml_bytes(
+        self, data_bytes: bytes, source_name: str
+    ) -> etree._Element:
+        """Parse normalized XML bytes with hardened lxml settings."""
+        try:
             strict_parser = etree.XMLParser(
                 recover=False,
                 encoding="utf-8",
                 resolve_entities=False,
                 load_dtd=False,
                 no_network=True,
+                huge_tree=False,
             )
             try:
-                self.tree = etree.fromstring(data_bytes, strict_parser)
+                return etree.fromstring(data_bytes, strict_parser)
             except etree.XMLSyntaxError as strict_err:
-                # If strict parsing fails, check if it's due to DTD/entity issues
-                # which are expected with our security settings (resolve_entities=False)
                 error_msg = str(strict_err).lower()
                 is_entity_error = any(
                     kw in error_msg
@@ -138,37 +228,26 @@ class CamtParser(BankStatementParser):
                     ]
                 )
                 if is_entity_error:
-                    # Fall back to recovery parser for entity-related issues
                     recovery_parser = etree.XMLParser(
                         recover=True,
                         encoding="utf-8",
                         resolve_entities=False,
                         load_dtd=False,
                         no_network=True,
+                        huge_tree=False,
                     )
-                    self.tree = etree.fromstring(
-                        data_bytes, recovery_parser
-                    )
-                else:
-                    # For structural XML errors, raise the error
-                    raise
+                    return etree.fromstring(data_bytes, recovery_parser)
+                raise
         except etree.XMLSyntaxError as e:
-            logger.error("XML syntax error: %s", str(e))
+            logger.error("XML syntax error in %s: %s", source_name, str(e))
             raise
         except Exception as e:
             logger.error(
-                "An error occurred while parsing the XML: %s", str(e)
+                "An error occurred while parsing XML from %s: %s",
+                source_name,
+                str(e),
             )
             raise
-
-        # Define balance codes and their descriptions
-        self.definitions = {
-            "OPBD": "Opening Booked balance",
-            "CLBD": "Closing Booked balance",
-            "CLAV": "Closing Available balance",
-            "PRCD": "Previously Closed Booked balance",
-            "FWAV": "Forward Available balance",
-        }
 
     def get_account_balances(
         self, redact_pii: bool = False
@@ -634,109 +713,50 @@ class CamtParser(BankStatementParser):
         Yields:
             Dict[str, Any]: Individual transaction data with standardized structure.
         """
-        # Get the validated file path
-        file_path = self._file_path
+        source_stream = BytesIO(self._xml_bytes)
 
-        try:
-            # Read file content for namespace removal
-            with open(file_path, encoding="utf-8") as f:
-                data = f.read()
-        except FileNotFoundError as exc:
-            logger.error("File %s not found for streaming!", file_path)
-            raise FileNotFoundError(
-                f"CAMT file not found: {file_path}"
-            ) from exc
-        except PermissionError as exc:
-            logger.error(
-                "Permission denied reading file for streaming: %s",
-                file_path,
-            )
-            raise ValidationError(
-                f"Permission denied reading file: {file_path}"
-            ) from exc
-        except Exception as e:
-            logger.error("Error reading file for streaming: %s", str(e))
-            raise ValidationError(
-                f"Error reading file {file_path}: {str(e)}"
-            ) from e
+        current_statement = None
+        current_account_id = ""
 
-        # Remove namespace and write to temp file for streaming
-        data = re.sub(
-            r'\s+xmlns="urn:iso:std:iso:20022:tech:xsd:camt\.\d{3}\.\d{3}\.\d{2}"',
-            "",
-            data,
-        )
+        for event, elem in etree.iterparse(
+            source_stream,
+            events=("start", "end"),
+            resolve_entities=False,
+            load_dtd=False,
+            no_network=True,
+            huge_tree=False,
+        ):
+            if event == "start" and elem.tag == "Stmt":
+                current_statement = elem
 
-        fd, temp_file = tempfile.mkstemp(
-            suffix=".xml", prefix="bsp_streaming_"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                f.write(data)
-
-            # Set up iterative XML parser with security settings
-            etree.XMLParser(
-                recover=False,
-                encoding="utf-8",
-                resolve_entities=False,
-                load_dtd=False,
-                no_network=True,
-            )
-
-            # Track statement context for account ID mapping
-            current_statement = None
-            current_account_id = ""
-
-            # Use iterparse to process elements incrementally
-            for event, elem in etree.iterparse(
-                temp_file, events=("start", "end")
+            elif (
+                event == "end"
+                and elem.tag == "Stmt"
+                and current_statement is not None
             ):
-                if event == "start" and elem.tag == "Stmt":
-                    # Started a new statement, extract account ID
-                    current_statement = elem
+                id_elems = current_statement.xpath(
+                    "./Acct/Id/IBAN|./Acct/Id/Othr/Id"
+                )
+                current_account_id = (
+                    id_elems[0].text if id_elems else ""
+                )
+                current_statement = None
 
-                elif (
-                    event == "end"
-                    and elem.tag == "Stmt"
-                    and current_statement is not None
-                ):
-                    # Extract account ID from completed statement
-                    id_elems = current_statement.xpath(
-                        "./Acct/Id/IBAN|./Acct/Id/Othr/Id"
-                    )
-                    current_account_id = (
-                        id_elems[0].text if id_elems else ""
-                    )
-                    current_statement = None
-
-                elif event == "end" and elem.tag == "Ntry":
-                    # Process completed transaction entry
-                    try:
-                        transaction_data = (
-                            self._parse_streaming_transaction(
-                                elem, current_account_id, redact_pii
-                            )
+            elif event == "end" and elem.tag == "Ntry":
+                try:
+                    transaction_data = (
+                        self._parse_streaming_transaction(
+                            elem, current_account_id, redact_pii
                         )
-                        yield transaction_data
-                    except Exception as e:
-                        logger.warning(
-                            f"Error parsing transaction: {e}"
-                        )
-                        # Continue processing other transactions
-                        continue
-                    finally:
-                        # Clear the element and its parent references to free memory
-                        elem.clear()
-                        # Also clear parent references if element has parent
-                        while elem.getprevious() is not None:
-                            del elem.getparent()[0]
-
-        finally:
-            # Clean up temp file
-            try:
-                os.unlink(temp_file)
-            except OSError:
-                pass  # Ignore if temp file cleanup fails
+                    )
+                    yield transaction_data
+                except Exception as e:
+                    logger.warning("Error parsing transaction: %s", e)
+                    continue
+                finally:
+                    elem.clear()
+                    while elem.getprevious() is not None:
+                        del elem.getparent()[0]
 
     def _parse_streaming_transaction(
         self,

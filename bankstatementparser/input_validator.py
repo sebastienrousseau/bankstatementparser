@@ -25,7 +25,7 @@ import mimetypes
 import os
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -245,6 +245,89 @@ class InputValidator:
 
         return path
 
+    def sanitize_source_name(
+        self, source_name: Optional[str], default: str = "<memory>"
+    ) -> str:
+        """
+        Sanitize a caller-supplied source name used only for diagnostics.
+
+        Args:
+            source_name: Optional caller-provided source identifier.
+            default: Fallback label when source_name is empty.
+
+        Returns:
+            str: A bounded, log-safe source label.
+
+        Raises:
+            ValidationError: If source_name is not a string.
+        """
+        if source_name is None:
+            return default
+
+        if not isinstance(source_name, str):
+            raise ValidationError("Source name must be a string")
+
+        cleaned = []
+        for char in source_name.strip():
+            if ord(char) < 32 or char in {
+                "\u202e",
+                "\u202d",
+                "\u200f",
+                "\u200e",
+                "\u2066",
+                "\u2067",
+                "\u2068",
+                "\u2069",
+                "\u202a",
+                "\u202b",
+                "\u202c",
+            }:
+                cleaned.append("?")
+            else:
+                cleaned.append(char)
+
+        sanitized = "".join(cleaned)[:255]
+        return sanitized or default
+
+    def validate_xml_content(
+        self,
+        xml_content: Union[str, bytes],
+        *,
+        source_name: Optional[str] = None,
+    ) -> tuple[bytes, str]:
+        """
+        Validate in-memory XML content.
+
+        Args:
+            xml_content: XML payload as text or bytes.
+            source_name: Optional source label used for diagnostics only.
+
+        Returns:
+            tuple[bytes, str]: UTF-8 XML bytes and sanitized source name.
+
+        Raises:
+            ValidationError: If content is unsafe, empty, oversized, or not XML.
+        """
+        safe_source_name = self.sanitize_source_name(source_name)
+
+        if isinstance(xml_content, str):
+            if not xml_content.strip():
+                raise ValidationError("XML content cannot be empty")
+            xml_bytes = xml_content.encode("utf-8")
+        elif isinstance(xml_content, bytes):
+            if not xml_content.strip():
+                raise ValidationError("XML content cannot be empty")
+            xml_bytes = xml_content
+        else:
+            raise ValidationError(
+                "XML content must be provided as a string or bytes"
+            )
+
+        self._validate_bytes_size(xml_bytes)
+        self._validate_xml_bytes_format(xml_bytes, safe_source_name)
+
+        return xml_bytes, safe_source_name
+
     def _check_dangerous_patterns(self, file_path: str) -> None:
         """Check for dangerous patterns in file path."""
         # Check for dangerous Unicode characters (null bytes, BiDi overrides, etc.)
@@ -329,6 +412,22 @@ class InputValidator:
             max_mb = self.max_file_size / (1024 * 1024)
             raise ValidationError(
                 f"File is too large ({size_mb:.1f}MB). Maximum allowed: {max_mb:.1f}MB"
+            )
+
+    def _validate_bytes_size(self, data: bytes) -> None:
+        """Validate in-memory payload size constraints."""
+        payload_size = len(data)
+
+        if payload_size < self.MIN_FILE_SIZE_BYTES:
+            raise ValidationError(
+                f"XML content is too small ({payload_size} bytes). Minimum: {self.MIN_FILE_SIZE_BYTES} bytes"
+            )
+
+        if payload_size > self.max_file_size:
+            size_mb = payload_size / (1024 * 1024)
+            max_mb = self.max_file_size / (1024 * 1024)
+            raise ValidationError(
+                f"XML content is too large ({size_mb:.1f}MB). Maximum allowed: {max_mb:.1f}MB"
             )
 
     def _validate_input_format(self, path: Path) -> None:
@@ -419,6 +518,71 @@ class InputValidator:
             raise ValidationError(
                 f"Cannot read file for format validation: {e}"
             ) from e
+
+    def _validate_xml_bytes_format(
+        self, xml_bytes: bytes, source_name: str
+    ) -> None:
+        """
+        Validate XML bytes using the same checks applied to file-backed input.
+
+        Args:
+            xml_bytes: Raw XML bytes.
+            source_name: Sanitized source label for diagnostics.
+
+        Raises:
+            ValidationError: If content is not plausible UTF-8 XML.
+        """
+        header = xml_bytes[:1024]
+
+        binary_signatures = [
+            b"\x89PNG",
+            b"GIF8",
+            b"\xff\xd8\xff",
+            b"PK",
+            b"\x7fELF",
+            b"MZ",
+            b"\x00\x00\x01\x00",
+            b"%PDF",
+        ]
+        for sig in binary_signatures:
+            if header[: len(sig)] == sig:
+                raise ValidationError(
+                    f"XML content appears to contain binary data, expected XML: {source_name}"
+                )
+
+        try:
+            header_str = header.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValidationError(
+                f"XML content encoding is not valid UTF-8: {source_name}"
+            ) from exc
+
+        header_lower = header_str.lower()
+        xml_indicators = [
+            "<?xml",
+            "<document",
+            "xmlns",
+            "camt.",
+            "iso:std:iso:20022",
+        ]
+
+        has_xml_indicator = any(
+            indicator in header_lower for indicator in xml_indicators
+        )
+
+        if not has_xml_indicator:
+            if any(
+                byte < 32 and byte not in (9, 10, 13)
+                for byte in header[:100]
+            ):
+                raise ValidationError(
+                    f"XML content appears to contain binary data, expected XML: {source_name}"
+                )
+
+            logger.warning(
+                "XML content may not be a valid XML document: %s",
+                source_name,
+            )
 
     def get_safe_filename(self, filename: str) -> str:
         """

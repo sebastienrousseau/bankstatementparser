@@ -8,11 +8,15 @@ readme = "README.md"
 repository = "https://github.com/sebastienrousseau/bankstatementparser"
 homepage = "https://bankstatementparser.com"
 
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
+
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
 lxml = "^4.9.3"
 openpyxl = "^3.1.2"
 pandas = "^2.1.1"
+defusedxml = "^0.7.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
@@ -41,7 +45,7 @@ known_first_party = "bankstatementparser"
 [tool.ruff]
 target-version = "py39"
 line-length = 72
-src = ["bankstatementparser", "tests"]
+src = ["bankstatementparser", "tests", "examples", "scripts"]
 
 [tool.ruff.lint]
 select = [
@@ -70,12 +74,19 @@ module = ["lxml.*", "pandas.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = ["defusedxml", "defusedxml.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["tests.*", "setup"]
 ignore_errors = true
 
 [tool.pytest.ini_options]
-addopts = "--cov=bankstatementparser --cov-report=term-missing --cov-report=xml --cov-fail-under=80"
+addopts = "--cov=bankstatementparser --cov-report=term-missing --cov-report=xml --cov-fail-under=100"
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow-running performance or regression checks",
+]
 
 [tool.coverage.run]
 source = ["bankstatementparser"]

@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow deterministic fixture-like placeholder values used in docs and tests."
+paths = [
+  '''tests/test_data/.*''',
+]

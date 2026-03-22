@@ -17,11 +17,11 @@ permissions:
 jobs:
   ci:
     name: Python CI
-    uses: sebastienrousseau/pipelines/.github/workflows/python-ci.yml@main
+    uses: sebastienrousseau/pipelines/.github/workflows/python-ci.yml@cf0413f34ee0f24fe52a32f39d26eca513f65713
     with:
-      python-version: '3.11'
+      python-version: '3.12'
       run-ruff: true
       run-mypy: true
-      coverage-threshold: 80
+      coverage-threshold: 100
       package-manager: 'poetry'
     secrets: inherit

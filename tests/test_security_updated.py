@@ -146,6 +146,35 @@ class TestXMLParsingSecurity(unittest.TestCase):
         finally:
             os.unlink(xxe_file)
 
+    def test_in_memory_xxe_attack_mitigation(self):
+        """Test XXE mitigation for in-memory XML entry points."""
+        xxe_payload = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [
+<!ENTITY xxe SYSTEM "file:///etc/passwd">
+]>
+<Document>
+    <BkToCstmrStmt>
+        <Stmt>
+            <Id>XXE_TEST</Id>
+            <Acct>
+                <Id><IBAN>GB29NWBK60161331926819</IBAN></Id>
+                <Nm>&xxe;</Nm>
+            </Acct>
+        </Stmt>
+    </BkToCstmrStmt>
+</Document>"""
+
+        parser = CamtParser.from_string(
+            xxe_payload, source_name="statement.xml"
+        )
+        statements = parser.get_statement_stats()
+
+        self.assertIsInstance(statements.to_dict(), dict)
+        for _, row in statements.iterrows():
+            row_str = str(row.to_dict())
+            self.assertNotIn("root:", row_str)
+            self.assertNotIn("/bin/bash", row_str)
+
     def test_billion_laughs_mitigation(self):
         """Test protection against billion laughs attacks."""
         xml_bomb = """<?xml version="1.0" encoding="UTF-8"?>
@@ -178,6 +207,29 @@ class TestXMLParsingSecurity(unittest.TestCase):
             self.assertIsInstance(statements.to_dict(), dict)
         finally:
             os.unlink(bomb_file)
+
+    def test_in_memory_billion_laughs_mitigation(self):
+        """Test entity expansion mitigation for in-memory XML entry points."""
+        xml_bomb = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE lolz [
+<!ENTITY lol "lol">
+<!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+<!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+]>
+<Document>
+    <BkToCstmrStmt>
+        <Stmt>
+            <Id>&lol3;</Id>
+            <Acct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></Acct>
+        </Stmt>
+    </BkToCstmrStmt>
+</Document>"""
+
+        parser = CamtParser.from_bytes(
+            xml_bomb.encode("utf-8"), source_name="statement.xml"
+        )
+        statements = parser.get_statement_stats()
+        self.assertIsInstance(statements.to_dict(), dict)
 
     def test_malformed_xml_resilience(self):
         """Test resilience to malformed XML."""

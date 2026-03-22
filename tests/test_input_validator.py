@@ -7,6 +7,7 @@ Tests to achieve high coverage of input validation functionality.
 import os
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -226,6 +227,65 @@ class TestInputValidator(unittest.TestCase):
         result = self.validator.validate_output_file_path(output_file)
         self.assertIsInstance(result, Path)
         self.assertTrue(os.path.exists(new_dir))
+
+    def test_validate_xml_content_string(self):
+        """Test validation of XML content provided as a string."""
+        xml_bytes, source_name = self.validator.validate_xml_content(
+            "<?xml version='1.0'?><Document></Document>",
+            source_name="statement.xml",
+        )
+
+        self.assertEqual(source_name, "statement.xml")
+        self.assertIsInstance(xml_bytes, bytes)
+        self.assertIn(b"<Document>", xml_bytes)
+
+    def test_validate_xml_content_bytes(self):
+        """Test validation of XML content provided as bytes."""
+        xml_bytes, source_name = self.validator.validate_xml_content(
+            b"<?xml version='1.0'?><Document></Document>",
+            source_name="nested/path/statement.xml",
+        )
+
+        self.assertEqual(source_name, "nested/path/statement.xml")
+        self.assertIsInstance(xml_bytes, bytes)
+
+    def test_validate_xml_content_rejects_zip_payload(self):
+        """Test that ZIP/binary payloads are rejected for in-memory XML parsing."""
+        archive_path = os.path.join(self.temp_dir, "statements.zip")
+        with zipfile.ZipFile(archive_path, "w") as zf:
+            zf.writestr("statement.xml", "<Document></Document>")
+
+        with open(archive_path, "rb") as f:
+            archive_bytes = f.read()
+
+        with self.assertRaises(ValidationError) as cm:
+            self.validator.validate_xml_content(
+                archive_bytes, source_name="statement.xml"
+            )
+        self.assertIn("binary data", str(cm.exception))
+
+    def test_validate_xml_content_too_large(self):
+        """Test rejection of oversized in-memory XML payloads."""
+        small_validator = InputValidator(max_file_size=100)
+        xml_content = (
+            "<?xml version='1.0'?><Document>"
+            + ("A" * 200)
+            + "</Document>"
+        )
+
+        with self.assertRaises(ValidationError) as cm:
+            small_validator.validate_xml_content(
+                xml_content, source_name="large.xml"
+            )
+        self.assertIn("too large", str(cm.exception))
+
+    def test_sanitize_source_name_replaces_control_characters(self):
+        """Test source name sanitization for log-safe diagnostics."""
+        sanitized = self.validator.sanitize_source_name(
+            "unsafe\x00name\u202etest.xml"
+        )
+
+        self.assertEqual(sanitized, "unsafe?name?test.xml")
 
     def test_validate_output_file_path_cannot_create_directory(self):
         """Test handling when output directory cannot be created."""

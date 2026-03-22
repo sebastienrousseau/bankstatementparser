@@ -69,16 +69,14 @@ instance/          # Flask
 celerybeat-schedule
 *.sage.py          # SageMath
 .env               # dotenv
-.venv              # virtualenv
 
 # Plan files
 plan.json
 
 # Miscellaneous
-.DS_Store          # macOS
+.DS_Store
 *.log
 *.mo               # Translations
 *.pot              # Translations
 *.db-shm           # Database
 *.db-wal           # Database
-.DS_Store

@@ -1,0 +1,3 @@
+[tools]
+"pipx:bandit" = "latest"
+"pipx:pip-audit" = "latest"
