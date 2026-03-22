@@ -205,9 +205,9 @@ class TestSecurityBoundaries:
             # If this succeeds, the parser used the original safe content
         except Exception as e:
             # If it fails, it should be due to structure, not XXE
-            assert (
-                "entity" not in str(e).lower()
-            ), "Parser may be vulnerable to XXE after file replacement"
+            assert "entity" not in str(e).lower(), (
+                "Parser may be vulnerable to XXE after file replacement"
+            )
 
     def test_filename_sanitization(self, validator):
         """Test filename sanitization for safe output generation."""

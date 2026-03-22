@@ -266,12 +266,12 @@ class Pain001Parser(BankStatementParser):
                         elif child.tag == "Amt":
                             instd_amt_elem = child.find("InstdAmt")
                             if instd_amt_elem is not None:
-                                payment[
-                                    "InstdAmt"
-                                ] = instd_amt_elem.text
-                                payment[
-                                    "Currency"
-                                ] = instd_amt_elem.get("Ccy")
+                                payment["InstdAmt"] = (
+                                    instd_amt_elem.text
+                                )
+                                payment["Currency"] = (
+                                    instd_amt_elem.get("Ccy")
+                                )
                         elif child.tag == "CdtrAgt":
                             cdtr_agt_elem = child.find("FinInstnId/BIC")
                             payment["CdtrBIC"] = (
