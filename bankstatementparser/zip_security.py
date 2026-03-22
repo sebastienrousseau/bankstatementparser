@@ -85,10 +85,11 @@ def iter_secure_xml_entries(
 
                 xml_bytes = zf.read(member)
                 try:
-                    xml_bytes, safe_name = (
-                        validator.validate_xml_content(
-                            xml_bytes, source_name=member.filename
-                        )
+                    (
+                        xml_bytes,
+                        safe_name,
+                    ) = validator.validate_xml_content(
+                        xml_bytes, source_name=member.filename
                     )
                 except ValidationError as exc:
                     raise ZipSecurityError(str(exc)) from exc

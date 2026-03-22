@@ -478,9 +478,11 @@ class TestSecurityIntegration(unittest.TestCase):
                 f.write(valid_xml)
 
             # Should process the directory safely
-            files_df, statements_df, transactions_df = (
-                process_camt053_folder(test_dir)
-            )
+            (
+                files_df,
+                statements_df,
+                transactions_df,
+            ) = process_camt053_folder(test_dir)
             self.assertGreaterEqual(len(files_df), 1)
 
             # Check that processing was successful for valid file

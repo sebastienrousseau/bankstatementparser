@@ -541,9 +541,11 @@ class TestSecurityBankStatementParsers(unittest.TestCase):
                 )
 
             # Should handle mixed valid/invalid files
-            files_df, statements_df, transactions_df = (
-                process_camt053_folder(test_dir)
-            )
+            (
+                files_df,
+                statements_df,
+                transactions_df,
+            ) = process_camt053_folder(test_dir)
             self.assertGreaterEqual(len(files_df), 2)
 
             # Check that failures are recorded properly

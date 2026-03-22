@@ -780,9 +780,11 @@ class TestBankStatementParsersCoverage(unittest.TestCase):
             with open(bad_path, "w") as f:
                 f.write("not xml")
 
-            files_df, statements_df, transactions_df = (
-                process_camt053_folder(folder)
-            )
+            (
+                files_df,
+                statements_df,
+                transactions_df,
+            ) = process_camt053_folder(folder)
             # Should have 2 files processed
             self.assertEqual(len(files_df), 2)
             # Check we got at least one success and one failure
