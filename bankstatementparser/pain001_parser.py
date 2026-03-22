@@ -22,8 +22,8 @@ Provides a class for parsing PAIN.001 format bank statement files.
 import logging
 import os
 import re
-import tempfile
 from collections.abc import Generator
+from io import BytesIO
 from typing import Optional, cast
 
 import pandas as pd
@@ -36,6 +36,10 @@ from .record_types import PaymentRecord, SummaryRecord
 
 # Configuring the logging
 logger = logging.getLogger(__name__)
+
+PAIN_NAMESPACE_PATTERN = re.compile(
+    r'xmlns="urn:iso:std:iso:20022:tech:xsd:pain\.\d{3}\.\d{3}\.\d{2}"'
+)
 
 
 class Pain001Parser(BankStatementParser):
@@ -107,12 +111,7 @@ class Pain001Parser(BankStatementParser):
 
         try:
             # Remove the namespace from the XML data for easier parsing
-            data = re.sub(
-                r'xmlns="urn:iso:std:iso:20022:tech:xsd:pain\.\d{3}\.\d{3}\.\d{2}"',
-                "",
-                data,
-            )
-            data_bytes = bytes(data, "utf-8")
+            data_bytes = self._normalize_xml_text(data).encode("utf-8")
 
             # Parse the XML data with security settings
             parser = etree.XMLParser(
@@ -154,6 +153,10 @@ class Pain001Parser(BankStatementParser):
                 raise ValidationError(
                     f"Invalid XML format: {error_msg}"
                 ) from e
+
+    def _normalize_xml_text(self, data: str) -> str:
+        """Strip the default PAIN namespace for simpler XPath handling."""
+        return PAIN_NAMESPACE_PATTERN.sub("", data)
 
     def parse(
         self,
@@ -300,7 +303,7 @@ class Pain001Parser(BankStatementParser):
                     payments.append(payment)
 
             # Create DataFrame from parsed data
-            df = pd.DataFrame(payments)
+            df = pd.DataFrame.from_records(payments)
 
             if output_file:
                 # Use atomic write operation with temp file
@@ -375,130 +378,90 @@ class Pain001Parser(BankStatementParser):
                 f"Error reading file {file_path}: {str(e)}"
             ) from e
 
-        # Remove namespace and write to temp file for streaming
-        data = re.sub(
-            r'xmlns="urn:iso:std:iso:20022:tech:xsd:pain\.\d{3}\.\d{3}\.\d{2}"',
-            "",
-            data,
-        )
+        data_bytes = self._normalize_xml_text(data).encode("utf-8")
+        source_stream = BytesIO(data_bytes)
 
-        fd, temp_file = tempfile.mkstemp(
-            suffix=".xml", prefix="bsp_streaming_"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                f.write(data)
+        # Track context for header and payment info
+        header_fields: dict[str, Optional[str]] = {}
+        current_payment_info: dict[str, Optional[str]] = {}
 
-            # Set up iterative XML parser with security settings
-            etree.XMLParser(
-                recover=False,
-                encoding="utf-8",
-                resolve_entities=False,
-                load_dtd=False,
-                no_network=True,
-            )
+        # Use iterparse to process elements incrementally from memory
+        for event, elem in etree.iterparse(
+            source_stream,
+            events=("start", "end"),
+            resolve_entities=False,
+            load_dtd=False,
+            no_network=True,
+            huge_tree=False,
+        ):
+            if event == "end" and elem.tag == "GrpHdr":
+                for child in elem:
+                    if child.tag in ["MsgId", "CreDtTm", "NbOfTxs"]:
+                        header_fields[child.tag] = child.text
+                    elif child.tag == "InitgPty":
+                        nm_elem = child.find("Nm")
+                        header_fields["InitgPty"] = (
+                            nm_elem.text if nm_elem is not None else None
+                        )
+                elem.clear()
 
-            # Track context for header and payment info
-            header_fields: dict[str, Optional[str]] = {}
-            current_payment_info: dict[str, Optional[str]] = {}
+            elif event == "start" and elem.tag == "PmtInf":
+                current_payment_info = {}
 
-            # Use iterparse to process elements incrementally
-            for event, elem in etree.iterparse(
-                temp_file, events=("start", "end")
+            elif event == "end" and elem.tag in (
+                "PmtInfId",
+                "PmtMtd",
+                "NbOfTxs",
+                "CtrlSum",
+                "ReqdExctnDt",
+                "ChrgBr",
             ):
-                if event == "end" and elem.tag == "GrpHdr":
-                    # Extract header information once
-                    for child in elem:
-                        if child.tag in ["MsgId", "CreDtTm", "NbOfTxs"]:
-                            header_fields[child.tag] = child.text
-                        elif child.tag == "InitgPty":
-                            nm_elem = child.find("Nm")
-                            header_fields["InitgPty"] = (
-                                nm_elem.text
-                                if nm_elem is not None
-                                else None
-                            )
-                    # Clear element after processing
+                parent = elem.getparent()
+                if parent is not None and parent.tag == "PmtInf":
+                    current_payment_info[elem.tag] = elem.text
+
+            elif event == "end" and elem.tag == "Dbtr":
+                parent = elem.getparent()
+                if parent is not None and parent.tag == "PmtInf":
+                    dbtr_name = elem.find("Nm")
+                    current_payment_info["DbtrNm"] = (
+                        dbtr_name.text if dbtr_name is not None else None
+                    )
+
+            elif event == "end" and elem.tag == "DbtrAcct":
+                parent = elem.getparent()
+                if parent is not None and parent.tag == "PmtInf":
+                    iban = elem.find("Id/IBAN")
+                    current_payment_info["DbtrIBAN"] = (
+                        iban.text if iban is not None else None
+                    )
+
+            elif event == "end" and elem.tag == "DbtrAgt":
+                parent = elem.getparent()
+                if parent is not None and parent.tag == "PmtInf":
+                    bic = elem.find("FinInstnId/BIC")
+                    current_payment_info["DbtrBIC"] = (
+                        bic.text if bic is not None else None
+                    )
+
+            elif event == "end" and elem.tag == "CdtTrfTxInf":
+                try:
+                    payment_data = self._parse_streaming_payment(
+                        elem,
+                        current_payment_info,
+                        header_fields,
+                        redact_pii,
+                    )
+                    yield payment_data
+                except Exception as e:
+                    logger.warning(
+                        f"Error parsing payment transaction: {e}"
+                    )
+                    continue
+                finally:
                     elem.clear()
-
-                elif event == "start" and elem.tag == "PmtInf":
-                    # Reset payment info for new payment
-                    current_payment_info = {}
-
-                elif event == "end" and elem.tag in (
-                    "PmtInfId",
-                    "PmtMtd",
-                    "NbOfTxs",
-                    "CtrlSum",
-                    "ReqdExctnDt",
-                    "ChrgBr",
-                ):
-                    # Capture PmtInf-level scalar fields as they complete
-                    parent = elem.getparent()
-                    if parent is not None and parent.tag == "PmtInf":
-                        current_payment_info[elem.tag] = elem.text
-
-                elif event == "end" and elem.tag == "Dbtr":
-                    parent = elem.getparent()
-                    if (
-                        parent is not None and parent.tag == "PmtInf"
-                    ):  # pragma: no branch
-                        dbtr_name = elem.find("Nm")
-                        current_payment_info["DbtrNm"] = (
-                            dbtr_name.text
-                            if dbtr_name is not None
-                            else None
-                        )
-
-                elif event == "end" and elem.tag == "DbtrAcct":
-                    parent = elem.getparent()
-                    if (
-                        parent is not None and parent.tag == "PmtInf"
-                    ):  # pragma: no branch
-                        iban = elem.find("Id/IBAN")
-                        current_payment_info["DbtrIBAN"] = (
-                            iban.text if iban is not None else None
-                        )
-
-                elif event == "end" and elem.tag == "DbtrAgt":
-                    parent = elem.getparent()
-                    if (
-                        parent is not None and parent.tag == "PmtInf"
-                    ):  # pragma: no branch
-                        bic = elem.find("FinInstnId/BIC")
-                        current_payment_info["DbtrBIC"] = (
-                            bic.text if bic is not None else None
-                        )
-
-                elif event == "end" and elem.tag == "CdtTrfTxInf":
-                    # Process completed credit transfer transaction
-                    try:
-                        payment_data = self._parse_streaming_payment(
-                            elem,
-                            current_payment_info,
-                            header_fields,
-                            redact_pii,
-                        )
-                        yield payment_data
-                    except Exception as e:
-                        logger.warning(
-                            f"Error parsing payment transaction: {e}"
-                        )
-                        # Continue processing other payments
-                        continue
-                    finally:
-                        # Clear the element and its parent references to free memory
-                        elem.clear()
-                        # Also clear parent references if element has parent
-                        while elem.getprevious() is not None:
-                            del elem.getparent()[0]
-
-        finally:
-            # Clean up temp file
-            try:
-                os.unlink(temp_file)
-            except OSError:
-                pass  # Ignore if temp file cleanup fails
+                    while elem.getprevious() is not None:
+                        del elem.getparent()[0]
 
     def _parse_streaming_payment(
         self,

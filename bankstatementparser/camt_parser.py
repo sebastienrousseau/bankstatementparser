@@ -41,6 +41,10 @@ from .record_types import (
 # Configuring the logging
 logger = logging.getLogger(__name__)
 
+CAMT_NAMESPACE_PATTERN = re.compile(
+    r'\s+xmlns="urn:iso:std:iso:20022:tech:xsd:camt\.\d{3}\.\d{3}\.\d{2}"'
+)
+
 
 class CamtParser(BankStatementParser):
     """
@@ -198,11 +202,7 @@ class CamtParser(BankStatementParser):
             raw_bytes, source_name=self._source_name
         )
         data = validated_bytes.decode("utf-8")
-        data = re.sub(
-            r'\s+xmlns="urn:iso:std:iso:20022:tech:xsd:camt\.\d{3}\.\d{3}\.\d{2}"',
-            "",
-            data,
-        )
+        data = CAMT_NAMESPACE_PATTERN.sub("", data)
         return data.encode("utf-8")
 
     def _parse_xml_bytes(
@@ -305,7 +305,7 @@ class CamtParser(BankStatementParser):
             balances.extend(bal_list)
 
         # Convert the list of balances to a DataFrame and return
-        return pd.DataFrame(balances)
+        return pd.DataFrame.from_records(balances)
 
     def _get_balances_for_statement(
         self, statement: etree._Element
@@ -413,7 +413,7 @@ class CamtParser(BankStatementParser):
             transactions.extend(tx_list)
 
         # Convert the list of transactions to a DataFrame and return
-        return pd.DataFrame(transactions)
+        return pd.DataFrame.from_records(transactions)
 
     def _get_transactions_for_statement(
         self, statement: etree._Element, redact_pii: bool = False
@@ -634,7 +634,7 @@ class CamtParser(BankStatementParser):
             stats.append(stmt_stats)
 
         # Convert the list of statistics to a DataFrame and return
-        return pd.DataFrame(stats)
+        return pd.DataFrame.from_records(stats)
 
     def _get_statement_stats(
         self, statement: etree._Element, redact_pii: bool = False

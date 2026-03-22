@@ -267,19 +267,15 @@ class Camt053Parser:
 
             # Add balance information to statements if available
             if not balances_df.empty:
-                balances_by_account = (
-                    balances_df.groupby("AccountId")
-                    .apply(
-                        lambda x: {
-                            row["Code"]: {
-                                "Amount": row["Amount"],
-                                "Description": row["Description"],
-                            }
-                            for _, row in x.iterrows()
+                balances_by_account: dict[str, dict[str, dict[str, str]]] = {}
+                for account_id, group in balances_df.groupby("AccountId"):
+                    balances_by_account[account_id] = {
+                        str(row["Code"]): {
+                            "Amount": str(row["Amount"]),
+                            "Description": str(row["Description"]),
                         }
-                    )
-                    .to_dict()
-                )
+                        for row in group.to_dict("records")
+                    }
 
                 for stmt in self.statements:
                     account_id = stmt.get("AccountId")
