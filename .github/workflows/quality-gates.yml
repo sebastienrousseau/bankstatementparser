@@ -69,6 +69,7 @@ jobs:
       - name: Run unit and package-quality suite
         run: |
           poetry run pytest \
+            tests/test_additional_parsers.py \
             tests/test_input_validator.py \
             tests/test_camt_parser.py \
             tests/test_security_updated.py \
