@@ -165,6 +165,6 @@ pytz==2023.3.post1 ; python_version >= "3.9" and python_version < "3.13" \
 six==1.16.0 ; python_version >= "3.9" and python_version < "3.13" \
     --hash=sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926 \
     --hash=sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254
-tzdata==2023.3 ; python_version >= "3.9" and python_version < "3.13" \
-    --hash=sha256:11ef1e08e54acb0d4f95bdb1be05da659673de4acbd21bf9c69e94cc5e907a3a \
-    --hash=sha256:7e65763eef3120314099b6939b5546db7adce1e7d6f2e179e3df563c70511eda
+tzdata==2025.3 ; python_version >= "3.9" and python_version < "3.13" \
+    --hash=sha256:06a47e5700f3081aab02b2e513160914ff0694bce9947d6b76ebd6bf57cfc5d1 \
+    --hash=sha256:de39c2ca5dc7b0344f2eba86f49d614019d29f060fc4ebc8a417896a620b56a7
