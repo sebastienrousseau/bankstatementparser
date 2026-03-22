@@ -1,0 +1,3 @@
+Booking Date;Details;Credit;Debit;CCY;Running Balance;IBAN;Ref
+2026-03-20;Incoming transfer;1250,50;;EUR;2250,50;DE4455667788;CSV-100
+2026-03-21;Utility bill;;200,25;EUR;2050,25;DE4455667788;CSV-101

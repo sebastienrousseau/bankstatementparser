@@ -44,7 +44,20 @@ class InputValidator:
     MIN_FILE_SIZE_BYTES = 1  # 1 byte minimum
 
     # Allowed file extensions for input files
-    ALLOWED_INPUT_EXTENSIONS = {".xml", ".XML"}
+    ALLOWED_INPUT_EXTENSIONS = {
+        ".xml",
+        ".XML",
+        ".csv",
+        ".CSV",
+        ".ofx",
+        ".OFX",
+        ".qfx",
+        ".QFX",
+        ".mt940",
+        ".MT940",
+        ".sta",
+        ".STA",
+    }
 
     # Allowed file extensions for output files
     ALLOWED_OUTPUT_EXTENSIONS = {
@@ -478,6 +491,9 @@ class InputValidator:
                 raise ValidationError(
                     f"File encoding is not valid UTF-8: {path}"
                 ) from exc
+
+            if path.suffix.lower() != ".xml":
+                return
 
             # Check for XML declaration or root elements
             header_str = header.decode("utf-8", errors="ignore").lower()

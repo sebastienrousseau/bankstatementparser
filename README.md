@@ -1,7 +1,8 @@
 # Bank Statement Parser
 
-Parse CAMT and PAIN.001 XML files. Export structured data. Process ZIP
-archives safely without extracting every file to disk.
+Parse CAMT and PAIN.001 XML files, bank CSV files, OFX/QFX statements,
+and MT940 statements. Export structured data. Process ZIP archives safely
+without extracting every file to disk.
 
 [![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge)](https://pypi.org/project/bankstatementparser/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge)](https://pypi.org/project/bankstatementparser/)
@@ -12,6 +13,10 @@ archives safely without extracting every file to disk.
 
 - Parse CAMT bank statements with `CamtParser`
 - Parse SEPA PAIN.001 payment files with `Pain001Parser`
+- Parse bank CSV files with `CsvStatementParser`
+- Parse OFX and QFX files with `OfxParser` and `QfxParser`
+- Parse MT940 files with `Mt940Parser`
+- Auto-detect statement formats with `detect_statement_format(...)` and `create_parser(...)`
 - Parse CAMT XML from memory with `from_string(...)` and `from_bytes(...)`
 - Read XML entries from ZIP archives with `iter_secure_xml_entries(...)`
 - Export results to CSV and JSON
@@ -85,6 +90,18 @@ from bankstatementparser import Pain001Parser
 parser = Pain001Parser("tests/test_data/pain.001.001.03.xml")
 payments = parser.parse()
 print(payments.head())
+```
+
+### Auto-detect the statement format
+
+```python
+from bankstatementparser import create_parser, detect_statement_format
+
+file_name = "tests/test_data/sample.ofx"
+format_name = detect_statement_format(file_name)
+parser = create_parser(file_name, format_name)
+records = parser.parse()
+print(format_name, records.head())
 ```
 
 ### Parse CAMT XML from memory
@@ -177,6 +194,7 @@ See [examples/README.md](examples/README.md) for runnable examples covering:
 - CAMT streaming
 - secure ZIP processing
 - basic PAIN.001 parsing
+- auto-detected CSV, OFX/QFX, MT940, CAMT, and PAIN.001 parsing
 - PAIN.001 export
 - PAIN.001 streaming
 - compatibility wrappers

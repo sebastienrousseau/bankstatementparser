@@ -1,0 +1,3 @@
+Date,Description,Amount,Currency,Balance,Account,Reference
+2026-03-20,Salary,2500.00,EUR,5000.00,DE123456789,TXN-001
+2026-03-21,Rent,-1200.00,EUR,3800.00,DE123456789,TXN-002

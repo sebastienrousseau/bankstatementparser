@@ -105,7 +105,7 @@ class BankStatementParser(ABC):
             df.to_csv(temp_path, index=False)
 
             # Atomic rename to prevent corruption
-            Path(temp_path).rename(output_path)
+            Path(temp_path).replace(output_path)
         except Exception as e:
             # Clean up temp file if it exists
             if Path(temp_path).exists():
@@ -136,7 +136,7 @@ class BankStatementParser(ABC):
                 json.dump(data, f, indent=2, default=str)
 
             # Atomic rename to prevent corruption
-            Path(temp_path).rename(output_path)
+            Path(temp_path).replace(output_path)
         except Exception as e:
             # Clean up temp file if it exists
             if Path(temp_path).exists():

@@ -8,6 +8,7 @@ real ISO 20022 fixtures under `tests/test_data/`.
 - `export_camt.py`: export CAMT output to CSV and JSON
 - `stream_camt.py`: incremental CAMT transaction parsing
 - `parse_camt_zip.py`: parse separate CAMT XML files from a ZIP archive without extraction
+- `parse_detected_formats.py`: auto-detect CSV, OFX/QFX, MT940, CAMT, and PAIN.001
 - `parse_pain001_basic.py`: basic PAIN.001 parsing
 - `export_pain001.py`: export PAIN.001 output to CSV and JSON
 - `stream_pain001.py`: incremental PAIN.001 payment parsing

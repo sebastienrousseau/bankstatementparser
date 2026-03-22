@@ -21,6 +21,14 @@ formats, as well as other utilities commonly used in finance and treasury
 operations.
 """
 
+from .additional_parsers import (
+    CsvStatementParser,
+    Mt940Parser,
+    OfxParser,
+    QfxParser,
+    create_parser,
+    detect_statement_format,
+)
 from .base_parser import BankStatementParser
 from .camt_parser import CamtParser
 from .input_validator import InputValidator, ValidationError
@@ -34,6 +42,12 @@ from .zip_security import (
 __all__ = [
     "BankStatementParser",
     "CamtParser",
+    "CsvStatementParser",
+    "OfxParser",
+    "QfxParser",
+    "Mt940Parser",
+    "detect_statement_format",
+    "create_parser",
     "Pain001Parser",
     "InputValidator",
     "ValidationError",
