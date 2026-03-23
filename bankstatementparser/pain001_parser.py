@@ -401,7 +401,9 @@ class Pain001Parser(BankStatementParser):
                     elif child.tag == "InitgPty":
                         nm_elem = child.find("Nm")
                         header_fields["InitgPty"] = (
-                            nm_elem.text if nm_elem is not None else None
+                            nm_elem.text
+                            if nm_elem is not None
+                            else None
                         )
                 elem.clear()
 
@@ -425,7 +427,9 @@ class Pain001Parser(BankStatementParser):
                 if parent is not None and parent.tag == "PmtInf":
                     dbtr_name = elem.find("Nm")
                     current_payment_info["DbtrNm"] = (
-                        dbtr_name.text if dbtr_name is not None else None
+                        dbtr_name.text
+                        if dbtr_name is not None
+                        else None
                     )
 
             elif event == "end" and elem.tag == "DbtrAcct":

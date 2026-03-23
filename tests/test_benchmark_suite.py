@@ -19,9 +19,7 @@ def camt_parser() -> CamtParser:
 
 @pytest.fixture(scope="module")
 def pain001_parser() -> Pain001Parser:
-    path = (
-        Path(__file__).parent / "test_data" / "pain.001.001.03.xml"
-    )
+    path = Path(__file__).parent / "test_data" / "pain.001.001.03.xml"
     return Pain001Parser(str(path))
 
 

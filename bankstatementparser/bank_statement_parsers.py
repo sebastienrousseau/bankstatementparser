@@ -267,8 +267,12 @@ class Camt053Parser:
 
             # Add balance information to statements if available
             if not balances_df.empty:
-                balances_by_account: dict[str, dict[str, dict[str, str]]] = {}
-                for account_id, group in balances_df.groupby("AccountId"):
+                balances_by_account: dict[
+                    str, dict[str, dict[str, str]]
+                ] = {}
+                for account_id, group in balances_df.groupby(
+                    "AccountId"
+                ):
                     balances_by_account[account_id] = {
                         str(row["Code"]): {
                             "Amount": str(row["Amount"]),
