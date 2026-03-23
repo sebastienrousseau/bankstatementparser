@@ -284,6 +284,52 @@ class TestPain001Parser(unittest.TestCase):
                 Pain001Parser("test.xml")
             self.assertIn("Invalid file format", str(context.exception))
 
+    def test_parse_streaming_ignores_debtor_tags_outside_pmtinf(self):
+        """Ensure debtor context tags outside PmtInf do not populate payment info."""
+        xml_content = """<?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03">
+          <CstmrCdtTrfInitn>
+            <GrpHdr>
+              <MsgId>M1</MsgId>
+              <CreDtTm>2024-01-01T00:00:00</CreDtTm>
+              <NbOfTxs>1</NbOfTxs>
+              <InitgPty><Nm>Corp</Nm></InitgPty>
+            </GrpHdr>
+            <Dbtr><Nm>Ignored Debtor</Nm></Dbtr>
+            <DbtrAcct><Id><IBAN>DE00123456789012345678</IBAN></Id></DbtrAcct>
+            <DbtrAgt><FinInstnId><BIC>IGNOREDXX</BIC></FinInstnId></DbtrAgt>
+            <PmtInf>
+              <PmtInfId>P1</PmtInfId>
+              <PmtMtd>TRF</PmtMtd>
+              <NbOfTxs>1</NbOfTxs>
+              <CtrlSum>100.00</CtrlSum>
+              <ReqdExctnDt>2024-01-15</ReqdExctnDt>
+              <ChrgBr>SLEV</ChrgBr>
+              <CdtTrfTxInf>
+                <PmtId><EndToEndId>E1</EndToEndId></PmtId>
+                <Amt><InstdAmt Ccy="EUR">100.00</InstdAmt></Amt>
+                <Cdtr><Nm>Receiver</Nm></Cdtr>
+                <RmtInf><Ustrd>Invoice 1</Ustrd></RmtInf>
+              </CdtTrfTxInf>
+            </PmtInf>
+          </CstmrCdtTrfInitn>
+        </Document>"""
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".xml", delete=False
+        ) as temp_file:
+            temp_file.write(xml_content)
+            temp_path = temp_file.name
+
+        try:
+            parser = Pain001Parser(temp_path)
+            payment = next(parser.parse_streaming())
+            self.assertNotIn("DbtrNm", payment)
+            self.assertNotIn("DbtrIBAN", payment)
+            self.assertNotIn("DbtrBIC", payment)
+        finally:
+            os.unlink(temp_path)
+
 
 if __name__ == "__main__":
     unittest.main()
