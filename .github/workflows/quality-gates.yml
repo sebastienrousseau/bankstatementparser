@@ -88,6 +88,7 @@ jobs:
             tests/test_enterprise_coverage.py \
             tests/test_property_based.py \
             tests/test_large_file_streaming.py \
+            tests/test_performance_contracts.py \
             tests/integration/test_zip_security.py
 
   integration-tests:

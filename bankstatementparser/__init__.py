@@ -46,6 +46,7 @@ from .transaction_deduplicator import (
     MatchGroup,
 )
 from .transaction_models import Transaction
+from .parallel import FileResult, parse_files_parallel
 from .zip_security import (
     ZipSecurityError,
     ZipXMLSource,
@@ -71,6 +72,8 @@ __all__ = [
     "DeduplicationResult",
     "ExactDuplicateGroup",
     "MatchGroup",
+    "FileResult",
+    "parse_files_parallel",
     "InputValidator",
     "ValidationError",
     "ZipSecurityError",
