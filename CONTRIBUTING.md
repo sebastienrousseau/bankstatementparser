@@ -2,16 +2,9 @@
 
 Keep changes small. Keep behavior clear. Keep history signed.
 
-## Requirements
-
-- Use a signed commit for every change.
-- Open a pull request against `main`.
-- Add or update tests for every behavior change.
-- Keep documentation aligned with the code.
-
 ## Local Setup
 
-### macOS
+Clone and install on **macOS, Linux, or WSL**:
 
 ```bash
 git clone https://github.com/sebastienrousseau/bankstatementparser.git
@@ -22,29 +15,9 @@ pip install poetry
 poetry install --with dev
 ```
 
-### Linux
+## Before Opening a Pull Request
 
-```bash
-git clone https://github.com/sebastienrousseau/bankstatementparser.git
-cd bankstatementparser
-python3 -m venv .venv
-source .venv/bin/activate
-pip install poetry
-poetry install --with dev
-```
-
-### WSL
-
-```bash
-git clone https://github.com/sebastienrousseau/bankstatementparser.git
-cd bankstatementparser
-python3 -m venv .venv
-source .venv/bin/activate
-pip install poetry
-poetry install --with dev
-```
-
-## Run Before Opening a Pull Request
+Run the full validation suite:
 
 ```bash
 ruff check bankstatementparser tests examples scripts
@@ -53,35 +26,37 @@ python -m pytest
 bandit -r bankstatementparser examples scripts -q
 ```
 
+All four commands must pass with zero errors.
+
 ## Signed Commits
 
-Configure Git to sign every commit:
+Every commit must be signed. Configure Git once:
 
 ```bash
 git config --global commit.gpgsign true
 git config --global tag.gpgSign true
 git config --global gpg.format ssh
-git config --global user.signingkey "<signing-key>"
+git config --global user.signingkey "<your-signing-key>"
 ```
 
-The repository also verifies signed commits in CI.
+CI verifies signatures via the GitHub API. Unsigned commits block the pipeline.
 
 ## Pull Request Rules
 
-- Use a focused branch.
-- Describe the behavior change clearly.
-- Link the relevant issue when one exists.
-- Include tests for parser, validation, or CLI changes.
-- Update examples or docs when public behavior changes.
+- **One branch, one purpose.** Keep the scope focused.
+- **Describe the behavior change**, not the implementation.
+- **Link the issue** when one exists.
+- **Add tests** for parser, validation, or CLI changes.
+- **Update examples or docs** when public behavior changes.
 
 ## Reporting Bugs
 
 Open an issue with:
 
-- the input format
-- the expected behavior
-- the actual behavior
-- a minimal reproduction path
-- the affected version or commit
+- Input format (CAMT, PAIN.001, CSV, OFX, MT940)
+- Expected behavior
+- Actual behavior
+- Minimal reproduction path
+- Affected version or commit SHA
 
-For security issues, use [VULNERABILITY_REPORTING.md](VULNERABILITY_REPORTING.md).
+For security vulnerabilities, use [SECURITY.md](.github/SECURITY.md). Do not open a public issue.
