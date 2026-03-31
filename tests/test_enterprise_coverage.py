@@ -309,7 +309,7 @@ class TestPain001CoverageExtra(unittest.TestCase):
             with self.assertRaises(ValidationError):
                 list(parser.parse_streaming())
 
-    def test_parse_streaming_warning_and_cleanup_error(self):
+    def test_parse_streaming_error_propagates(self):
         parser = Pain001Parser(str(self.pain_file))
         with patch.object(
             parser,
@@ -317,8 +317,8 @@ class TestPain001CoverageExtra(unittest.TestCase):
             side_effect=RuntimeError("boom"),
         ):
             with patch("os.unlink", side_effect=OSError("cleanup")):
-                results = list(parser.parse_streaming())
-        self.assertEqual(results, [])
+                with self.assertRaises(RuntimeError):
+                    list(parser.parse_streaming())
 
     def test_parse_streaming_redaction_and_summary_error_fallback(self):
         parser = Pain001Parser(str(self.pain_file))

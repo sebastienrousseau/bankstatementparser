@@ -473,11 +473,10 @@ class Pain001Parser(BankStatementParser):
                         )
                         yield payment_data
                     except Exception as e:
-                        logger.warning(
+                        logger.error(
                             f"Error parsing payment transaction: {e}"
                         )
-                        # Continue processing other payments
-                        continue
+                        raise
                     finally:
                         # Clear the element and its parent references to free memory
                         elem.clear()

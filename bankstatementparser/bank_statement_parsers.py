@@ -97,8 +97,10 @@ class Pain001Parser:
             Dict[str, str]: A dictionary containing header information of the batch.
         """
         # Extract relevant information from the batch header.
-        execution_date: str = batch.xpath(".//ReqdExctnDt")[0].text
-        debtor_name: str = batch.xpath(".//Dbtr/Nm")[0].text
+        exec_elems = batch.xpath(".//ReqdExctnDt")
+        execution_date: str = exec_elems[0].text if exec_elems else ""
+        debtor_elems = batch.xpath(".//Dbtr/Nm")
+        debtor_name: str = debtor_elems[0].text if debtor_elems else ""
         debtor_account: str = (
             batch.xpath(".//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id")[
                 0
@@ -276,7 +278,8 @@ class Camt053Parser:
                                 "Description": row["Description"],
                             }
                             for _, row in x.iterrows()
-                        }
+                        },
+                        include_groups=False,
                     )
                     .to_dict()
                 )

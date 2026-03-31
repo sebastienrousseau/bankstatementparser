@@ -26,7 +26,7 @@ test_requirements = ["pytest>=7.4.2"]
 
 setup(
     name="bankstatementparser",
-    version="0.0.1",
+    version="0.0.4",
     description="""
 BankStatementParser is your essential tool for easy bank statement management.
 Designed with finance and treasury experts in mind, it offers a simple way to
@@ -69,7 +69,5 @@ free way to stay on top of your transactions.
     license="Apache Software License",
     packages=find_packages(exclude=["docs", "tests*"]),
     python_requires=">=3.9",
-    setup_requires=["pytest-runner"],
-    tests_require=["pytest"],
     test_suite="tests",
 )
