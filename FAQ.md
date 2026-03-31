@@ -30,7 +30,15 @@ Every release includes a CycloneDX SBOM, SHA-256 checksums, and GitHub build pro
 
 ### 5. How are large files and ZIP archives handled?
 
-**Streaming and in-memory validation — no full-file loading required.** Use `parse_streaming()` to process large XML files incrementally. Each transaction is yielded as a dictionary; elements are cleared after processing to prevent memory growth.
+**Streaming with bounded memory — tested at 50,000 transactions per file.** Use `parse_streaming()` to process XML files incrementally. Each transaction is yielded as a dictionary; elements are cleared after processing to prevent memory growth. Memory does not scale with file size — the 50K-transaction test (25+ MB) uses less than 2x the memory of the 10K-transaction test.
+
+Performance thresholds validated in CI:
+
+- **CAMT:** >5,000 transactions/second at 10K and 50K scale
+- **PAIN.001:** >2,000 transactions/second at 10K and 50K scale
+- **Memory:** Growth ratio between 10K and 50K stays below 2x
+
+For files exceeding 50 MB (e.g., host-to-host PAIN.001 batches with 100K+ payments), the parser streams through a temporary file with chunk-based namespace stripping — the full document is never loaded into memory.
 
 For ZIP archives, `iter_secure_xml_entries()` validates each member before extraction:
 

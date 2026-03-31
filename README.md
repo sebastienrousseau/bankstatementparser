@@ -21,7 +21,7 @@ Built for finance teams, treasury analysts, and fintech developers who need reli
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
 | **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
 | **Export** | CSV, JSON, Excel (`.xlsx`), and optional Polars DataFrames |
-| **100% coverage** | 442 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
+| **100% coverage** | 456 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
 
 ## Requirements
 
@@ -137,7 +137,7 @@ File exports (CSV, JSON, Excel) always contain the full unredacted data.
 
 ## Streaming
 
-Process large files without loading everything into memory:
+Process large files incrementally. Memory stays bounded regardless of file size — tested at 50,000 transactions with sub-2x memory scaling.
 
 ```python
 from bankstatementparser import CamtParser
@@ -147,7 +147,7 @@ for transaction in parser.parse_streaming():
     process(transaction)  # each transaction is a dict
 ```
 
-Works with both `CamtParser` and `Pain001Parser`.
+Works with both `CamtParser` and `Pain001Parser`. PAIN.001 files over 50 MB use chunk-based namespace stripping via a temporary file — the full document is never loaded into memory.
 
 ## Command Line
 
@@ -241,7 +241,7 @@ bankstatementparser/   Source code (12 modules, 100% branch coverage)
 docs/compliance/       ISO 13485 validation, risk register, traceability
 examples/              14 runnable example scripts
 scripts/               SBOM generation, checksums, signature verification
-tests/                 442 tests (unit, integration, property-based, security)
+tests/                 456 tests (unit, integration, property-based, security)
 ```
 
 ## Security
@@ -293,7 +293,7 @@ Yes. Names, IBANs, and addresses are masked by default in console output and str
 Yes. Same input produces byte-identical output. Critical for financial auditing.
 
 **Can it handle large files?**
-Yes. `parse_streaming()` processes incrementally without loading the full file into memory.
+Yes. `parse_streaming()` is tested at 50,000 transactions (~25 MB) with bounded memory. Files over 50 MB use chunk-based streaming.
 
 See [FAQ.md](FAQ.md) for the complete FAQ covering data privacy, technical specs, and treasury workflows.
 
