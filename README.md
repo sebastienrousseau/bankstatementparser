@@ -200,6 +200,10 @@ See [`examples/`](examples/README.md) for 14 runnable scripts:
 | `compatibility_wrappers.py` | Legacy API wrappers |
 | `cli_examples.sh` | CLI commands for CAMT and PAIN.001 |
 
+## XML Tag Mapping
+
+See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference of ISO 20022 XML tags to DataFrame columns across all six formats. Use this when integrating with ERP systems or building reconciliation pipelines.
+
 ## Project Layout
 
 ```text
