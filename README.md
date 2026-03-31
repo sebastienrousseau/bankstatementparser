@@ -296,3 +296,8 @@ Yes. Same input produces byte-identical output. Critical for financial auditing.
 Yes. `parse_streaming()` processes incrementally without loading the full file into memory.
 
 See [FAQ.md](FAQ.md) for the complete FAQ covering data privacy, technical specs, and treasury workflows.
+
+---
+
+THE ARCHITECT ᛫ Sebastien Rousseau ᛫ https://sebastienrousseau.com
+THE ENGINE ᛞ EUXIS ᛫ Enterprise Unified Execution Intelligence System ᛫ https://euxis.co
