@@ -247,16 +247,18 @@ Apache License 2.0. See [LICENSE](LICENSE).
 ## FAQ
 
 **What formats are supported?**
-CAMT.053 (ISO 20022), PAIN.001 (ISO 20022), CSV, OFX, QFX, and MT940.
+CAMT.053, PAIN.001, CSV, OFX, QFX, and MT940.
+
+**Does any data leave my infrastructure?**
+No. Zero network calls. XML parsers enforce `no_network=True`. No cloud, no telemetry.
 
 **Is PII redacted automatically?**
-Yes. Console output and streaming mode redact names, IBANs, and addresses by default. File exports contain full data.
+Yes. Names, IBANs, and addresses are masked by default in console output and streaming. File exports retain full data.
+
+**Is the extraction deterministic?**
+Yes. Same input produces byte-identical output. Critical for financial auditing.
 
 **Can it handle large files?**
-Yes. Use `parse_streaming()` for incremental processing without loading the entire file into memory.
+Yes. `parse_streaming()` processes incrementally without loading the full file into memory.
 
-**Does it work offline?**
-Yes. No network calls. All parsing runs locally. XML parsers are configured with `no_network=True`.
-
-**What Python versions are supported?**
-Python 3.9 through 3.14. Tested across all versions in CI.
+See [FAQ.md](FAQ.md) for the complete FAQ covering data privacy, technical specs, and treasury workflows.
