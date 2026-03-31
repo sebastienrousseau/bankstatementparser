@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 
 API_ROOT = "https://api.github.com"
 VALID_REASONS = {"valid"}
+NULL_SHA = "0" * 40
 
 
 def github_get_json(url: str, token: str) -> dict[str, Any]:
@@ -62,6 +63,33 @@ def compare_commits(
     return commits
 
 
+def commits_for_initial_push(
+    repo: str,
+    event: dict[str, Any],
+    token: str,
+) -> list[dict[str, Any]]:
+    commits = []
+    for commit in cast(list[dict[str, Any]], event.get("commits", [])):
+        sha = commit.get("id")
+        if not sha:
+            continue
+        commits.append(
+            github_get_json(
+                f"{API_ROOT}/repos/{repo}/commits/{sha}", token
+            )
+        )
+
+    if commits:
+        return commits
+
+    head_sha = cast(str, event["after"])
+    return [
+        github_get_json(
+            f"{API_ROOT}/repos/{repo}/commits/{head_sha}", token
+        )
+    ]
+
+
 def commit_range_from_event(
     event_name: str,
     event: dict[str, Any],
@@ -75,6 +103,19 @@ def commit_range_from_event(
         "Unsupported event for signature verification: "
         f"{event_name}. Use --base-sha and --head-sha to override."
     )
+
+
+def commits_from_event(
+    repo: str,
+    event_name: str,
+    event: dict[str, Any],
+    token: str,
+) -> list[dict[str, Any]]:
+    if event_name == "push" and event.get("before") == NULL_SHA:
+        return commits_for_initial_push(repo, event, token)
+
+    base_sha, head_sha = commit_range_from_event(event_name, event)
+    return compare_commits(repo, base_sha, head_sha, token)
 
 
 def verify_commits(commits: Iterable[dict[str, Any]]) -> list[str]:
@@ -125,6 +166,9 @@ def main() -> int:
     if args.base_sha and args.head_sha:
         base_sha = args.base_sha
         head_sha = args.head_sha
+        commits = compare_commits(
+            args.repo, base_sha, head_sha, args.token
+        )
     else:
         if not args.event_name or not args.event_path.exists():
             print(
@@ -133,11 +177,9 @@ def main() -> int:
             )
             return 2
         event = json.loads(args.event_path.read_text(encoding="utf-8"))
-        base_sha, head_sha = commit_range_from_event(
-            args.event_name, event
+        commits = commits_from_event(
+            args.repo, args.event_name, event, args.token
         )
-
-    commits = compare_commits(args.repo, base_sha, head_sha, args.token)
     failures = verify_commits(commits)
     if failures:
         print("Unsigned or unverified commits detected:")

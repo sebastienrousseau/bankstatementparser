@@ -96,3 +96,73 @@ def test_commit_signature_script_rejects_unexpected_urls() -> None:
         raise AssertionError(
             "Expected URL allowlist enforcement to fail"
         )
+
+
+def test_commit_signature_script_uses_event_commits_for_initial_push() -> (
+    None
+):
+    module = load_signature_module()
+    calls: list[str] = []
+
+    def fake_github_get_json(url: str, token: str) -> dict[str, object]:
+        calls.append(url)
+        return {
+            "sha": url.rsplit("/", 1)[-1],
+            "commit": {
+                "verification": {"verified": True, "reason": "valid"}
+            },
+        }
+
+    module.github_get_json = fake_github_get_json
+    commits = module.commits_from_event(
+        "sebastienrousseau/bankstatementparser",
+        "push",
+        {
+            "before": "0" * 40,
+            "after": "b" * 40,
+            "commits": [{"id": "a" * 40}, {"id": "b" * 40}],
+        },
+        "token",
+    )
+
+    assert [commit["sha"] for commit in commits] == ["a" * 40, "b" * 40]
+    assert calls == [
+        "https://api.github.com/repos/sebastienrousseau/bankstatementparser/commits/"
+        + ("a" * 40),
+        "https://api.github.com/repos/sebastienrousseau/bankstatementparser/commits/"
+        + ("b" * 40),
+    ]
+
+
+def test_commit_signature_script_falls_back_to_after_sha_on_initial_push() -> (
+    None
+):
+    module = load_signature_module()
+    calls: list[str] = []
+
+    def fake_github_get_json(url: str, token: str) -> dict[str, object]:
+        calls.append(url)
+        return {
+            "sha": url.rsplit("/", 1)[-1],
+            "commit": {
+                "verification": {"verified": True, "reason": "valid"}
+            },
+        }
+
+    module.github_get_json = fake_github_get_json
+    commits = module.commits_from_event(
+        "sebastienrousseau/bankstatementparser",
+        "push",
+        {
+            "before": "0" * 40,
+            "after": "c" * 40,
+            "commits": [],
+        },
+        "token",
+    )
+
+    assert [commit["sha"] for commit in commits] == ["c" * 40]
+    assert calls == [
+        "https://api.github.com/repos/sebastienrousseau/bankstatementparser/commits/"
+        + ("c" * 40)
+    ]
