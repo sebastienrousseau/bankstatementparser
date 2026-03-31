@@ -119,3 +119,44 @@ Parsed by `Mt940Parser`.
 | `account_id` | `:25:` | str | Account identification |
 
 Opening balance (`:60F:`) and closing balance (`:62F:`) are parsed for the statement summary.
+
+---
+
+## Transaction Model — Normalized Record
+
+The `Transaction` class (Pydantic model) normalizes records from any parser into a common schema. Used by the `Deduplicator`.
+
+| Field | Type | Description |
+|---|---|---|
+| `account_id` | str or None | Account identifier |
+| `currency` | str or None | ISO 4217 currency code |
+| `amount` | Decimal | Transaction amount (exact precision) |
+| `booking_date` | date or None | Booking date |
+| `value_date` | date or None | Value date |
+| `description` | str or None | Original description |
+| `normalized_description` | str | Lowercased, whitespace-collapsed description (for matching) |
+| `reference` | str or None | Transaction reference |
+| `transaction_id` | str or None | Bank-assigned transaction ID |
+| `counterparty` | str or None | Debtor or creditor name |
+| `source` | str or None | Data source label |
+| `source_index` | int or None | Row index in source |
+
+Create from any parser output:
+
+```python
+from bankstatementparser import Transaction
+
+tx = Transaction.from_record(parser.parse().iloc[0], source="bank_a")
+```
+
+---
+
+## Deduplication Result
+
+Output of `Deduplicator.deduplicate()`.
+
+| Field | Type | Description |
+|---|---|---|
+| `unique_transactions` | list[Transaction] | Transactions with no duplicates |
+| `exact_duplicates` | list[ExactDuplicateGroup] | Groups sharing an identical primary hash |
+| `suspected_matches` | list[MatchGroup] | Groups flagged by similarity (with `confidence` score and `reason`) |

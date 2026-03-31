@@ -15,11 +15,12 @@ Built for finance teams, treasury analysts, and fintech developers who need reli
 |---|---|
 | **6 formats** | CAMT.053, PAIN.001, CSV, OFX, QFX, MT940 |
 | **Auto-detection** | `detect_statement_format()` identifies the format; `create_parser()` returns the right parser |
+| **Deduplication** | `Deduplicator` detects exact duplicates and suspected matches across sources with explainable confidence scores |
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Streaming** | `parse_streaming()` processes large files incrementally without loading everything into memory |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
 | **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
-| **Export** | CSV, JSON, and Excel (`.xlsx`) output |
+| **Export** | CSV, JSON, Excel (`.xlsx`), and optional Polars DataFrames |
 | **100% coverage** | 442 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
 
 ## Requirements
@@ -163,6 +164,24 @@ python -m bankstatementparser.cli --type camt --input statement.xml --streaming 
 
 Supports `--type camt` and `--type pain001`.
 
+## Deduplication
+
+Detect duplicate transactions across multiple sources:
+
+```python
+from bankstatementparser import CamtParser, Deduplicator
+
+parser = CamtParser("statement.xml")
+dedup = Deduplicator()
+result = dedup.deduplicate(dedup.from_dataframe(parser.parse()))
+
+print(f"Unique: {len(result.unique_transactions)}")
+print(f"Exact duplicates: {len(result.exact_duplicates)}")
+print(f"Suspected matches: {len(result.suspected_matches)}")
+```
+
+The `Deduplicator` uses deterministic hashing for exact matches and configurable similarity thresholds for suspected matches. Each match group includes a confidence score and reason for auditability.
+
 ## Export
 
 ```python
@@ -178,6 +197,17 @@ parser.export_json("output.json")
 # Excel
 parser.camt_to_excel("output.xlsx")
 ```
+
+### Polars (optional)
+
+Convert any parser output to a Polars DataFrame:
+
+```python
+polars_df = parser.to_polars()
+lazy_df = parser.to_polars_lazy()
+```
+
+Install with `pip install bankstatementparser[polars]`.
 
 ## Examples
 
@@ -207,7 +237,7 @@ See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference of ISO 20022 X
 ## Project Layout
 
 ```text
-bankstatementparser/   Source code (9 modules, 100% branch coverage)
+bankstatementparser/   Source code (12 modules, 100% branch coverage)
 docs/compliance/       ISO 13485 validation, risk register, traceability
 examples/              14 runnable example scripts
 scripts/               SBOM generation, checksums, signature verification

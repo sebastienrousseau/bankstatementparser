@@ -31,6 +31,8 @@ Maps every design input (user need) through implementation to verification evide
 | DI-12 | Generate SBOM for every release | Produce CycloneDX 1.5 JSON with all dependencies | `scripts/generate_sbom.py` | `release-integrity.yml`, `test_supply_chain_tools.py` | R-003 |
 | DI-13 | Generate artifact checksums | Produce SHA-256 checksums for wheel and sdist | `scripts/generate_checksums.py` | `release-integrity.yml`, `test_supply_chain_tools.py` | R-003 |
 | DI-14 | Detect circular and missing dependencies in dispatch manifests | Validate task graphs before execution | `test_euxis_dispatch.py` (`MockEuxisDispatcher`) | `test_euxis_dispatch_edge_cases.py` | — |
+| DI-15 | Deduplicate transactions across sources | Deterministic hashing for exact matches; configurable similarity for suspected matches | `transaction_deduplicator.py`, `transaction_models.py` | `test_transaction_deduplicator.py` | — |
+| DI-16 | Optional Polars DataFrame export | Convert parsed output to Polars DataFrame or LazyFrame | `base_parser.py` (`to_polars`, `to_polars_lazy`) | `test_polars_export.py` | — |
 
 ---
 
@@ -38,9 +40,9 @@ Maps every design input (user need) through implementation to verification evide
 
 | Category | Count | Coverage |
 |---|---|---|
-| Design inputs | 14 | 100% mapped to implementation |
-| Implementation modules | 9 | 100% mapped to verification |
-| Risk linkages | 7 of 14 | Security-relevant inputs linked to Risk Register |
+| Design inputs | 16 | 100% mapped to implementation |
+| Implementation modules | 12 | 100% mapped to verification |
+| Risk linkages | 7 of 16 | Security-relevant inputs linked to Risk Register |
 | Test coverage | 100% | Branch coverage enforced in CI |
 
 ---

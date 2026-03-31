@@ -16,7 +16,7 @@
 
 ### 4. What compliance standards does the project follow?
 
-**ISO 13485-aligned documentation with full traceability.** The repository maintains:
+**ISO 13485-aligned documentation with full traceability.** The [SOUP Register](docs/compliance/SOUP_REGISTER.md) tracks all 22 dependencies (5 direct, 10 transitive, 1 optional, 6 toolchain). The repository maintains:
 
 - A quantified [Risk Register](docs/compliance/RISK_REGISTER.md) with severity/probability scoring and residual risk assessment
 - A [Verification & Validation Plan](docs/compliance/SOFTWARE_VALIDATION_PROCEDURE.md) with 19 gated steps across 5 phases

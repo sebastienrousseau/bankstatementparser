@@ -21,6 +21,7 @@ Tracks all Software of Unknown Pedigree (third-party components not developed un
 | **pandas** | 2.3.3 | BSD-3-Clause | DataFrame construction and export | **Medium** | Data serialization surface; FutureWarning API drift | Unit tests, `test_edge_cases.py` | Active; major release cadence ~12 months |
 | **openpyxl** | 3.1.5 | MIT | Excel (`.xlsx`) export | **Low** | Output artifact integrity | `test_edge_cases.py` (Excel export) | Active |
 | **defusedxml** | 0.7.1 | PSF-2.0 | Safe XML parsing helpers | **Critical** | Security-critical — mitigates XXE and entity expansion | `test_security.py`, code review | Active; low change frequency |
+| **pydantic** | 2.12.5 | MIT | Transaction models and deduplication data classes | **Medium** | Data validation and serialization; Rust-based core (pydantic-core) | `test_transaction_deduplicator.py`, `test_polars_export.py` | Active; major release cadence ~6 months |
 
 ## Runtime Dependencies (Transitive)
 
@@ -31,7 +32,16 @@ Tracks all Software of Unknown Pedigree (third-party components not developed un
 | **pytz** | 2026.1 | MIT | pandas | Low | Transitively tested |
 | **et-xmlfile** | 2.0.0 | MIT | openpyxl | Low | Transitively tested |
 | **six** | 1.17.0 | MIT | python-dateutil | Low | Transitively tested |
+| **pydantic-core** | 2.41.5 | MIT | pydantic | Low | Transitively tested |
+| **annotated-types** | 0.7.0 | MIT | pydantic | Low | Transitively tested |
+| **typing-inspection** | 0.4.2 | MIT | pydantic | Low | Transitively tested |
 | **tzdata** | 2025.3 | Apache-2.0 | pandas | Low | Transitively tested |
+
+## Optional Dependencies
+
+| Component | Version | License | Purpose | Risk Level | Risk Notes | Verification | EOL / Support |
+|---|---|---|---|---|---|---|---|
+| **polars** | 1.32.0+ | MIT | Alternative DataFrame backend via `to_polars()` | **Low** | Optional; no security surface. Import guarded with `ImportError` fallback. | `test_polars_export.py` | Active; high release cadence |
 
 ## Toolchain (CI/Dev Only)
 
