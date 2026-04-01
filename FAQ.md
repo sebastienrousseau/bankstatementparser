@@ -34,8 +34,8 @@ Every release includes a CycloneDX SBOM, SHA-256 checksums, and GitHub build pro
 
 Performance thresholds validated in CI:
 
-- **CAMT:** >5,000 transactions/second at 10K and 50K scale
-- **PAIN.001:** >2,000 transactions/second at 10K and 50K scale
+- **CAMT:** 27,000+ transactions/second at 10K and 50K scale
+- **PAIN.001:** 52,000+ transactions/second at 10K and 50K scale
 - **Memory:** Growth ratio between 10K and 50K stays below 2x
 
 For files exceeding 50 MB (e.g., host-to-host PAIN.001 batches with 100K+ payments), the parser streams through a temporary file with chunk-based namespace stripping — the full document is never loaded into memory.

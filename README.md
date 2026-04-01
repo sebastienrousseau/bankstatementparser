@@ -17,11 +17,12 @@ Built for finance teams, treasury analysts, and fintech developers who need reli
 | **Auto-detection** | `detect_statement_format()` identifies the format; `create_parser()` returns the right parser |
 | **Deduplication** | `Deduplicator` detects exact duplicates and suspected matches across sources with explainable confidence scores |
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
-| **Streaming** | `parse_streaming()` processes large files incrementally without loading everything into memory |
+| **Streaming** | `parse_streaming()` at 27,000+ tx/s (CAMT) and 52,000+ tx/s (PAIN.001) with bounded memory |
+| **Parallel** | `parse_files_parallel()` for multi-file batch processing across CPU cores |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
 | **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
 | **Export** | CSV, JSON, Excel (`.xlsx`), and optional Polars DataFrames |
-| **100% coverage** | 456 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
+| **100% coverage** | 467 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
 
 ## Requirements
 
@@ -149,6 +150,36 @@ for transaction in parser.parse_streaming():
 
 Works with both `CamtParser` and `Pain001Parser`. PAIN.001 files over 50 MB use chunk-based namespace stripping via a temporary file — the full document is never loaded into memory.
 
+## Performance
+
+| Metric | CAMT | PAIN.001 |
+|---|---|---|
+| **Throughput** | 27,000+ tx/s | 52,000+ tx/s |
+| **Per-transaction latency** | 37 us | 19 us |
+| **Time to first result** | < 1 ms | < 2 ms |
+| **Memory scaling** | Constant (1K–50K) | Constant (1K–50K) |
+
+Performance is flat from 1,000 to 50,000 transactions. CI enforces minimum TPS and latency thresholds.
+
+## Parallel Parsing
+
+Process multiple files simultaneously across CPU cores:
+
+```python
+from bankstatementparser import parse_files_parallel
+
+results = parse_files_parallel([
+    "statements/jan.xml",
+    "statements/feb.xml",
+    "statements/mar.xml",
+])
+
+for r in results:
+    print(r.path, r.status, len(r.transactions), "rows")
+```
+
+Uses `ProcessPoolExecutor` to bypass the GIL. Each file is parsed in its own worker process. Auto-detects format per file, or force with `format_name="camt"`.
+
 ## Command Line
 
 ```bash
@@ -237,11 +268,11 @@ See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference of ISO 20022 X
 ## Project Layout
 
 ```text
-bankstatementparser/   Source code (12 modules, 100% branch coverage)
+bankstatementparser/   Source code (13 modules, 100% branch coverage)
 docs/compliance/       ISO 13485 validation, risk register, traceability
 examples/              14 runnable example scripts
 scripts/               SBOM generation, checksums, signature verification
-tests/                 456 tests (unit, integration, property-based, security)
+tests/                 467 tests (unit, integration, property-based, security)
 ```
 
 ## Security

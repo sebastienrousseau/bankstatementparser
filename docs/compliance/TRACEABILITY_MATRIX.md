@@ -33,6 +33,7 @@ Maps every design input (user need) through implementation to verification evide
 | DI-14 | Detect circular and missing dependencies in dispatch manifests | Validate task graphs before execution | `test_euxis_dispatch.py` (`MockEuxisDispatcher`) | `test_euxis_dispatch_edge_cases.py` | — |
 | DI-15 | Deduplicate transactions across sources | Deterministic hashing for exact matches; configurable similarity for suspected matches | `transaction_deduplicator.py`, `transaction_models.py` | `test_transaction_deduplicator.py` | — |
 | DI-16 | Optional Polars DataFrame export | Convert parsed output to Polars DataFrame or LazyFrame | `base_parser.py` (`to_polars`, `to_polars_lazy`) | `test_polars_export.py` | — |
+| DI-17 | Parallel multi-file parsing | Process multiple statement files across CPU cores | `parallel.py` (`parse_files_parallel`) | `test_performance_contracts.py` | — |
 
 ---
 
@@ -40,9 +41,9 @@ Maps every design input (user need) through implementation to verification evide
 
 | Category | Count | Coverage |
 |---|---|---|
-| Design inputs | 16 | 100% mapped to implementation |
-| Implementation modules | 12 | 100% mapped to verification |
-| Risk linkages | 7 of 16 | Security-relevant inputs linked to Risk Register |
+| Design inputs | 17 | 100% mapped to implementation |
+| Implementation modules | 13 | 100% mapped to verification |
+| Risk linkages | 7 of 17 | Security-relevant inputs linked to Risk Register |
 | Test coverage | 100% | Branch coverage enforced in CI |
 
 ---
