@@ -587,24 +587,18 @@ class TestPain001ParserCoverage(unittest.TestCase):
             with self.assertRaises(ValidationError):
                 list(parser.parse_streaming())
 
-    def test_streaming_malformed_payment_continues(self):
-        """Cover malformed payment error in streaming (lines 305-308)."""
+    def test_streaming_malformed_payment_raises(self):
+        """Cover malformed payment error in streaming."""
         parser = Pain001Parser(self.pain_file)
-        original_method = parser._parse_streaming_payment
-        call_count = [0]
 
         def side_effect(elem, pmt_info, header, redact_pii=False):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                raise ValueError("Malformed payment")
-            return original_method(elem, pmt_info, header, redact_pii)
+            raise ValueError("Malformed payment")
 
         with patch.object(
             parser, "_parse_streaming_payment", side_effect=side_effect
         ):
-            list(parser.parse_streaming())
-            # We only have one payment, so if first fails, we get zero
-            # That's OK - we just need to cover the continue path
+            with self.assertRaises(ValueError):
+                list(parser.parse_streaming())
 
     def test_streaming_cleanup_failure(self):
         """Cover streaming cleanup OSError path (lines 320-321)."""

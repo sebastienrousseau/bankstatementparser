@@ -41,9 +41,6 @@ class TestEuxisDispatchEdgeCases:
         manifest_path.write_text(json.dumps(manifest_data, indent=2))
         return manifest_path
 
-    @pytest.mark.skip(
-        reason="Circular dependency detection not yet implemented in dispatcher"
-    )
     def test_circular_dependency_detection(self, temp_dir, dispatcher):
         """Test detection and handling of circular dependencies."""
         manifest_data = {
@@ -82,9 +79,6 @@ class TestEuxisDispatchEdgeCases:
         with pytest.raises(ValueError, match="Circular dependency"):
             dispatcher.execute_manifest(str(manifest_path))
 
-    @pytest.mark.skip(
-        reason="Missing dependency detection not yet implemented in dispatcher"
-    )
     def test_missing_dependency(self, temp_dir, dispatcher):
         """Test handling of missing dependencies."""
         manifest_data = {
@@ -539,9 +533,6 @@ class TestEuxisDispatchEdgeCases:
             dispatcher.executed_tasks.clear()
             dispatcher.stage_order.clear()
 
-    @pytest.mark.skip(
-        reason="Self-dependency (circular) detection not yet implemented in dispatcher"
-    )
     def test_self_dependency(self, temp_dir, dispatcher):
         """Test task that depends on itself."""
         manifest_data = {

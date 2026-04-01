@@ -783,63 +783,88 @@ class CamtParser(BankStatementParser):
         Returns:
             Dict[str, Any]: Parsed transaction data.
         """
-        # Extract essential transaction fields
-        amount_elems = entry_elem.xpath("./Amt")
-        amount = float(amount_elems[0].text) if amount_elems else 0.0
+        # Fast-path extraction using find/findtext instead of xpath.
+        # find() uses direct tree traversal — ~5x faster than xpath().
+        amt_elem = entry_elem.find("Amt")
+        amount = (
+            float(amt_elem.text) if amt_elem is not None else 0.0
+        )
+        currency = (
+            amt_elem.get("Ccy", "") if amt_elem is not None else ""
+        )
 
-        currency_elems = entry_elem.xpath("./Amt/@Ccy")
-        currency = currency_elems[0] if currency_elems else ""
+        cdt_dbt_elem = entry_elem.find("CdtDbtInd")
+        cdt_dbt = (
+            cdt_dbt_elem.text
+            if cdt_dbt_elem is not None
+            else ""
+        )
 
-        cdt_dbt_elems = entry_elem.xpath("./CdtDbtInd")
-        cdt_dbt = cdt_dbt_elems[0].text if cdt_dbt_elems else ""
-
-        # Apply debit sign adjustment
         if cdt_dbt == "DBIT":
             amount = -amount
 
-        # Extract party information
-        debtor_elems = entry_elem.xpath(".//Dbtr/Nm")
-        debtor = debtor_elems[0].text if debtor_elems else ""
+        # Party information — single find() per field.
+        debtor = ""
+        creditor = ""
+        reference = ""
+        debtor_addr = ""
+        creditor_addr = ""
 
-        creditor_elems = entry_elem.xpath(".//Cdtr/Nm")
-        creditor = creditor_elems[0].text if creditor_elems else ""
+        tx_dtls = entry_elem.find("NtryDtls/TxDtls")
+        if tx_dtls is not None:
+            dbtr = tx_dtls.find("RltdPties/Dbtr/Nm")
+            if dbtr is not None:
+                debtor = dbtr.text or ""
+            cdtr = tx_dtls.find("RltdPties/Cdtr/Nm")
+            if cdtr is not None:
+                creditor = cdtr.text or ""
+            ustrd = tx_dtls.find("RmtInf/Ustrd")
+            if ustrd is not None and ustrd.text:
+                reference = ustrd.text
 
-        # Extract references
-        ref_elems = entry_elem.xpath(".//Ustrd")
-        reference = "".join([ref.text for ref in ref_elems if ref.text])
+            da = tx_dtls.find(
+                "RltdPties/Dbtr/PstlAdr/AdrLine"
+            )
+            if da is None:
+                da = tx_dtls.find(
+                    "RltdPties/Dbtr/PstlAdr/StrtNm"
+                )
+            if da is not None:
+                debtor_addr = da.text or ""
 
-        # Extract dates
-        val_date_elems = entry_elem.xpath("./ValDt/Dt")
-        if not val_date_elems:
-            val_date_elems = entry_elem.xpath("./ValDt/DtTm")
-        val_date = val_date_elems[0].text if val_date_elems else ""
+            ca = tx_dtls.find(
+                "RltdPties/Cdtr/PstlAdr/AdrLine"
+            )
+            if ca is None:
+                ca = tx_dtls.find(
+                    "RltdPties/Cdtr/PstlAdr/StrtNm"
+                )
+            if ca is not None:
+                creditor_addr = ca.text or ""
 
-        booking_date_elems = entry_elem.xpath("./BookgDt/Dt")
-        if not booking_date_elems:
-            booking_date_elems = entry_elem.xpath("./BookgDt/DtTm")
+        # Fallback for CAMT dialects with Ustrd outside TxDtls
+        if not reference:
+            ustrd_fb = entry_elem.find(".//Ustrd")
+            if ustrd_fb is not None and ustrd_fb.text:
+                reference = ustrd_fb.text
+
+        # Dates — direct child lookup
+        val_date_elem = entry_elem.find("ValDt/Dt")
+        if val_date_elem is None:
+            val_date_elem = entry_elem.find("ValDt/DtTm")
+        val_date = (
+            val_date_elem.text
+            if val_date_elem is not None
+            else ""
+        )
+
+        booking_date_elem = entry_elem.find("BookgDt/Dt")
+        if booking_date_elem is None:
+            booking_date_elem = entry_elem.find("BookgDt/DtTm")
         booking_date = (
-            booking_date_elems[0].text if booking_date_elems else ""
-        )
-
-        # Extract address information
-        debtor_addr_elems = entry_elem.xpath(".//Dbtr/PstlAdr/AdrLine")
-        if not debtor_addr_elems:
-            debtor_addr_elems = entry_elem.xpath(
-                ".//Dbtr/PstlAdr/StrtNm"
-            )
-        debtor_addr = (
-            debtor_addr_elems[0].text if debtor_addr_elems else ""
-        )
-
-        creditor_addr_elems = entry_elem.xpath(
-            ".//Cdtr/PstlAdr/AdrLine"
-        )
-        if not creditor_addr_elems:
-            creditor_addr_elems = entry_elem.xpath(
-                ".//Cdtr/PstlAdr/StrtNm"
-            )
-        creditor_addr = (
-            creditor_addr_elems[0].text if creditor_addr_elems else ""
+            booking_date_elem.text
+            if booking_date_elem is not None
+            else ""
         )
 
         # Apply PII redaction if requested

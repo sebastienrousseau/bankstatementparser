@@ -24,7 +24,7 @@ import os
 import re
 from collections.abc import Generator
 from io import BytesIO
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
 import pandas as pd
 from lxml import etree
@@ -355,117 +355,242 @@ class Pain001Parser(BankStatementParser):
         else:
             file_path = self.file_name
 
+        # Stream-process: read in chunks, strip namespace, feed to
+        # iterparse via a temporary file so we never hold the full
+        # document in memory.  For files that fit comfortably in RAM
+        # (< _STREAMING_MEMORY_THRESHOLD) we use BytesIO for speed.
+        _STREAMING_MEMORY_THRESHOLD = 50 * 1024 * 1024  # 50 MB
+
         try:
-            # Read file content for namespace removal
-            with open(file_path, encoding="utf-8") as f:
-                data = f.read()
+            file_size = os.path.getsize(file_path)
         except FileNotFoundError as exc:
-            logger.error("File %s not found for streaming!", file_path)
+            logger.error(
+                "File %s not found for streaming!",
+                file_path,
+            )
             raise FileNotFoundError(
                 f"PAIN.001 file not found: {file_path}"
             ) from exc
-        except PermissionError as exc:
+        except OSError as exc:
             logger.error(
-                "Permission denied reading file for streaming: %s",
-                file_path,
+                "Cannot stat file for streaming: %s", str(exc)
             )
             raise ValidationError(
-                f"Permission denied reading file: {file_path}"
+                f"Error reading file {file_path}: {exc}"
             ) from exc
-        except OSError as e:
-            logger.error("Error reading file for streaming: %s", str(e))
-            raise ValidationError(
-                f"Error reading file {file_path}: {str(e)}"
-            ) from e
 
-        data_bytes = self._normalize_xml_text(data).encode("utf-8")
-        source_stream = BytesIO(data_bytes)
+        temp_file: Optional[str] = None
+        try:
+            if file_size <= _STREAMING_MEMORY_THRESHOLD:
+                # Small file — fast path via BytesIO
+                try:
+                    with open(
+                        file_path, encoding="utf-8"
+                    ) as f:
+                        data = f.read()
+                except FileNotFoundError as exc:
+                    logger.error(
+                        "File %s not found for streaming!",
+                        file_path,
+                    )
+                    raise FileNotFoundError(
+                        f"PAIN.001 file not found: {file_path}"
+                    ) from exc
+                except PermissionError as exc:
+                    logger.error(
+                        "Permission denied reading file "
+                        "for streaming: %s",
+                        file_path,
+                    )
+                    raise ValidationError(
+                        f"Permission denied reading file: "
+                        f"{file_path}"
+                    ) from exc
+                except OSError as e:
+                    logger.error(
+                        "Error reading file for streaming: %s",
+                        str(e),
+                    )
+                    raise ValidationError(
+                        f"Error reading file {file_path}: "
+                        f"{str(e)}"
+                    ) from e
 
-        # Track context for header and payment info
-        header_fields: dict[str, Optional[str]] = {}
-        current_payment_info: dict[str, Optional[str]] = {}
+                data_bytes = self._normalize_xml_text(
+                    data
+                ).encode("utf-8")
+                source_stream: Union[BytesIO, str] = BytesIO(data_bytes)
+            else:
+                # Large file — chunk-based namespace stripping to a
+                # temp file so peak memory stays bounded.
+                import tempfile as _tf
 
-        # Use iterparse to process elements incrementally from memory
-        for event, elem in etree.iterparse(
-            source_stream,
-            events=("start", "end"),
-            resolve_entities=False,
-            load_dtd=False,
-            no_network=True,
-            huge_tree=False,
-        ):
-            if event == "end" and elem.tag == "GrpHdr":
-                for child in elem:
-                    if child.tag in ["MsgId", "CreDtTm", "NbOfTxs"]:
-                        header_fields[child.tag] = child.text
-                    elif child.tag == "InitgPty":
-                        nm_elem = child.find("Nm")
-                        header_fields["InitgPty"] = (
-                            nm_elem.text
-                            if nm_elem is not None
+                fd, temp_file = _tf.mkstemp(
+                    suffix=".xml", prefix="bsp_stream_"
+                )
+                try:
+                    with open(
+                        file_path, encoding="utf-8"
+                    ) as src, os.fdopen(
+                        fd, "w", encoding="utf-8"
+                    ) as dst:
+                        for chunk in iter(
+                            lambda: src.read(8 * 1024 * 1024), ""
+                        ):
+                            dst.write(
+                                PAIN_NAMESPACE_PATTERN.sub(
+                                    "", chunk
+                                )
+                            )
+                except FileNotFoundError as exc:
+                    logger.error(
+                        "File %s not found for streaming!",
+                        file_path,
+                    )
+                    raise FileNotFoundError(
+                        f"PAIN.001 file not found: {file_path}"
+                    ) from exc
+                except PermissionError as exc:
+                    logger.error(
+                        "Permission denied reading file "
+                        "for streaming: %s",
+                        file_path,
+                    )
+                    raise ValidationError(
+                        f"Permission denied reading file: "
+                        f"{file_path}"
+                    ) from exc
+                except OSError as e:
+                    logger.error(
+                        "Error reading file for streaming: %s",
+                        str(e),
+                    )
+                    raise ValidationError(
+                        f"Error reading file {file_path}: "
+                        f"{str(e)}"
+                    ) from e
+
+                source_stream = temp_file
+
+            # Track context for header and payment info
+            header_fields: dict[str, Optional[str]] = {}
+            current_payment_info: dict[str, Optional[str]] = {}
+
+            for event, elem in etree.iterparse(
+                source_stream,
+                events=("start", "end"),
+                resolve_entities=False,
+                load_dtd=False,
+                no_network=True,
+                huge_tree=False,
+            ):
+                if event == "end" and elem.tag == "GrpHdr":
+                    for child in elem:
+                        if child.tag in [
+                            "MsgId",
+                            "CreDtTm",
+                            "NbOfTxs",
+                        ]:
+                            header_fields[child.tag] = child.text
+                        elif child.tag == "InitgPty":
+                            nm_elem = child.find("Nm")
+                            header_fields["InitgPty"] = (
+                                nm_elem.text
+                                if nm_elem is not None
+                                else None
+                            )
+                    elem.clear()
+
+                elif event == "start" and elem.tag == "PmtInf":
+                    current_payment_info = {}
+
+                elif event == "end" and elem.tag in (
+                    "PmtInfId",
+                    "PmtMtd",
+                    "NbOfTxs",
+                    "CtrlSum",
+                    "ReqdExctnDt",
+                    "ChrgBr",
+                ):
+                    parent = elem.getparent()
+                    if (
+                        parent is not None
+                        and parent.tag == "PmtInf"
+                    ):
+                        current_payment_info[elem.tag] = (
+                            elem.text
+                        )
+
+                elif event == "end" and elem.tag == "Dbtr":
+                    parent = elem.getparent()
+                    if (
+                        parent is not None
+                        and parent.tag == "PmtInf"
+                    ):
+                        dbtr_name = elem.find("Nm")
+                        current_payment_info["DbtrNm"] = (
+                            dbtr_name.text
+                            if dbtr_name is not None
                             else None
                         )
-                elem.clear()
 
-            elif event == "start" and elem.tag == "PmtInf":
-                current_payment_info = {}
+                elif event == "end" and elem.tag == "DbtrAcct":
+                    parent = elem.getparent()
+                    if (
+                        parent is not None
+                        and parent.tag == "PmtInf"
+                    ):
+                        iban = elem.find("Id/IBAN")
+                        current_payment_info["DbtrIBAN"] = (
+                            iban.text
+                            if iban is not None
+                            else None
+                        )
 
-            elif event == "end" and elem.tag in (
-                "PmtInfId",
-                "PmtMtd",
-                "NbOfTxs",
-                "CtrlSum",
-                "ReqdExctnDt",
-                "ChrgBr",
-            ):
-                parent = elem.getparent()
-                if parent is not None and parent.tag == "PmtInf":
-                    current_payment_info[elem.tag] = elem.text
+                elif event == "end" and elem.tag == "DbtrAgt":
+                    parent = elem.getparent()
+                    if (
+                        parent is not None
+                        and parent.tag == "PmtInf"
+                    ):
+                        bic = elem.find("FinInstnId/BIC")
+                        current_payment_info["DbtrBIC"] = (
+                            bic.text
+                            if bic is not None
+                            else None
+                        )
 
-            elif event == "end" and elem.tag == "Dbtr":
-                parent = elem.getparent()
-                if parent is not None and parent.tag == "PmtInf":
-                    dbtr_name = elem.find("Nm")
-                    current_payment_info["DbtrNm"] = (
-                        dbtr_name.text
-                        if dbtr_name is not None
-                        else None
-                    )
-
-            elif event == "end" and elem.tag == "DbtrAcct":
-                parent = elem.getparent()
-                if parent is not None and parent.tag == "PmtInf":
-                    iban = elem.find("Id/IBAN")
-                    current_payment_info["DbtrIBAN"] = (
-                        iban.text if iban is not None else None
-                    )
-
-            elif event == "end" and elem.tag == "DbtrAgt":
-                parent = elem.getparent()
-                if parent is not None and parent.tag == "PmtInf":
-                    bic = elem.find("FinInstnId/BIC")
-                    current_payment_info["DbtrBIC"] = (
-                        bic.text if bic is not None else None
-                    )
-
-            elif event == "end" and elem.tag == "CdtTrfTxInf":
+                elif (
+                    event == "end"
+                    and elem.tag == "CdtTrfTxInf"
+                ):
+                    try:
+                        payment_data = (
+                            self._parse_streaming_payment(
+                                elem,
+                                current_payment_info,
+                                header_fields,
+                                redact_pii,
+                            )
+                        )
+                        yield payment_data
+                    except Exception as e:
+                        logger.error(
+                            "Error parsing payment "
+                            "transaction: %s",
+                            e,
+                        )
+                        raise
+                    finally:
+                        elem.clear()
+                        while elem.getprevious() is not None:
+                            del elem.getparent()[0]
+        finally:
+            if temp_file is not None:
                 try:
-                    payment_data = self._parse_streaming_payment(
-                        elem,
-                        current_payment_info,
-                        header_fields,
-                        redact_pii,
-                    )
-                    yield payment_data
-                except Exception as e:
-                    logger.warning(
-                        f"Error parsing payment transaction: {e}"
-                    )
-                    continue
-                finally:
-                    elem.clear()
-                    while elem.getprevious() is not None:
-                        del elem.getparent()[0]
+                    os.unlink(temp_file)
+                except OSError:
+                    pass
 
     def _parse_streaming_payment(
         self,

@@ -39,6 +39,7 @@ from .exceptions import (
 )
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
+from .parallel import FileResult, parse_files_parallel
 from .transaction_deduplicator import (
     DeduplicationResult,
     Deduplicator,
@@ -71,6 +72,8 @@ __all__ = [
     "DeduplicationResult",
     "ExactDuplicateGroup",
     "MatchGroup",
+    "FileResult",
+    "parse_files_parallel",
     "InputValidator",
     "ValidationError",
     "ZipSecurityError",

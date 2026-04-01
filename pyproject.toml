@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.3"
+version = "0.0.4"
 description = "BankStatementParser is your essential tool for easy bank statement management. Designed with finance and treasury experts in mind, it offers a simple way to handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from your financial data and spend less time on processing. It's the smart, hassle-free way to stay on top of your transactions."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache Software License"
@@ -12,8 +12,8 @@ homepage = "https://bankstatementparser.com"
 poetry-plugin-export = ">=1.8"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-lxml = "^4.9.3"
+python = ">=3.9"
+lxml = ">=4.9.3"
 openpyxl = "^3.1.5"
 pandas = "^2.3.3"
 defusedxml = "^0.7.1"
@@ -27,6 +27,7 @@ pytest-benchmark = "^5.1.0"
 ruff = "^0.15.7"
 mypy = "^1.5.0"
 bandit = "^1.7.0"
+hypothesis = ">=6.82,<7"
 
 [tool.poetry.extras]
 polars = ["polars"]

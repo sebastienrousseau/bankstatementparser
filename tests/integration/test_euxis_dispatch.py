@@ -36,6 +36,9 @@ class MockEuxisDispatcher:
         """Process manifest with proper stage ordering and dependency resolution."""
         tasks = manifest.get("dispatches", [])
 
+        # Collect all agent names declared in the manifest
+        all_agents = {t["agent"] for t in tasks if "agent" in t}
+
         # Group tasks by stage
         stages = self._group_by_stage(tasks)
 
@@ -47,7 +50,7 @@ class MockEuxisDispatcher:
             stage_tasks = stages[stage_num]
             try:
                 stage_result = self._execute_stage(
-                    stage_tasks, stage_num
+                    stage_tasks, stage_num, all_agents
                 )
                 results.extend(stage_result)
 
@@ -56,25 +59,10 @@ class MockEuxisDispatcher:
                     if manifest.get("abort_on_stage_failure", True):
                         should_abort = True
                         break
-            except ValueError as e:
-                # Handle dependency resolution errors
-                if "missing dependency" in str(
-                    e
-                ) or "Circular dependency" in str(e):
-                    # Add failed results for unresolvable tasks
-                    for task in stage_tasks:
-                        results.append(
-                            {
-                                "agent": task["agent"],
-                                "status": "FAILED",
-                                "reason": str(e),
-                            }
-                        )
-                    if manifest.get("abort_on_stage_failure", True):
-                        should_abort = True
-                        break
-                else:
-                    raise
+            except ValueError:
+                # Dependency validation errors (missing deps,
+                # circular deps) are fatal — propagate immediately
+                raise
 
         if should_abort:
             return {"status": "ABORTED", "results": results}
@@ -101,13 +89,18 @@ class MockEuxisDispatcher:
         return stages
 
     def _execute_stage(
-        self, tasks: list[dict[str, Any]], stage_num: int
+        self,
+        tasks: list[dict[str, Any]],
+        stage_num: int,
+        all_manifest_agents: set[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Execute all tasks in a stage, respecting dependencies."""
         self.stage_order.append(stage_num)
 
         # Build dependency graph
-        dependency_order = self._resolve_dependencies(tasks)
+        dependency_order = self._resolve_dependencies(
+            tasks, all_manifest_agents
+        )
 
         results = []
         failed_agents = set()
@@ -137,60 +130,68 @@ class MockEuxisDispatcher:
         return results
 
     def _resolve_dependencies(
-        self, tasks: list[dict[str, Any]]
+        self,
+        tasks: list[dict[str, Any]],
+        all_manifest_agents: set[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Resolve task dependencies and return execution order."""
-        # Create a map of available agents in this stage
-        available_agents = {task["agent"] for task in tasks}
+        stage_agents = {task["agent"] for task in tasks}
+        known_agents = (
+            all_manifest_agents
+            if all_manifest_agents is not None
+            else stage_agents
+        )
+
+        # Validate: reject references to completely unknown agents
+        for task in tasks:
+            deps = task.get("depends_on") or []
+            for dep in deps:
+                if dep not in known_agents:
+                    raise ValueError(
+                        f"Task '{task['agent']}' has a "
+                        f"missing dependency: '{dep}'"
+                    )
+
+        # Validate: reject self-dependencies early
+        for task in tasks:
+            deps = task.get("depends_on") or []
+            if task["agent"] in deps:
+                raise ValueError(
+                    "Circular dependency detected"
+                )
 
         # Simple topological sort
         remaining = tasks.copy()
-        ordered = []
+        ordered: list[dict[str, Any]] = []
         iteration_count = 0
         max_iterations = len(tasks) * 2
 
         while remaining and iteration_count < max_iterations:
             iteration_count += 1
 
-            # Find tasks with no unresolved dependencies within this stage
-            ready = []
+            ready: list[dict[str, Any]] = []
             for task in remaining:
                 deps = task.get("depends_on") or []
                 if not deps:
-                    # No dependencies
                     ready.append(task)
                 else:
-                    # Check if all dependencies are either completed in this stage or external
-                    unresolved_deps = []
-                    for dep in deps:
-                        if (
-                            dep in available_agents
-                            and not self._task_completed(dep, ordered)
-                        ):
-                            unresolved_deps.append(dep)
-
-                    if not unresolved_deps:
-                        # All dependencies satisfied or external
+                    # A dep is unresolved only if it belongs to
+                    # this stage and has not been ordered yet.
+                    # Cross-stage deps are already completed.
+                    unresolved = [
+                        d
+                        for d in deps
+                        if d in stage_agents
+                        and not self._task_completed(d, ordered)
+                    ]
+                    if not unresolved:
                         ready.append(task)
 
             if not ready:
-                # Check if we have circular dependencies
-                remaining_agents = {task["agent"] for task in remaining}
-                has_circular = any(
-                    any(
-                        dep in remaining_agents
-                        for dep in (task.get("depends_on") or [])
-                    )
-                    for task in remaining
+                raise ValueError(
+                    "Circular dependency detected"
                 )
 
-                if has_circular:
-                    raise ValueError("Circular dependency detected")
-                else:
-                    # No circular deps, so all remaining deps must be external - execute remaining tasks
-                    ready = remaining.copy()
-
-            # Remove ready tasks from remaining and add to ordered
             for task in ready:
                 if task in remaining:
                     remaining.remove(task)
