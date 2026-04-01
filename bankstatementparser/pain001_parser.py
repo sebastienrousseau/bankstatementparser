@@ -24,7 +24,7 @@ import os
 import re
 from collections.abc import Generator
 from io import BytesIO
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
 import pandas as pd
 from lxml import etree
@@ -379,7 +379,7 @@ class Pain001Parser(BankStatementParser):
                 f"Error reading file {file_path}: {exc}"
             ) from exc
 
-        temp_file: str | None = None
+        temp_file: Optional[str] = None
         try:
             if file_size <= _STREAMING_MEMORY_THRESHOLD:
                 # Small file — fast path via BytesIO
@@ -419,7 +419,7 @@ class Pain001Parser(BankStatementParser):
                 data_bytes = self._normalize_xml_text(
                     data
                 ).encode("utf-8")
-                source_stream: BytesIO | str = BytesIO(data_bytes)
+                source_stream: Union[BytesIO, str] = BytesIO(data_bytes)
             else:
                 # Large file — chunk-based namespace stripping to a
                 # temp file so peak memory stays bounded.
