@@ -39,6 +39,7 @@ from .exceptions import (
 )
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
+from .parallel import FileResult, parse_files_parallel
 from .transaction_deduplicator import (
     DeduplicationResult,
     Deduplicator,
@@ -46,7 +47,6 @@ from .transaction_deduplicator import (
     MatchGroup,
 )
 from .transaction_models import Transaction
-from .parallel import FileResult, parse_files_parallel
 from .zip_security import (
     ZipSecurityError,
     ZipXMLSource,

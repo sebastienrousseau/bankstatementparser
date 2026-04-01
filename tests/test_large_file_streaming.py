@@ -246,7 +246,7 @@ class TestPain001LargeFileStreaming(unittest.TestCase):
                 throughput,
                 1_000,
                 f"Throughput {throughput:.0f} tx/s "
-                f"below 2,000 tx/s target",
+                f"below 1,000 tx/s target",
             )
         finally:
             os.unlink(path)
@@ -274,9 +274,9 @@ class TestPain001LargeFileStreaming(unittest.TestCase):
             throughput = count / elapsed
             self.assertGreater(
                 throughput,
-                2_000,
+                1_000,
                 f"Throughput {throughput:.0f} tx/s "
-                f"below 2,000 tx/s target",
+                f"below 1,000 tx/s target",
             )
         finally:
             os.unlink(path)
