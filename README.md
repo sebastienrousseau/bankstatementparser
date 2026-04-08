@@ -9,6 +9,33 @@ Built for finance teams, treasury analysts, and fintech developers who need reli
 [![Codecov](https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge)](https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main)
 [![License](https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge)](LICENSE)
 
+## How it works
+
+`smart_ingest()` routes any input file through the cheapest viable extraction path. Deterministic parsers always run first ($0 cost). Text and vision LLMs are fallbacks for unstandardized PDFs — both are opt-in via separate install extras and can be swapped between any LiteLLM-supported provider (Ollama, Anthropic, OpenAI, Gemini, …).
+
+```mermaid
+flowchart TD
+    A[smart_ingest&lpar;path&rpar;] --> B{detect_statement_format}
+    B -- CAMT/PAIN/OFX/MT940/CSV --> C[Path A: deterministic parser<br/>$0, fastest]
+    C --> Z[IngestResult<br/>source_method='deterministic']
+
+    B -- pdf or unknown --> D[pypdf extract_text]
+    D --> E{text len &gt;= 50?}
+
+    E -- yes --> F[Path B: text-LLM<br/>default ollama/llama3]
+    F --> Y[IngestResult<br/>source_method='llm']
+
+    E -- no --> G[Path C: vision-LLM<br/>opt-in via BSP_HYBRID_VISION_MODEL]
+    G --> X[IngestResult<br/>source_method='vision']
+
+    Z --> V[verify_balance<br/>Golden Rule]
+    Y --> V
+    X --> V
+    V --> R[VERIFIED / DISCREPANCY / FAILED]
+```
+
+Every extracted row carries an immutable `transaction_hash`, an audit-trail `source_method` tag, and (for LLM rows) a `confidence` score — see [Hybrid extraction](#hybrid-extraction-pdfs-included-v005) below for the full surface.
+
 ## Key Features
 
 | Feature | Description |
@@ -336,11 +363,12 @@ See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference of ISO 20022 X
 ## Project Layout
 
 ```text
-bankstatementparser/   Source code (13 modules, 100% branch coverage)
-docs/compliance/       ISO 13485 validation, risk register, traceability
-examples/              14 runnable example scripts
+bankstatementparser/   Source code (21 modules: deterministic core + hybrid subpackage, 100% branch coverage)
+bankstatementparser/hybrid/   v0.0.5 PDF pipeline: orchestrator, llm_extractor, vision, pdf_text, prompts, verification
+docs/compliance/       ISO 13485 validation, risk register, traceability matrix
+examples/              14 deterministic + 8 hybrid runnable example scripts
 scripts/               SBOM generation, checksums, signature verification
-tests/                 467 tests (unit, integration, property-based, security)
+tests/                 541 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ## Security

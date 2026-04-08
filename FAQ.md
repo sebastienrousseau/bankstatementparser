@@ -12,7 +12,9 @@
 
 ### 3. Is the extraction process deterministic?
 
-**Yes — byte-identical output on every run.** Given the same input file, the parser produces the same result every time. No randomness, no model inference, no heuristic sampling. Verify this yourself: run the same file twice and diff the output. CI enforces determinism with 442 tests at 100% branch coverage, including property-based fuzzing via Hypothesis.
+**Yes — byte-identical output on every run for the deterministic path.** Given the same input file, `CamtParser`, `Pain001Parser`, `CsvStatementParser`, `OfxParser`, `Mt940Parser`, and `QfxParser` produce the same result every time. No randomness, no model inference, no heuristic sampling. Verify this yourself: run the same file twice and diff the output. CI enforces determinism with 541 tests at 100% branch coverage, including property-based fuzzing via Hypothesis.
+
+The v0.0.5 hybrid pipeline (`smart_ingest()`) extends this with two LLM fallbacks for PDFs that have no structured equivalent. Those paths are explicitly tagged as non-deterministic via `source_method='llm'` or `'vision'` on every extracted `Transaction` so audit trails can distinguish "facts from source" from "AI-inferred". The deterministic core is unchanged.
 
 ### 4. What compliance standards does the project follow?
 
@@ -84,6 +86,68 @@ No file is written to disk. XML bytes pass directly to `CamtParser.from_bytes()`
 - **`parse()`** — Malformed entries missing required fields (`Amount`, `Currency`, or `CdtDbtInd`) are skipped with a warning log. The rest of the statement parses normally.
 - **`parse_streaming()`** — Parse errors propagate immediately as exceptions. No silent data loss. This fail-fast behavior is intentional for financial workflows where every transaction must be accounted for.
 
+## Hybrid Pipeline (v0.0.5+)
+
+### 12. Can I parse PDF bank statements?
+
+**Yes, as of v0.0.5.** Install with `pip install 'bankstatementparser[hybrid]'` and use:
+
+```bash
+bankstatementparser --type ingest --input statement.pdf
+```
+
+`smart_ingest()` auto-routes between three paths:
+
+1. **Deterministic** — for ISO/exchange formats (CAMT, PAIN.001, CSV, OFX, MT940). Free, fastest, $0 cost.
+2. **Text-LLM** — for digital PDFs where `pypdf` extracts ≥ 50 characters. Uses LiteLLM with `BSP_HYBRID_MODEL` (default `ollama/llama3`).
+3. **Vision-LLM** — for scanned/photocopied PDFs (auto-routed when text density falls below `LOW_TEXT_DENSITY_THRESHOLD`). Requires `BSP_HYBRID_VISION_MODEL` to be explicitly set — no default, since vision inference is resource-heavy.
+
+Every row carries `source_method`, `transaction_hash`, `confidence`, and (for LLM rows) `raw_source_text` for full audit provenance. See [`examples/hybrid/README.md`](examples/hybrid/README.md) for the 15-minute walkthrough including a Mermaid flow diagram and a cross-platform verification matrix.
+
+### 13. Which local LLM should I use?
+
+**Default is `ollama/llama3` (text path) and `ollama/llava` (vision path) — but with caveats.**
+
+For the **text path**, llama3 (4.7 GB) runs comfortably on Apple Silicon Metal or NVIDIA CUDA and produces clean structured-JSON extractions. Verified end-to-end against the synthetic statement in `examples/hybrid/sample_data/digital.pdf`: all 11 transactions extracted with `confidence=1.00`, balance `VERIFIED`, ~25s runtime on M-series. Set:
+
+```bash
+ollama serve &
+ollama pull llama3
+export BSP_HYBRID_MODEL=ollama/llama3
+```
+
+For the **vision path**, local 7B models (`llava`, `bakllava`) are **not yet production-grade** for dense statement tables. The v0.0.5 smoke test surfaced two real issues:
+
+1. **Upstream LiteLLM ↔ Ollama bug**: short prompts work fine, but the library's full structured-JSON system prompt hangs LiteLLM at the 600s timeout. Direct Ollama `/api/chat` calls succeed in ~18s. Worth filing upstream.
+2. **Quality**: even when llava-7b responds, it hallucinates extensively on dense tables (CLIP downscales the page to 336×336 internally, destroying fine detail).
+
+**Recommended production path for vision:** hosted multimodal models — `gpt-4o`, `claude-opus-4-6`, `gemini-2.5-pro`. All work with LiteLLM out of the box and don't have either issue. Set:
+
+```bash
+export BSP_HYBRID_VISION_MODEL=anthropic/claude-opus-4-6
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+The full smoke-test results table is in `examples/hybrid/README.md` under "Smoke test results".
+
+### 14. My Golden Rule check is failing — what now?
+
+**`verify_balance()` returns `DISCREPANCY` when `opening + credits − debits ≠ closing` beyond a 0.01 tolerance.** The most common causes, in order of frequency:
+
+1. **The LLM dropped a row.** Re-run with a larger model, or pass the same file to `--type ingest` again — small models are sometimes non-deterministic at temperature 0. The `discrepancy` field on the result tells you the exact magnitude of the missing transactions.
+2. **The source statement's reported balances are wrong.** Rare but happens with some banks' formatting. You can override the balances manually:
+   ```python
+   result = smart_ingest(
+       "statement.pdf",
+       opening_balance=Decimal("1500.00"),
+       closing_balance=Decimal("2621.59"),
+   )
+   ```
+3. **You're passing manual balance overrides that don't match the file's actual balances.** Drop the overrides and let the LLM read them from the document.
+4. **Currency mismatch on a multi-currency statement.** The Golden Rule sums all amounts as if they were in the same currency. Multi-currency statements need per-currency verification — out of scope for v0.0.5; deferred to v0.0.6 (see [#46](https://github.com/sebastienrousseau/bankstatementparser/issues/46)).
+
+When in doubt, switch the verification status to `FAILED` (don't import) and queue the statement for human review. The v0.0.6 review-mode UI ([#45](https://github.com/sebastienrousseau/bankstatementparser/issues/45)) will surface these cases via the `raw_source_text` field that v0.0.5 already populates.
+
 ---
 
 ## Note on Determinism and Reproducibility
@@ -98,7 +162,7 @@ Bank Statement Parser is designed for environments where auditability is non-neg
 To verify reproducibility locally:
 
 ```bash
-python -m pytest                              # 442 tests, 100% branch coverage
-python scripts/verify_locked_hashes.py        # SHA-256 hash verification
+poetry run pytest                             # 541 tests, 100% branch coverage
+poetry run python scripts/verify_locked_hashes.py   # SHA-256 hash verification
 git log --show-signature -1                   # Verify commit signature
 ```

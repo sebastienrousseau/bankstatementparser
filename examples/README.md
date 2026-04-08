@@ -53,7 +53,8 @@ prerequisites table, Mermaid flow diagram, and cross-platform runbook.
 | `hybrid/03_smart_ingest_vision.py` | Path C — multimodal vision extraction from a scanned PDF, with `LOW_TEXT_DENSITY` auto-routing |
 | `hybrid/04_golden_rule.py` | All three `verify_balance()` outcomes: `VERIFIED`, `DISCREPANCY`, `FAILED` |
 | `hybrid/05_dedupe_recurring.py` | `normalize_description()` noise stripping + `dedupe_by_hash()` idempotent batching |
-| `hybrid/06_cli_walkthrough.sh` | Four flavours of the new `--type ingest` CLI subcommand |
+| `hybrid/06_cli_walkthrough.sh` | Four flavours of the new `--type ingest` CLI subcommand (bash) |
+| `hybrid/06_cli_walkthrough.ps1` | PowerShell sibling for native Windows (no WSL required) |
 
 ## ZIP Security
 
