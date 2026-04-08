@@ -7,6 +7,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.7] — 2026-04-08
+
+> "Universal Vision" — turns the local vision path from 🔴 to 🟢
+> in the cross-platform matrix. Three independent improvements
+> stacked on top of v0.0.6: a built-in direct Ollama bridge that
+> sidesteps the upstream LiteLLM long-prompt hang, a switch from
+> `llava` to `minicpm-v` as the recommended local vision model,
+> and a new `strip_rows=True` mode that splits dense pages into
+> overlapping bands so small local models can keep up.
+
+### Added
+
+#### `bankstatementparser.hybrid.ollama_direct` (new module)
+
+- **`ollama_direct_completion(**kwargs)`** — drop-in replacement
+  for `litellm.completion` that targets Ollama's `/api/chat`
+  endpoint via `httpx`. Accepts the same OpenAI-style messages
+  shape that `LLMExtractor` and `VisionExtractor` already build,
+  returns an OpenAI-style response envelope so the existing
+  JSON-parsing helpers work unchanged.
+- **`is_ollama_model(model)`** — small helper used for
+  auto-selection.
+- **`OllamaDirectError`** — narrow error type so callers can
+  distinguish bridge failures from upstream LLM failures.
+- **Auto-selection** in both `VisionExtractor` and `LLMExtractor`:
+  when `model.startswith("ollama/")` and no explicit
+  `completion_fn` is passed, the extractor uses
+  `ollama_direct_completion` automatically. **Zero user action
+  required** — existing v0.0.5 / v0.0.6 vision code that hung at
+  600 s now completes in ~33 s.
+
+#### `VisionExtractor.strip_rows` mode
+
+- New `strip_rows: bool = False` and `n_strips: int = 4`
+  parameters on `VisionExtractor`. When enabled, each PDF page is
+  rendered as `n_strips` overlapping horizontal strips
+  (`STRIP_OVERLAP_FRACTION = 0.10`) and one LLM call runs per
+  strip. Strip 0 (top) gets a "header" prompt that asks for
+  `account_id`, `currency`, and balances; subsequent strips get a
+  "body" prompt that asks for transactions only. Results are
+  merged via `Transaction.transaction_hash` so rows that bisect
+  a strip boundary are dedup'd automatically.
+- Designed for **dense pages** (≥ 15 rows) where small local
+  models can't process the full page in one call because their
+  CLIP vision encoder downscales any input to 336×336 internally,
+  destroying fine table detail. Trades a few extra LLM calls for
+  substantially better per-row accuracy.
+
+### Changed
+
+- **Recommended local vision model** is now `ollama/minicpm-v`
+  (5.5 GB), not `ollama/llava` (4.7 GB). minicpm-v is explicitly
+  trained for OCR and document understanding tasks; llava was a
+  general-purpose multimodal model that pre-dated the
+  document-specific fine-tunes that arrived in 2025. Smoke-test
+  comparison on the synthetic scanned PDF:
+
+  | Model | Result |
+  |---|---|
+  | `ollama/llava:7b` | Hallucinated INR currency, fabricated "Cash Withdrawal" rows |
+  | `ollama/minicpm-v:8b` | All 11 transactions extracted, GBP, correct balances |
+
+- All examples, FAQ entries, and documentation that referenced
+  `ollama/llava` now reference `ollama/minicpm-v` first, with
+  llava kept as a comparison data point in the smoke-test results
+  table.
+- Version bumped `0.0.6` → `0.0.7`.
+
+### Smoke-test results (real Ollama models, Apple Silicon, 2026-04-08)
+
+| Path | Model | Mode | Result |
+|---|---|---|---|
+| Text-LLM | `ollama/llama3` | single-shot | ✅ All 11 rows, `confidence=1.00`, **VERIFIED**, ~25 s |
+| Vision-LLM | `ollama/minicpm-v:8b` | single-shot | ✅ All 11 rows, currency `GBP`, balances correct, **~33 s**. Two sign-flip errors fixable via strip mode. |
+| Vision-LLM | `ollama/minicpm-v:8b` | strip_rows=True | ✅ Sign convention correct, ~43 s (4 LLM calls). Year confabulation on body strips when only printed in header band. |
+
+### Migration notes
+
+The public API is **fully backwards compatible**. Existing v0.0.5 /
+v0.0.6 code that constructs `VisionExtractor(model="ollama/llava")`
+keeps working — it just runs ~33 s faster instead of hanging. To
+opt into the new defaults, change the env var:
+
+```diff
+- export BSP_HYBRID_VISION_MODEL=ollama/llava
++ export BSP_HYBRID_VISION_MODEL=ollama/minicpm-v
+```
+
+To use the new strip mode for dense pages:
+
+```python
+from bankstatementparser.hybrid import VisionExtractor, smart_ingest
+
+vision = VisionExtractor(strip_rows=True, n_strips=4)
+result = smart_ingest("dense_statement.pdf", vision_extractor=vision)
+```
+
+If you need to keep using LiteLLM (e.g. for an Ollama model
+configured behind a LiteLLM proxy), pass an explicit
+`completion_fn=litellm.completion` to `VisionExtractor` to opt
+out of the auto-selected bridge.
+
 ## [0.0.6] — 2026-04-08
 
 > "Intelligence Layer (kickoff)" — first release in the v0.0.6
@@ -274,7 +376,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.6...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.7...HEAD
+[0.0.7]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.7
 [0.0.6]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.6
 [0.0.5]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.5
 [0.0.4]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.4

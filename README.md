@@ -4,7 +4,7 @@ Parse bank statements across **six structured formats** (CAMT, PAIN.001, CSV, OF
 
 Built for finance teams, treasury analysts, and fintech developers who need reliable, auditable extraction across the full spectrum of bank statement formats — without sending data to external services unless they explicitly opt in.
 
-[![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.6)](https://pypi.org/project/bankstatementparser/)
+[![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.7)](https://pypi.org/project/bankstatementparser/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge)](https://pypi.org/project/bankstatementparser/)
 [![Codecov](https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge)](https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main)
 [![License](https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge)](LICENSE)
@@ -52,7 +52,7 @@ Every extracted row carries an immutable `transaction_hash`, an audit-trail `sou
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
 | **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
 | **Export** | CSV, JSON, Excel (`.xlsx`), and optional Polars DataFrames |
-| **100% coverage** | 541 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
+| **100% coverage** | 569 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
 
 ## Requirements
 
@@ -363,12 +363,12 @@ See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference of ISO 20022 X
 ## Project Layout
 
 ```text
-bankstatementparser/   Source code (21 modules: deterministic core + hybrid subpackage, 100% branch coverage)
-bankstatementparser/hybrid/   v0.0.5 PDF pipeline: orchestrator, llm_extractor, vision, pdf_text, prompts, verification
+bankstatementparser/   Source code (22 modules: deterministic core + hybrid subpackage, 100% branch coverage)
+bankstatementparser/hybrid/   v0.0.5+ PDF pipeline: orchestrator, llm_extractor, vision, pdf_text, prompts, verification, ollama_direct
 docs/compliance/       ISO 13485 validation, risk register, traceability matrix
 examples/              14 deterministic + 8 hybrid runnable example scripts
 scripts/               SBOM generation, checksums, signature verification
-tests/                 541 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                 569 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ## Security
