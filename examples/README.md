@@ -38,6 +38,23 @@ python parse_camt_basic.py
 | `compatibility_wrappers.py` | Legacy API wrappers (`Camt053Parser`, `Pain001Parser`) |
 | `cli_examples.sh` | CLI commands for CAMT and PAIN.001 parsing and export |
 
+## Hybrid Pipeline (v0.0.5)
+
+End-to-end demonstrations of the deterministic + LLM + vision pipeline,
+the Golden Rule balance verification, and idempotent dedup. See
+[`hybrid/README.md`](hybrid/README.md) for the full walkthrough,
+prerequisites table, Mermaid flow diagram, and cross-platform runbook.
+
+| Script | Use case |
+|---|---|
+| `hybrid/generate_sample_pdfs.py` | Produce reproducible synthetic UK-bank PDFs (digital + scanned) for the LLM examples |
+| `hybrid/01_smart_ingest_deterministic.py` | Path A — `smart_ingest()` against a CAMT.053 file ($0, no LLM) |
+| `hybrid/02_smart_ingest_text_llm.py` | Path B — text-LLM extraction from a digital PDF (mock or live Ollama) |
+| `hybrid/03_smart_ingest_vision.py` | Path C — multimodal vision extraction from a scanned PDF, with `LOW_TEXT_DENSITY` auto-routing |
+| `hybrid/04_golden_rule.py` | All three `verify_balance()` outcomes: `VERIFIED`, `DISCREPANCY`, `FAILED` |
+| `hybrid/05_dedupe_recurring.py` | `normalize_description()` noise stripping + `dedupe_by_hash()` idempotent batching |
+| `hybrid/06_cli_walkthrough.sh` | Four flavours of the new `--type ingest` CLI subcommand |
+
 ## ZIP Security
 
 The `parse_camt_zip.py` example uses `iter_secure_xml_entries()` with hardened validation:
