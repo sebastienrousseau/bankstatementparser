@@ -108,7 +108,7 @@ module = ["polars", "polars.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*"]
+module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*", "httpx", "httpx.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
