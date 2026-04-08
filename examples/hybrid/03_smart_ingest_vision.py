@@ -119,13 +119,20 @@ def main() -> int:
 
     if live:
         # Real run: VisionExtractor reads the env var.
-        # NB: smoke-tested 2026-04-08 — local llava-7b through
-        # LiteLLM hangs on the long structured-JSON system prompt
-        # (verified upstream LiteLLM bug; same prompt works via
-        # direct Ollama /api/chat in ~18s). For production use,
-        # prefer hosted vision models (gpt-4o, claude-opus-4-6,
-        # gemini-2.5-pro) — see examples/hybrid/README.md
-        # "Smoke test results" for details.
+        # As of v0.0.7 the extractor automatically uses the direct
+        # Ollama bridge for any ollama/* model, sidestepping the
+        # upstream LiteLLM hang on long vision prompts. We also
+        # recommend ollama/minicpm-v over ollama/llava — it's
+        # explicitly trained for OCR/document tasks and handles
+        # statement tables much better. Smoke-tested 2026-04-08:
+        #   ollama/llava (v0.0.5):       600s timeout (LiteLLM hang)
+        #   ollama/llava (v0.0.7):        18s, hallucinates contents
+        #   ollama/minicpm-v single-shot: ~33s, all 11 rows extracted
+        #   ollama/minicpm-v strip_rows:  ~43s, sign-flip fixed
+        # See examples/hybrid/README.md "Smoke test results" for
+        # the full table. Hosted models (gpt-4o, claude-opus-4-6,
+        # gemini-2.5-pro) work fine through LiteLLM and produce
+        # production-grade results without strip mode.
         vision = VisionExtractor()
     else:
         # Mock run: inject a stubbed completion + a fake pypdfium2 module

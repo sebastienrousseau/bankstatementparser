@@ -61,10 +61,10 @@ locally or an API key for a hosted provider:
 # Local + private (recommended for finance data)
 ollama serve &
 ollama pull llama3      # text path
-ollama pull llava       # vision path
+ollama pull minicpm-v   # vision path (v0.0.7+ recommended default)
 
 export BSP_HYBRID_MODEL=ollama/llama3
-export BSP_HYBRID_VISION_MODEL=ollama/llava
+export BSP_HYBRID_VISION_MODEL=ollama/minicpm-v
 ```
 
 Or use any LiteLLM-supported provider:
@@ -199,18 +199,38 @@ LiteLLM points at the right endpoint.
 | Live LLM returns malformed JSON | Model too small / too creative | Try a larger model or set `BSP_HYBRID_MODEL=ollama/llama3:70b` |
 | `LOW_TEXT_DENSITY` warning on a digital PDF | `pypdf` couldn't parse the text layer | Try `pip install 'bankstatementparser[hybrid-plus]'` (pdfplumber) and re-run |
 | `DISCREPANCY` on a real statement | LLM dropped a row, or balances were mis-extracted | Re-run with a larger model, or pass `opening_balance=`/`closing_balance=` overrides to `smart_ingest()` |
-| Vision call hangs / times out at 600s with `ollama/llava` | Verified upstream LiteLLM ↔ Ollama integration bug: short prompts work fine, long system prompts hang. The library's structured-JSON extraction prompt is large enough to trigger it. | (a) Use a hosted vision model (`gpt-4o`, `claude-opus-4-6`, `gemini-2.5-pro`) instead of local llava — they all work with LiteLLM and don't have this issue. (b) Or pass a custom `completion_fn` to `VisionExtractor(...)` that calls Ollama's `/api/chat` directly, bypassing LiteLLM. |
-| Local llava-7b returns nonsense rows (wrong currency, fabricated dates, hallucinated transactions) | Smoke-tested with the synthetic scanned PDF: llava-7b is not capable enough for dense statement table extraction at any render scale. | Use a larger local vision model (`llava:34b`, `llava-llama3`, `bakllava`) or a hosted multimodal model. The 7B parameter class is not production-grade for this task. |
+| Vision call hangs / times out at 600s with `ollama/llava` | Verified upstream LiteLLM ↔ Ollama integration bug: short prompts work fine, long system prompts hang. **Resolved automatically as of v0.0.7** — the library now routes any `ollama/*` model through `bankstatementparser.hybrid.ollama_direct_completion`, bypassing LiteLLM entirely. If you're on v0.0.5 or v0.0.6, upgrade to v0.0.7 or pass `completion_fn=ollama_direct_completion` manually. |
+| Local llava-7b returns nonsense rows (wrong currency, fabricated dates, hallucinated transactions) | Smoke-tested with the synthetic scanned PDF: llava-7b is not capable enough for dense statement tables. | **As of v0.0.7 use `ollama/minicpm-v` instead** — explicitly trained for OCR/document tasks, ~33s on M-series, all 11 rows extracted from the synthetic statement. For production-grade extraction, use a hosted multimodal model (`gpt-4o`, `claude-opus-4-6`, `gemini-2.5-pro`). |
+| Vision results have year confabulation (rows show 2024-06-XX instead of 2026-04-XX) | Strip mode (`strip_rows=True`) splits the page into bands, and body strips lose the year context that was only visible in the header band. | Either disable strip mode for that page (`strip_rows=False` — single-shot is fine for ≤15 rows), or use a hosted model that handles full pages without strip preprocessing. |
+| Vision results have sign-flips (credits as negatives, debits as positives) | Small local vision models sometimes invert the credit/debit columns when the column headers are not in the same band as the row. | Use strip mode (`strip_rows=True`) — the per-band prompt makes the sign convention explicit. Or use a hosted model. |
 
 ## Smoke test results (real models, 2026-04-08)
 
-We ran every example end-to-end against real local models on Apple Silicon to validate the library code with the actual LLM stack:
+We ran every example end-to-end against real local models on Apple Silicon to validate the library code with the actual LLM stack. Both v0.0.5 (the original baseline) and v0.0.7 (with the direct Ollama bridge + minicpm-v default + strip mode) results are shown so the improvement is visible.
+
+### v0.0.7 results
+
+| Example | Model | Mode | Result |
+|---|---|---|---|
+| `01_*` deterministic | n/a | n/a | ✅ Perfect — 3 transactions extracted from CAMT.053 fixture, all hashes computed |
+| `02_*` text-LLM | `ollama/llama3` (4.7 GB) | single-shot | ✅ Perfect — all 11 transactions extracted, every amount correct, **VERIFIED** balance, every row tagged `confidence=1.00`, ~25 s end-to-end |
+| `03_*` vision-LLM | `ollama/minicpm-v:8b` (5.5 GB) | **single-shot** | ✅ All 11 transactions extracted, currency `GBP`, opening/closing balances correct, **~33 s end-to-end**. Two sign-flip errors on the SALARY/RENT rows (model OCR'd magnitudes correctly but inverted the credit/debit columns) — use strip mode to fix. |
+| `03_*` vision-LLM | `ollama/minicpm-v:8b` (5.5 GB) | **strip_rows=True** | ✅ Sign convention correct, all 11 rows extracted, ~43 s end-to-end (4 LLM calls). Body strips occasionally confabulate the year when it's only printed in the header band — for production use a hosted model. |
+| `04_*` Golden Rule | n/a | n/a | ✅ All three outcomes (`VERIFIED`, `DISCREPANCY`, `FAILED`) reproduce as documented |
+| `05_*` dedupe | n/a | n/a | ✅ Recurring Amazon dup caught in batch 1, both already-seen rows caught in batch 2 |
+| `06_*` CLI walkthrough | n/a | n/a | ✅ Deterministic path produces the expected DataFrame with `transaction_hash`, `source_method`, and verification fields |
+
+### v0.0.5 baseline (for comparison)
 
 | Example | Model | Result |
 |---|---|---|
-| `01_*` deterministic | n/a | ✅ Perfect — 3 transactions extracted from CAMT.053 fixture, all hashes computed |
-| `02_*` text-LLM | `ollama/llama3` (4.7 GB) | ✅ Perfect — all 11 transactions extracted, every amount correct, **VERIFIED** balance, every row tagged `confidence=1.00`. End-to-end runtime ~25s on M-series. |
-| `03_*` vision-LLM | `ollama/llava:7b` (4.7 GB) | ⚠️ Library and orchestrator work correctly. **Blocked by upstream LiteLLM integration bug**: short prompts work in 2.8s, the full structured-JSON system prompt hangs LiteLLM at the 600s timeout. Direct Ollama `/api/chat` call with the same prompt completes in 18s but llava-7b hallucinates the contents anyway. **Recommended path for production:** use hosted vision models. |
-| `04_*` Golden Rule | n/a | ✅ All three outcomes (`VERIFIED`, `DISCREPANCY`, `FAILED`) reproduce as documented |
-| `05_*` dedupe | n/a | ✅ Recurring Amazon dup caught in batch 1, both already-seen rows caught in batch 2 |
-| `06_*` CLI walkthrough | n/a | ✅ Deterministic path produces the expected DataFrame with `transaction_hash`, `source_method`, and verification fields |
+| `03_*` vision-LLM | `ollama/llava:7b` (4.7 GB) | ⚠️ Blocked by upstream LiteLLM ↔ Ollama bug: full extraction prompt hung at 600 s timeout. Direct Ollama `/api/chat` call worked in 18 s but llava-7b hallucinated the contents (fabricated INR currency, made-up "Cash Withdrawal" rows). |
+
+### What v0.0.7 actually changed
+
+| Change | v0.0.5 / v0.0.6 | v0.0.7 |
+|---|---|---|
+| LiteLLM ↔ Ollama vision call | 🔴 600 s timeout, never completes | 🟢 ~33 s, completes via direct bridge |
+| Local vision quality on synthetic statement | 🔴 hallucinates entire content | 🟢 all 11 rows extracted, minor sign-flips |
+| Default local model | `ollama/llava` (general-purpose) | `ollama/minicpm-v` (document-specialized) |
+| Strip preprocessing for dense pages | not available | `VisionExtractor(strip_rows=True, n_strips=4)` |
