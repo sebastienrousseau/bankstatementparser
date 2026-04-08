@@ -546,6 +546,7 @@ class CamtParser(BankStatementParser):
                 booking_dates,
                 debtor_addresses,
                 creditor_addresses,
+                strict=False,
             )
         ):
             # Apply debit sign adjustment

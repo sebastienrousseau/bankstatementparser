@@ -32,9 +32,10 @@ from __future__ import annotations
 
 import base64
 import os
+from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional, Union
 
 from .llm_extractor import (
     LLMExtractionResult,

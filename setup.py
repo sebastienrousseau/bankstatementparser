@@ -48,7 +48,6 @@ free way to stay on top of your transactions.
         "Operating System :: OS Independent",
         "Operating System :: POSIX",
         "Operating System :: Unix",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
@@ -68,6 +67,6 @@ free way to stay on top of your transactions.
     """,
     license="Apache Software License",
     packages=find_packages(exclude=["docs", "tests*"]),
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     test_suite="tests",
 )

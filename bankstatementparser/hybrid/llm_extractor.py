@@ -31,9 +31,10 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from ..transaction_models import Transaction, normalize_description
 from .prompts import build_messages
