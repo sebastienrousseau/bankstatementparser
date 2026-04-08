@@ -25,6 +25,29 @@ jobs:
 
       - name: Dependency Review
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48
+        with:
+          # The three litellm advisories below are all scoped to the
+          # optional `litellm proxy` server binary (OIDC userinfo
+          # cache, unrestricted proxy config endpoint, password hash
+          # exposure). This library only imports
+          # `litellm.completion()` from the `[hybrid]` extra — it
+          # never runs the proxy server. The proxy attack surface is
+          # not reachable from any code we ship.
+          #
+          # We cannot simply bump to litellm >= 1.83.0 across the
+          # board because litellm 1.83+ requires Python >= 3.12 while
+          # bankstatementparser still supports Python 3.9-3.11. The
+          # resolver therefore keeps 1.80.0 pinned on the older
+          # interpreters. Revisit this allow-list the next time the
+          # minimum Python version is raised.
+          #
+          #   GHSA-jjhc-v7c2-5hh6  OIDC userinfo cache key collision (proxy)
+          #   GHSA-53mr-6c8q-9789  Proxy config endpoint privilege escalation
+          #   GHSA-69x8-hrgq-fjj8  Password hash exposure in proxy auth
+          allow-ghsas: >-
+            GHSA-jjhc-v7c2-5hh6,
+            GHSA-53mr-6c8q-9789,
+            GHSA-69x8-hrgq-fjj8
 
   codeql:
     name: CodeQL

@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 from pathlib import Path
 from typing import Optional, Union
+
+from pydantic import ValidationError
 
 from ..additional_parsers import create_parser, detect_statement_format
 from ..transaction_models import Transaction
@@ -288,7 +290,20 @@ def _coerce_transactions(
                     source_index=index,
                 )
             )
-        except Exception:
-            # Skip rows that don't carry an amount (e.g. summary rows)
-            continue
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            DecimalException,
+            ValidationError,
+        ) as exc:
+            # Summary rows, empty rows, and malformed entries don't
+            # satisfy `Transaction.from_record`'s amount requirement.
+            # They are expected and safely skipped.
+            logger.debug(
+                "Skipping record %d (%s): %s",
+                index,
+                source,
+                exc,
+            )
     return transactions
