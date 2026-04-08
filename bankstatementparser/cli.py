@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Sebastien Rousseau.
+# Copyright (C) 2023-2026 Bank Statement Parser. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -141,8 +141,11 @@ class BankStatementCLI:
             "--type",
             type=str,
             required=True,
-            choices=["camt", "pain001"],
-            help='Type of the bank statement file: "camt" or "pain001".',
+            choices=["camt", "pain001", "ingest"],
+            help=(
+                'Type of the bank statement file: "camt", "pain001", '
+                'or "ingest" for the hybrid deterministic+LLM pipeline.'
+            ),
         )
         parser.add_argument(
             "--input",
@@ -454,6 +457,91 @@ class BankStatementCLI:
             print(f"Error: Failed to parse PAIN.001 file - {str(e)}")
             sys.exit(1)
 
+    def run_ingest(
+        self,
+        file_path: Path,
+        output_path: Optional[Path] = None,
+    ) -> None:
+        """Run the hybrid (deterministic + LLM fallback) pipeline.
+
+        Args:
+            file_path: Validated path to the statement file.
+            output_path: Optional CSV output destination.
+        """
+        try:
+            from bankstatementparser.hybrid import smart_ingest
+        except ImportError as exc:
+            print(
+                "Error: PDF ingestion requires the [hybrid] extra.\n"
+                "  Run: pip install 'bankstatementparser[hybrid]'\n"
+                "  (or [hybrid-plus] for higher-fidelity PDF tables)"
+            )
+            logger.error(f"Hybrid import failed: {exc}")
+            sys.exit(1)
+            return  # pragma: no cover
+
+        try:
+            result = smart_ingest(str(file_path))
+        except ImportError as exc:
+            # Raised lazily by pypdf/litellm if [hybrid] is half-installed
+            print(
+                "Error: PDF ingestion requires the [hybrid] extra.\n"
+                f"  Missing dependency: {exc.name or exc}\n"
+                "  Run: pip install 'bankstatementparser[hybrid]'"
+            )
+            logger.error(f"Hybrid runtime import failed: {exc}")
+            sys.exit(1)
+            return  # pragma: no cover
+        except Exception as exc:
+            logger.error(f"Hybrid ingest failed: {exc}")
+            print(f"Error: hybrid ingest failed - {exc}")
+            sys.exit(1)
+            return  # pragma: no cover
+
+        rows = [
+            {
+                "transaction_hash": tx.transaction_hash,
+                "source_method": tx.source_method,
+                "booking_date": tx.booking_date.isoformat()
+                if tx.booking_date
+                else "",
+                "description": tx.description or "",
+                "amount": str(tx.amount),
+                "currency": tx.currency or "",
+                "reference": tx.reference or "",
+                "confidence": tx.confidence
+                if tx.confidence is not None
+                else "",
+            }
+            for tx in result.transactions
+        ]
+        df = pd.DataFrame(rows)
+
+        if output_path:
+            safe_name = self.validator.get_safe_filename(
+                output_path.name
+            )
+            safe_output_path = str(output_path.parent / safe_name)
+            df.to_csv(safe_output_path, index=False)
+            print(
+                f"Ingested {len(rows)} transactions "
+                f"({result.source_method}) -> {safe_output_path}"
+            )
+        else:
+            print(
+                f"Source method: {result.source_method} "
+                f"(format: {result.source_format})"
+            )
+            print(df)
+
+        if result.verification is not None:
+            v = result.verification
+            print(
+                f"\nVerification: {v.status.value.upper()} - {v.message}"
+            )
+        for warning in result.warnings:
+            print(f"Warning: {warning}")
+
     def run(self) -> None:
         """
         Parse command line arguments and perform the requested action.
@@ -561,6 +649,11 @@ class BankStatementCLI:
                         validated_output_path,
                         args.show_pii,
                     )
+            elif args.type == "ingest":
+                self.run_ingest(
+                    validated_input_path,
+                    validated_output_path,
+                )
             else:
                 print("Error: The specified type is not supported.")
                 sys.exit(1)
@@ -570,6 +663,20 @@ class BankStatementCLI:
             sys.exit(1)
 
 
+def main() -> None:
+    """Console-script entry point.
+
+    Wired up via ``[tool.poetry.scripts]`` in ``pyproject.toml`` so
+    users can run::
+
+        bankstatementparser --type ingest --input statement.pdf
+
+    instead of::
+
+        python -m bankstatementparser.cli --type ingest --input statement.pdf
+    """
+    BankStatementCLI().run()
+
+
 if __name__ == "__main__":  # pragma: no cover
-    cli = BankStatementCLI()
-    cli.run()
+    main()

@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Sebastien Rousseau.
+# Copyright (C) 2023-2026 Bank Statement Parser. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -145,6 +145,42 @@ class Deduplicator:
                     )
                 )
         return normalized
+
+    def dedupe_by_hash(
+        self,
+        transactions: Iterable[Transaction | dict[str, object]],
+        *,
+        seen_hashes: set[str] | None = None,
+    ) -> tuple[list[Transaction], list[str]]:
+        """Idempotent set-based dedup using ``Transaction.transaction_hash``.
+
+        Designed for incremental ingestion (e.g. syncing to Google
+        Sheets / a database) where each row carries its own immutable
+        fingerprint. Unlike :meth:`deduplicate`, this performs no fuzzy
+        matching — it is a strict identity filter.
+
+        Args:
+            transactions: Items to ingest.
+            seen_hashes: Hashes already persisted upstream. New hashes
+                from this batch are added in-place.
+
+        Returns:
+            Tuple of (new transactions, list of skipped duplicate
+            hashes from this batch).
+        """
+        if seen_hashes is None:
+            seen_hashes = set()
+        normalized = self.normalize_transactions(transactions)
+        unique: list[Transaction] = []
+        skipped: list[str] = []
+        for tx in normalized:
+            digest = tx.transaction_hash
+            if digest in seen_hashes:
+                skipped.append(digest)
+                continue
+            seen_hashes.add(digest)
+            unique.append(tx)
+        return unique, skipped
 
     def from_dataframe(
         self, df: pd.DataFrame, *, source: str | None = None

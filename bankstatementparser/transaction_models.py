@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Sebastien Rousseau.
+# Copyright (C) 2023-2026 Bank Statement Parser. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,13 +17,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections.abc import Mapping
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 def _coerce_decimal(value: object) -> Decimal:
@@ -57,11 +58,37 @@ def _parse_date(value: object) -> date | None:
         raise ValueError(f"unsupported date format: {value}") from exc
 
 
+# Patterns that produce hash-noise in bank descriptions:
+# fluctuating dates, times, and long numeric/alphanumeric reference IDs
+# embedded in otherwise-stable merchant strings (e.g.
+# "AMZN MKTPLACE 2026-04-01 #A1B2C3").
+_DATE_PATTERNS = (
+    re.compile(r"\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b"),  # 2026-04-01, 2026/4/1
+    re.compile(r"\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b"),  # 01/04/2026
+    re.compile(r"\b\d{1,2}[-/]\d{1,2}\b"),  # 01/04
+    re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b"),  # 12:49, 12:49:01
+)
+_LONG_ALNUM_ID = re.compile(r"\b[a-z0-9]*\d[a-z0-9]*\b")
+
+
 def normalize_description(value: str | None) -> str:
+    """Normalize a description for stable hashing.
+
+    Strips date/time tokens and long alphanumeric IDs that change
+    between otherwise-identical recurring charges (e.g.
+    ``AMZN MKTPLACE 2026-04-01 #A1B2C3``). The goal is for two visits
+    to the same merchant on different days to produce the same
+    normalized form when paired with their respective dates upstream.
+    """
     if value is None:
         return ""
-    collapsed = re.sub(r"\s+", " ", value).strip().lower()
-    return re.sub(r"[^a-z0-9 ]+", "", collapsed)
+    text = value
+    for pattern in _DATE_PATTERNS:
+        text = pattern.sub(" ", text)
+    collapsed = re.sub(r"\s+", " ", text).strip().lower()
+    stripped_ids = _LONG_ALNUM_ID.sub(" ", collapsed)
+    cleaned = re.sub(r"[^a-z ]+", " ", stripped_ids)
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 
 def _first_value(
@@ -71,6 +98,9 @@ def _first_value(
         if key in record and record[key] not in (None, ""):
             return record[key]
     return None
+
+
+SourceMethod = Literal["deterministic", "llm"]
 
 
 class Transaction(BaseModel):
@@ -90,6 +120,44 @@ class Transaction(BaseModel):
     counterparty: Optional[str] = None
     source: Optional[str] = None
     source_index: Optional[int] = None
+    source_method: SourceMethod = "deterministic"
+    confidence: Optional[float] = None
+    # Placeholders for the v0.0.6 "Intelligence Layer" release. Kept on
+    # the model now so v0.0.6 can populate them without a breaking
+    # schema migration.
+    category: Optional[str] = None
+    raw_source_text: Optional[str] = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def transaction_hash(self) -> str:
+        """Idempotent fingerprint of date|normalized_description|amount.
+
+        Generated from normalized fields so the same transaction
+        produces the same hash regardless of source (deterministic
+        parser vs. LLM extraction). MD5 is used for a compact,
+        non-cryptographic identity key.
+        """
+        date_part = (
+            self.booking_date.isoformat()
+            if self.booking_date is not None
+            else (
+                self.value_date.isoformat()
+                if self.value_date is not None
+                else ""
+            )
+        )
+        material = "|".join(
+            [
+                date_part,
+                self.normalized_description,
+                self.amount_key(),
+            ]
+        )
+        return hashlib.md5(  # noqa: S324
+            material.encode("utf-8"),
+            usedforsecurity=False,
+        ).hexdigest()
 
     @classmethod
     def from_record(
