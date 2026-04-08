@@ -39,6 +39,9 @@ hybrid = ["litellm", "pypdf"]
 hybrid-plus = ["litellm", "pypdf", "pdfplumber"]
 hybrid-vision = ["litellm", "pypdf", "pypdfium2"]
 
+[tool.poetry.scripts]
+bankstatementparser = "bankstatementparser.cli:main"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

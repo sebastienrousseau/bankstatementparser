@@ -663,6 +663,20 @@ class BankStatementCLI:
             sys.exit(1)
 
 
+def main() -> None:
+    """Console-script entry point.
+
+    Wired up via ``[tool.poetry.scripts]`` in ``pyproject.toml`` so
+    users can run::
+
+        bankstatementparser --type ingest --input statement.pdf
+
+    instead of::
+
+        python -m bankstatementparser.cli --type ingest --input statement.pdf
+    """
+    BankStatementCLI().run()
+
+
 if __name__ == "__main__":  # pragma: no cover
-    cli = BankStatementCLI()
-    cli.run()
+    main()

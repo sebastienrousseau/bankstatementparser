@@ -4,8 +4,21 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from bankstatementparser.cli import BankStatementCLI
+from bankstatementparser.cli import BankStatementCLI, main
 from bankstatementparser.input_validator import ValidationError
+
+
+class TestConsoleScript(unittest.TestCase):
+    def test_main_delegates_to_cli_run(self):
+        """The console-script entry point dispatches to BankStatementCLI.run()."""
+        with patch(
+            "bankstatementparser.cli.BankStatementCLI"
+        ) as mock_cls:
+            instance = Mock()
+            mock_cls.return_value = instance
+            main()
+            mock_cls.assert_called_once_with()
+            instance.run.assert_called_once_with()
 
 
 class TestBankStatementCLI(unittest.TestCase):
