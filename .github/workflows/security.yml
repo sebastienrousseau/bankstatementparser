@@ -59,12 +59,19 @@ jobs:
           #         through cryptography's bindings, which we never
           #         do. Patched in 44.0.1 but blocked by the same
           #         Python floor as above.
+          #     GHSA-m959-cc7f-wv43  Incomplete DNS name constraint
+          #         enforcement on X.509 peer names — only matters
+          #         when using cryptography to validate X.509 certs
+          #         for peer authentication, which we never do.
+          #         Patched in 46.0.6, blocked by the same Python
+          #         floor.
           allow-ghsas: >-
             GHSA-jjhc-v7c2-5hh6,
             GHSA-53mr-6c8q-9789,
             GHSA-69x8-hrgq-fjj8,
             GHSA-r6ph-v2qm-q3c2,
-            GHSA-79v4-65xg-pq4g
+            GHSA-79v4-65xg-pq4g,
+            GHSA-m959-cc7f-wv43
 
   codeql:
     name: CodeQL
