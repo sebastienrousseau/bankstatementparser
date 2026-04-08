@@ -190,7 +190,10 @@ def test_env_api_base_used_when_no_explicit_override(
         messages=[{"role": "user", "content": "hi"}],
     )
 
-    assert captured["url"].startswith("http://host.docker.internal")
+    assert (
+        captured["url"]
+        == "http://host.docker.internal:11434/api/chat"
+    )
 
 
 def test_returns_openai_envelope(
