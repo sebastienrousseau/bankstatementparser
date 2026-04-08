@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.6] — 2026-04-08
+
+> "Intelligence Layer (kickoff)" — first release in the v0.0.6
+> milestone. Drops Python 3.9 to retire the entire transitive CVE
+> allow-list inherited from v0.0.5 and unblock cleaner dependency
+> resolution for the rest of the milestone (categorization, review
+> mode, OCR bbox mapping). Closes
+> [#47](https://github.com/sebastienrousseau/bankstatementparser/issues/47).
+
+### Removed
+
+- **Python 3.9 support.** Python 3.9 reached end-of-life on
+  2025-10-31. The minimum supported interpreter is now Python 3.10.
+  Users on Python 3.9 must stay on v0.0.5 or upgrade their
+  interpreter. This is a **breaking change** for the Python
+  classifiers and `python_requires` metadata; the public API is
+  unchanged.
+- The 6-row CI matrix is now 5 rows (3.10 → 3.14) for both
+  `lint-and-typecheck` and `unit-tests` jobs.
+
+### Security
+
+- **Deleted the entire transitive CVE allow-list** from
+  `.github/workflows/security.yml`. All nine GHSAs allow-listed in
+  v0.0.5 are now resolved by upgrading to the patched series of
+  every transitive dependency:
+
+  | Package | v0.0.5 | v0.0.6 | Advisories closed |
+  |---|---|---|---|
+  | `litellm` | 1.80.0 | 1.83.4 | GHSA-jjhc-v7c2-5hh6, GHSA-53mr-6c8q-9789, GHSA-69x8-hrgq-fjj8 |
+  | `cryptography` | 43.0.3 | 46.0.7 | GHSA-r6ph-v2qm-q3c2, GHSA-79v4-65xg-pq4g, GHSA-m959-cc7f-wv43 |
+  | `pillow` | 11.3.0 | 12.2.0 | GHSA-cfh3-3jmp-rvhc |
+  | `filelock` | 3.19.1 | 3.25.2 | GHSA-w853-jp5j-5j7f, GHSA-qmgc-5h2g-mvrw |
+  | `requests` | 2.32.5 | 2.33.1 | GHSA-gc5v-m9x4-r6x2 |
+
+  The `dependency-review-action` step in CI is now back to its
+  bare default — no per-CVE bypasses, no documented justifications,
+  no "revisit when minimum Python is raised" reminders.
+- `litellm` minimum bumped from `>=1.50.0` to `>=1.83.0` in
+  `pyproject.toml` so the patched series is enforced at install
+  time, not just in the lockfile.
+
+### Changed
+
+- `pyproject.toml`:
+  - `[tool.poetry.dependencies] python` from `>=3.9` to
+    `>=3.10,<4.0` (the upper bound is required by Poetry's
+    resolver for the new litellm constraint)
+  - `[tool.black] target-version` from `py39` to `py310`
+  - `[tool.ruff] target-version` from `py39` to `py310`
+  - `[tool.mypy] python_version` from `3.9` to `3.10`
+  - Version bumped `0.0.5` → `0.0.6`
+- `setup.cfg` and `setup.py` (legacy parallel metadata): same
+  Python floor bumps and classifier list updated (3.9 row removed).
+- `[tool.ruff] lint.ignore` extended to include `UP007` alongside
+  the existing `UP045`. Both rules want PEP 604 syntax (`X | None`
+  instead of `Optional[X]`); migrating ~100 occurrences across the
+  package is deliberately deferred to a follow-up cleanup PR so
+  this release stays focused on the Python 3.9 retirement.
+
+### Fixed
+
+- `bankstatementparser/camt_parser.py`: pre-existing `zip(...)`
+  call now passes `strict=False` explicitly. Resolves the new
+  ruff `B905` warning that surfaces under `target-version = py310`
+  (the rule was inactive under py39).
+- `bankstatementparser/hybrid/llm_extractor.py` and
+  `bankstatementparser/hybrid/vision.py`: `Callable` is now
+  imported from `collections.abc` instead of `typing`. Resolves
+  the new ruff `UP035` warning.
+
+### Migration notes
+
+The public API is **unchanged**. v0.0.5 user code runs on v0.0.6
+without modification provided the interpreter is Python 3.10 or
+newer. If you are still on Python 3.9, pin to v0.0.5 in your
+`requirements.txt` / `pyproject.toml` until you are able to
+upgrade.
+
+```text
+# requirements.txt — pin if you cannot upgrade Python yet
+bankstatementparser==0.0.5
+```
+
 ## [0.0.5] — 2026-04-08
 
 > "Universal Extraction" — combines the deterministic reliability of
@@ -190,6 +274,7 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.5...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.6...HEAD
+[0.0.6]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.6
 [0.0.5]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.5
 [0.0.4]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.4

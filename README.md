@@ -4,7 +4,7 @@ Parse bank statements across **six structured formats** (CAMT, PAIN.001, CSV, OF
 
 Built for finance teams, treasury analysts, and fintech developers who need reliable, auditable extraction across the full spectrum of bank statement formats — without sending data to external services unless they explicitly opt in.
 
-[![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.5)](https://pypi.org/project/bankstatementparser/)
+[![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.6)](https://pypi.org/project/bankstatementparser/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge)](https://pypi.org/project/bankstatementparser/)
 [![Codecov](https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge)](https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main)
 [![License](https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge)](LICENSE)
@@ -29,7 +29,7 @@ Built for finance teams, treasury analysts, and fintech developers who need reli
 
 ## Requirements
 
-- Python **3.9** through **3.14**
+- Python **3.10** through **3.14** (Python 3.9 was dropped in v0.0.6 — pin to v0.0.5 if you cannot upgrade your interpreter)
 - Poetry (for local development)
 
 ## Install
