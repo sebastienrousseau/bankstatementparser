@@ -13,7 +13,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Hybrid orchestrator: deterministic-first, LLM-fallback ingestion."""
+"""Hybrid orchestrator — single entry point for the v0.0.5 pipeline.
+
+:func:`smart_ingest` routes any input file through the cheapest viable
+extraction path:
+
+* **Path A — Deterministic.** When :func:`detect_statement_format`
+  identifies an ISO/exchange format (CAMT, PAIN.001, CSV, OFX, MT940),
+  the matching parser handles the file end-to-end. Free, fastest,
+  byte-identical reproducible.
+* **Path B — Text-LLM.** When the file is a digital PDF and
+  :mod:`pypdf` extracts at least :data:`LOW_TEXT_DENSITY_THRESHOLD`
+  characters of text, the orchestrator calls
+  :class:`~.llm_extractor.LLMExtractor` (LiteLLM-backed, default
+  ``ollama/llama3``) to parse the raw text into structured rows.
+* **Path C — Vision-LLM.** When pypdf yields below-threshold text
+  (i.e. the PDF is a scan, photocopy, or fax), the orchestrator
+  auto-falls through to :class:`~.vision.VisionExtractor`, which
+  renders pages with ``pypdfium2`` and sends base64 PNGs to a
+  multimodal model. Vision is **opt-in only** via
+  ``BSP_HYBRID_VISION_MODEL`` — there is no default model.
+
+Every successful path produces an :class:`IngestResult` with
+``source_method`` set to ``"deterministic"``, ``"llm"``, or
+``"vision"`` so callers can audit which path produced each row.
+The Golden Rule (:func:`~.verification.verify_balance`) is applied
+to every result when balances are available.
+"""
 
 from __future__ import annotations
 

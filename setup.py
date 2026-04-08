@@ -14,6 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ----------------------------------------------------------------------
+# LEGACY METADATA MIRROR — `pyproject.toml` is the source of truth.
+#
+# This file (and `setup.cfg`) exist only so that very old `pip` versions
+# that do not understand PEP 621 metadata can still install the package
+# from a tarball. Modern pip (>= 21.3, released 2021-10-11) reads
+# `pyproject.toml` directly and ignores both files.
+#
+# When changing dependencies, the Python floor, classifiers, or version,
+# update `pyproject.toml` first and then mirror the change here. The
+# Makefile, CI, and `poetry build` / `poetry publish` flows all read
+# `pyproject.toml` exclusively.
+# ----------------------------------------------------------------------
+
 from pathlib import Path
 
 from setuptools import find_packages, setup
