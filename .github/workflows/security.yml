@@ -65,13 +65,25 @@ jobs:
           #         for peer authentication, which we never do.
           #         Patched in 46.0.6, blocked by the same Python
           #         floor.
+          #
+          #   pillow (transitive via pdfplumber, Python 3.9 only):
+          #     GHSA-cfh3-3jmp-rvhc  Out-of-bounds write loading PSD
+          #         images. Reachable only if a caller passes a
+          #         Photoshop file to Pillow's PSD decoder; our
+          #         pipeline only renders/reads PNG. Patched in
+          #         12.1.1 which requires Python >= 3.10. Pillow on
+          #         Python 3.10+ already resolves to 12.2.0 (clean);
+          #         the vulnerable 11.3.0 is locked only for the
+          #         narrow `python_version == "3.9" and extra ==
+          #         "hybrid-plus"` slice.
           allow-ghsas: >-
             GHSA-jjhc-v7c2-5hh6,
             GHSA-53mr-6c8q-9789,
             GHSA-69x8-hrgq-fjj8,
             GHSA-r6ph-v2qm-q3c2,
             GHSA-79v4-65xg-pq4g,
-            GHSA-m959-cc7f-wv43
+            GHSA-m959-cc7f-wv43,
+            GHSA-cfh3-3jmp-rvhc
 
   codeql:
     name: CodeQL
