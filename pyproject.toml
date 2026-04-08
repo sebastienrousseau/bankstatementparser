@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.4"
+version = "0.0.5"
 description = "BankStatementParser is your essential tool for easy bank statement management. Designed with finance and treasury experts in mind, it offers a simple way to handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from your financial data and spend less time on processing. It's the smart, hassle-free way to stay on top of your transactions."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache Software License"
@@ -19,6 +19,10 @@ pandas = "^2.3.3"
 defusedxml = "^0.7.1"
 pydantic = "^2.11.0"
 polars = {version = "^1.32.0", optional = true}
+litellm = {version = ">=1.50.0", optional = true}
+pypdf = {version = ">=4.0.0", optional = true}
+pdfplumber = {version = ">=0.11.0", optional = true}
+pypdfium2 = {version = ">=4.30.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
@@ -31,6 +35,9 @@ hypothesis = ">=6.82,<7"
 
 [tool.poetry.extras]
 polars = ["polars"]
+hybrid = ["litellm", "pypdf"]
+hybrid-plus = ["litellm", "pypdf", "pdfplumber"]
+hybrid-vision = ["litellm", "pypdf", "pypdfium2"]
 
 [build-system]
 requires = ["poetry-core"]
@@ -89,6 +96,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["polars", "polars.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
