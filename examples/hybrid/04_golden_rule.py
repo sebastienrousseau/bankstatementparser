@@ -75,6 +75,14 @@ def _print(label: str, result: object) -> None:
     print()
 
 
+def _expect(actual: VerificationStatus, expected: VerificationStatus) -> None:
+    if actual is not expected:
+        raise SystemExit(
+            f"Example contract violated: expected {expected.value}, "
+            f"got {actual.value}"
+        )
+
+
 def main() -> int:
     print("Scenario 1: clean statement, all transactions captured")
     print()
@@ -84,7 +92,7 @@ def main() -> int:
         closing_balance=Decimal("2676.66"),
     )
     _print("VERIFIED expected", result)
-    assert result.status is VerificationStatus.VERIFIED
+    _expect(result.status, VerificationStatus.VERIFIED)
 
     print("Scenario 2: one row dropped during extraction")
     print()
@@ -94,7 +102,7 @@ def main() -> int:
         closing_balance=Decimal("2676.66"),
     )
     _print("DISCREPANCY expected", result)
-    assert result.status is VerificationStatus.DISCREPANCY
+    _expect(result.status, VerificationStatus.DISCREPANCY)
     print("  -> Action: flag statement 'Unverified', do not auto-import.")
     print(f"  -> Hint: missing debit of {abs(result.discrepancy or 0)}")
     print()
@@ -107,7 +115,7 @@ def main() -> int:
         closing_balance=None,
     )
     _print("FAILED expected", result)
-    assert result.status is VerificationStatus.FAILED
+    _expect(result.status, VerificationStatus.FAILED)
     print("  -> Action: ask the operator to supply balances manually,")
     print("     or skip integrity check entirely (LLMs sometimes miss them).")
     print()
