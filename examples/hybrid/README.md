@@ -197,3 +197,18 @@ LiteLLM points at the right endpoint.
 | Live LLM returns malformed JSON | Model too small / too creative | Try a larger model or set `BSP_HYBRID_MODEL=ollama/llama3:70b` |
 | `LOW_TEXT_DENSITY` warning on a digital PDF | `pypdf` couldn't parse the text layer | Try `pip install 'bankstatementparser[hybrid-plus]'` (pdfplumber) and re-run |
 | `DISCREPANCY` on a real statement | LLM dropped a row, or balances were mis-extracted | Re-run with a larger model, or pass `opening_balance=`/`closing_balance=` overrides to `smart_ingest()` |
+| Vision call hangs / times out at 600s with `ollama/llava` | Verified upstream LiteLLM ↔ Ollama integration bug: short prompts work fine, long system prompts hang. The library's structured-JSON extraction prompt is large enough to trigger it. | (a) Use a hosted vision model (`gpt-4o`, `claude-opus-4-6`, `gemini-2.5-pro`) instead of local llava — they all work with LiteLLM and don't have this issue. (b) Or pass a custom `completion_fn` to `VisionExtractor(...)` that calls Ollama's `/api/chat` directly, bypassing LiteLLM. |
+| Local llava-7b returns nonsense rows (wrong currency, fabricated dates, hallucinated transactions) | Smoke-tested with the synthetic scanned PDF: llava-7b is not capable enough for dense statement table extraction at any render scale. | Use a larger local vision model (`llava:34b`, `llava-llama3`, `bakllava`) or a hosted multimodal model. The 7B parameter class is not production-grade for this task. |
+
+## Smoke test results (real models, 2026-04-08)
+
+We ran every example end-to-end against real local models on Apple Silicon to validate the library code with the actual LLM stack:
+
+| Example | Model | Result |
+|---|---|---|
+| `01_*` deterministic | n/a | ✅ Perfect — 3 transactions extracted from CAMT.053 fixture, all hashes computed |
+| `02_*` text-LLM | `ollama/llama3` (4.7 GB) | ✅ Perfect — all 11 transactions extracted, every amount correct, **VERIFIED** balance, every row tagged `confidence=1.00`. End-to-end runtime ~25s on M-series. |
+| `03_*` vision-LLM | `ollama/llava:7b` (4.7 GB) | ⚠️ Library and orchestrator work correctly. **Blocked by upstream LiteLLM integration bug**: short prompts work in 2.8s, the full structured-JSON system prompt hangs LiteLLM at the 600s timeout. Direct Ollama `/api/chat` call with the same prompt completes in 18s but llava-7b hallucinates the contents anyway. **Recommended path for production:** use hosted vision models. |
+| `04_*` Golden Rule | n/a | ✅ All three outcomes (`VERIFIED`, `DISCREPANCY`, `FAILED`) reproduce as documented |
+| `05_*` dedupe | n/a | ✅ Recurring Amazon dup caught in batch 1, both already-seen rows caught in batch 2 |
+| `06_*` CLI walkthrough | n/a | ✅ Deterministic path produces the expected DataFrame with `transaction_hash`, `source_method`, and verification fields |

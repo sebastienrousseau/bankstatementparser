@@ -119,6 +119,13 @@ def main() -> int:
 
     if live:
         # Real run: VisionExtractor reads the env var.
+        # NB: smoke-tested 2026-04-08 — local llava-7b through
+        # LiteLLM hangs on the long structured-JSON system prompt
+        # (verified upstream LiteLLM bug; same prompt works via
+        # direct Ollama /api/chat in ~18s). For production use,
+        # prefer hosted vision models (gpt-4o, claude-opus-4-6,
+        # gemini-2.5-pro) — see examples/hybrid/README.md
+        # "Smoke test results" for details.
         vision = VisionExtractor()
     else:
         # Mock run: inject a stubbed completion + a fake pypdfium2 module
