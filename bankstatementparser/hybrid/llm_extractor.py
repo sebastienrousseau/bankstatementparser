@@ -121,6 +121,18 @@ class LLMExtractor:
     def _resolve_completion(self) -> CompletionFn:
         if self._completion_fn is not None:
             return self._completion_fn
+        # Auto-select the direct Ollama bridge for any ollama/* model
+        # to keep parity with VisionExtractor. The text path doesn't
+        # currently exhibit the LiteLLM hang, but routing through the
+        # same bridge eliminates one source of behavioural drift
+        # between text and vision extraction.
+        from .ollama_direct import (
+            is_ollama_model,
+            ollama_direct_completion,
+        )
+
+        if is_ollama_model(self.model):
+            return ollama_direct_completion
         try:  # pragma: no cover - optional dep
             from litellm import completion
         except ImportError as exc:  # pragma: no cover - optional dep
