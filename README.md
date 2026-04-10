@@ -4,10 +4,37 @@ Parse bank statements across **six structured formats** (CAMT, PAIN.001, CSV, OF
 
 Built for finance teams, treasury analysts, and fintech developers who need reliable, auditable extraction across the full spectrum of bank statement formats — without sending data to external services unless they explicitly opt in.
 
-[![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.5)](https://pypi.org/project/bankstatementparser/)
+[![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.6)](https://pypi.org/project/bankstatementparser/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge)](https://pypi.org/project/bankstatementparser/)
 [![Codecov](https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge)](https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main)
 [![License](https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge)](LICENSE)
+
+## How it works
+
+`smart_ingest()` routes any input file through the cheapest viable extraction path. Deterministic parsers always run first ($0 cost). Text and vision LLMs are fallbacks for unstandardized PDFs — both are opt-in via separate install extras and can be swapped between any LiteLLM-supported provider (Ollama, Anthropic, OpenAI, Gemini, …).
+
+```mermaid
+flowchart TD
+    A[smart_ingest&lpar;path&rpar;] --> B{detect_statement_format}
+    B -- CAMT/PAIN/OFX/MT940/CSV --> C[Path A: deterministic parser<br/>$0, fastest]
+    C --> Z[IngestResult<br/>source_method='deterministic']
+
+    B -- pdf or unknown --> D[pypdf extract_text]
+    D --> E{text len &gt;= 50?}
+
+    E -- yes --> F[Path B: text-LLM<br/>default ollama/llama3]
+    F --> Y[IngestResult<br/>source_method='llm']
+
+    E -- no --> G[Path C: vision-LLM<br/>opt-in via BSP_HYBRID_VISION_MODEL]
+    G --> X[IngestResult<br/>source_method='vision']
+
+    Z --> V[verify_balance<br/>Golden Rule]
+    Y --> V
+    X --> V
+    V --> R[VERIFIED / DISCREPANCY / FAILED]
+```
+
+Every extracted row carries an immutable `transaction_hash`, an audit-trail `source_method` tag, and (for LLM rows) a `confidence` score — see [Hybrid extraction](#hybrid-extraction-pdfs-included-v005) below for the full surface.
 
 ## Key Features
 
@@ -25,11 +52,11 @@ Built for finance teams, treasury analysts, and fintech developers who need reli
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
 | **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
 | **Export** | CSV, JSON, Excel (`.xlsx`), and optional Polars DataFrames |
-| **100% coverage** | 541 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
+| **100% coverage** | 644 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
 
 ## Requirements
 
-- Python **3.9** through **3.14**
+- Python **3.10** through **3.14** (Python 3.9 was dropped in v0.0.6 — pin to v0.0.5 if you cannot upgrade your interpreter)
 - Poetry (for local development)
 
 ## Install
@@ -61,6 +88,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install poetry
 poetry install --with dev
+make install-hooks   # pre-commit hook runs `make verify` before every commit
 ```
 
 ## Quick Start
@@ -336,11 +364,12 @@ See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference of ISO 20022 X
 ## Project Layout
 
 ```text
-bankstatementparser/   Source code (13 modules, 100% branch coverage)
-docs/compliance/       ISO 13485 validation, risk register, traceability
-examples/              14 runnable example scripts
+bankstatementparser/   Source code (23 modules: deterministic core + hybrid + enrichment subpackages, 100% branch coverage)
+bankstatementparser/hybrid/   v0.0.5 PDF pipeline: orchestrator, llm_extractor, vision, pdf_text, prompts, verification
+docs/compliance/       ISO 13485 validation, risk register, traceability matrix
+examples/              14 deterministic + 8 hybrid runnable example scripts
 scripts/               SBOM generation, checksums, signature verification
-tests/                 467 tests (unit, integration, property-based, security)
+tests/                 644 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ## Security

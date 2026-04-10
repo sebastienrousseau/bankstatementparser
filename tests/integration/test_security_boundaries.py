@@ -103,13 +103,15 @@ class TestSecurityBoundaries:
 
     def test_file_extension_validation(self, temp_dir):
         """Test file extension security validation."""
-        # Create files with various extensions
+        # Create files with various extensions. Note: .json is
+        # intentionally NOT in this list as of v0.0.6 because the
+        # ``--type review`` subcommand consumes saved IngestResult
+        # JSON files — see input_validator.ALLOWED_INPUT_EXTENSIONS.
         test_files = {
             "script.py": "print('hello')",
             "executable.exe": "binary content",
             "webpage.html": "<html></html>",
             "config.conf": "[section]",
-            "data.json": "{}",
         }
 
         for filename, content in test_files.items():

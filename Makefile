@@ -14,14 +14,60 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY:	dist
+.PHONY: install install-all install-hooks dist release test lint typecheck security verify clean
 
-dist:
-	rm -rf ./dist && \
-	python3 setup.py sdist bdist_wheel
+# ----- Local development -----------------------------------------------------
 
+install:
+	poetry install --with dev
+
+# Wire the pre-commit hook so `make verify` runs before every commit.
+# One-time setup per clone — idempotent, safe to re-run.
+install-hooks:
+	git config core.hooksPath .githooks
+	@echo "pre-commit hook installed (.githooks/pre-commit)"
+
+# Install with all hybrid extras (litellm, pypdf, pdfplumber, pypdfium2).
+install-all:
+	poetry install --with dev -E hybrid-vision -E hybrid-plus -E polars
+
+# ----- Pre-PR validation gates ----------------------------------------------
+
+test:
+	poetry run pytest --cov=bankstatementparser
+
+lint:
+	poetry run ruff check bankstatementparser tests examples scripts
+
+typecheck:
+	poetry run mypy bankstatementparser
+
+security:
+	poetry run bandit -r bankstatementparser examples scripts -c pyproject.toml
+
+# Run every gate the GitHub Actions pipeline runs, in the same order.
+verify: lint typecheck test security
+
+# ----- Build & release ------------------------------------------------------
+
+clean:
+	rm -rf ./dist ./build ./*.egg-info
+
+# Produce sdist + wheel via Poetry. Replaces the legacy
+# `python3 setup.py sdist bdist_wheel` flow that drifted out of sync with
+# the Poetry-managed pyproject.toml.
+dist: clean
+	poetry build
+
+# Tag the current version, push, then publish to PyPI. Aborts if the
+# working tree is dirty. The tag is signed with the configured signing
+# key (commit.gpgsign / tag.gpgSign / gpg.format must be set — see
+# CONTRIBUTING.md).
 release: dist
-	git diff --exit-code && \
-	twine upload dist/* && \
-	git tag $$(python3 setup.py --version|tail -1) && \
-	git push && git push --tags
+	git diff --exit-code
+	git diff --cached --exit-code
+	@VERSION=$$(poetry version --short); \
+	  git tag -s "v$$VERSION" -m "Release v$$VERSION" && \
+	  git push && \
+	  git push origin "v$$VERSION" && \
+	  poetry publish

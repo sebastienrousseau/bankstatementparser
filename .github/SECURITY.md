@@ -2,10 +2,11 @@
 
 ## Supported Versions
 
-| Version | Supported |
-|---|---|
-| 0.0.4 (latest) | Yes |
-| < 0.0.4 | No |
+| Version | Supported | Notes |
+|---|---|---|
+| 0.0.6 (current) | Yes | Requires Python ≥ 3.10 |
+| 0.0.5 | Yes | Last release supporting Python 3.9 |
+| < 0.0.5 | No | |
 
 ## Reporting a Vulnerability
 

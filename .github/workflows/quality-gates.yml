@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
@@ -47,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
@@ -94,8 +94,11 @@ jobs:
             tests/test_hybrid_llm_extractor.py \
             tests/test_hybrid_orchestrator.py \
             tests/test_hybrid_pdf_text.py \
+            tests/test_hybrid_review_cli.py \
             tests/test_hybrid_verification.py \
             tests/test_hybrid_vision.py \
+            tests/test_enrichment_categorizer.py \
+            tests/test_docs_accuracy.py \
             tests/integration/test_zip_security.py
 
   integration-tests:

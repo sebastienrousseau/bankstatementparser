@@ -59,6 +59,8 @@ class InputValidator:
         ".STA",
         ".pdf",
         ".PDF",
+        ".json",
+        ".JSON",
     }
 
     # Allowed file extensions for output files
@@ -69,6 +71,8 @@ class InputValidator:
         ".XLSX",
         ".xls",
         ".XLS",
+        ".json",
+        ".JSON",
     }
 
     # Dangerous path patterns to block

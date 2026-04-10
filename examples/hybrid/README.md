@@ -113,7 +113,8 @@ above to switch to the live path.
 | [`03_smart_ingest_vision.py`](03_smart_ingest_vision.py) | C | `BSP_HYBRID_VISION_MODEL` | Scan → `pypdfium2` render → multimodal LLM → rows. Demonstrates `LOW_TEXT_DENSITY_THRESHOLD` automatic handover and a `DISCREPANCY` outcome. |
 | [`04_golden_rule.py`](04_golden_rule.py) | n/a | nothing | All three `verify_balance()` outcomes (`VERIFIED`, `DISCREPANCY`, `FAILED`) on the same dataset. |
 | [`05_dedupe_recurring.py`](05_dedupe_recurring.py) | n/a | nothing | `normalize_description()` noise stripping, `transaction_hash` stability, idempotent batching with `Deduplicator.dedupe_by_hash()`. |
-| [`06_cli_walkthrough.sh`](06_cli_walkthrough.sh) | A/B/C | `BSP_HYBRID_*` env vars | Four flavours of the new `--type ingest` CLI subcommand. |
+| [`06_cli_walkthrough.sh`](06_cli_walkthrough.sh) | A/B/C | `BSP_HYBRID_*` env vars | Four flavours of the new `--type ingest` CLI subcommand (bash, for macOS / Linux / WSL). |
+| [`06_cli_walkthrough.ps1`](06_cli_walkthrough.ps1) | A/B/C | `BSP_HYBRID_*` env vars | PowerShell sibling of the bash walkthrough — runs identically on native Windows (PowerShell 7+) without WSL. |
 
 ## Mock vs. live mode — what to expect
 
@@ -180,7 +181,8 @@ bankstatementparser --type ingest --input /path/to/your_statement.pdf
 | `02_*` live mode (local Ollama) | ✅ | ✅ | ✅ * | ✅ |
 | `03_*` mock mode | ✅ | ✅ | ✅ | ✅ |
 | `03_*` live mode (Ollama llava) | ✅ | ✅ | ✅ * | ✅ |
-| `06_cli_walkthrough.sh` | ✅ | ✅ | ✅ | ❌ (use PowerShell equivalents) |
+| `06_cli_walkthrough.sh` | ✅ | ✅ | ✅ | use `06_cli_walkthrough.ps1` |
+| `06_cli_walkthrough.ps1` | ✅ (PowerShell 7+) | ✅ (PowerShell 7+) | ✅ | ✅ |
 
 \* On WSL, if Ollama runs on the Windows host instead of inside WSL,
 set `BSP_HYBRID_API_BASE=http://host.docker.internal:11434` so

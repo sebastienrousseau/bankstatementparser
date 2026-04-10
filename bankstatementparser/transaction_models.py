@@ -24,7 +24,13 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    model_validator,
+)
 
 
 def _coerce_decimal(value: object) -> Decimal:
@@ -103,6 +109,46 @@ def _first_value(
 SourceMethod = Literal["deterministic", "llm"]
 
 
+class BoundingBox(BaseModel):
+    """Normalized rectangle locating a row in its source PDF page.
+
+    All four coordinates are in the **0.0-1.0 range** relative to the
+    rendered page they came from. This makes the model resolution-
+    independent — the same row's bbox stays valid whether the user
+    re-renders at 1× or 2× scale, and tooling that highlights source
+    pixels in a UI (the v0.0.6 review mode, #45) doesn't need to know
+    the original render dimensions.
+
+    Convention: ``(x0, y0)`` is the top-left corner, ``(x1, y1)`` is
+    the bottom-right corner. Origin is at the top-left of the page,
+    matching the coordinate system every multimodal LLM I've tested
+    actually uses (gpt-4o, claude-opus-4-6, qwen2-vl, minicpm-v).
+
+    ``page_index`` is the zero-based page number within the source
+    PDF — populated whenever the bbox spans a multi-page document.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    x0: float = Field(ge=0.0, le=1.0)
+    y0: float = Field(ge=0.0, le=1.0)
+    x1: float = Field(ge=0.0, le=1.0)
+    y1: float = Field(ge=0.0, le=1.0)
+    page_index: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def _check_non_inverted(self) -> BoundingBox:
+        if self.x0 > self.x1:
+            raise ValueError(
+                f"BoundingBox x0 ({self.x0}) must be <= x1 ({self.x1})"
+            )
+        if self.y0 > self.y1:
+            raise ValueError(
+                f"BoundingBox y0 ({self.y0}) must be <= y1 ({self.y1})"
+            )
+        return self
+
+
 class Transaction(BaseModel):
     """Normalized transaction model for deterministic downstream logic."""
 
@@ -122,11 +168,18 @@ class Transaction(BaseModel):
     source_index: Optional[int] = None
     source_method: SourceMethod = "deterministic"
     confidence: Optional[float] = None
-    # Placeholders for the v0.0.6 "Intelligence Layer" release. Kept on
-    # the model now so v0.0.6 can populate them without a breaking
-    # schema migration.
+    # Populated by the v0.0.6 enrichment module (#44). Defaults to
+    # ``None`` so the deterministic core stays opinion-free.
     category: Optional[str] = None
+    # Best-effort source-text slice for v0.0.6 review mode (#45).
+    # Populated by ``LLMExtractor`` via ``_slice_source_context``.
     raw_source_text: Optional[str] = None
+    # Per-row bounding box from the v0.0.6 vision path (#46).
+    # Populated by ``VisionExtractor`` when the multimodal model
+    # returns spatial coordinates. Always ``None`` for the
+    # deterministic and text-LLM paths because no spatial source
+    # exists in either case.
+    source_bbox: Optional[BoundingBox] = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property

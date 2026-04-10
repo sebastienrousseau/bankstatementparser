@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.5"
+version = "0.0.6"
 description = "BankStatementParser is your essential tool for easy bank statement management. Designed with finance and treasury experts in mind, it offers a simple way to handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from your financial data and spend less time on processing. It's the smart, hassle-free way to stay on top of your transactions."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache Software License"
@@ -12,14 +12,14 @@ homepage = "https://bankstatementparser.com"
 poetry-plugin-export = ">=1.8"
 
 [tool.poetry.dependencies]
-python = ">=3.9"
+python = ">=3.10,<4.0"
 lxml = ">=4.9.3"
 openpyxl = "^3.1.5"
 pandas = "^2.3.3"
 defusedxml = "^0.7.1"
 pydantic = "^2.11.0"
 polars = {version = "^1.32.0", optional = true}
-litellm = {version = ">=1.50.0", optional = true}
+litellm = {version = ">=1.83.0", optional = true}
 pypdf = {version = ">=4.0.0", optional = true}
 pdfplumber = {version = ">=0.11.0", optional = true}
 pypdfium2 = {version = ">=4.30.0", optional = true}
@@ -38,6 +38,7 @@ polars = ["polars"]
 hybrid = ["litellm", "pypdf"]
 hybrid-plus = ["litellm", "pypdf", "pdfplumber"]
 hybrid-vision = ["litellm", "pypdf", "pypdfium2"]
+enrichment = ["litellm"]
 
 [tool.poetry.scripts]
 bankstatementparser = "bankstatementparser.cli:main"
@@ -48,7 +49,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 72
-target-version = ["py39"]
+target-version = ["py310"]
 
 [tool.isort]
 profile = "black"
@@ -60,7 +61,7 @@ combine_as_imports = true
 known_first_party = "bankstatementparser"
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 72
 src = ["bankstatementparser", "tests", "examples", "scripts"]
 
@@ -76,6 +77,11 @@ select = [
 ]
 ignore = [
     "E501",
+    # UP007 + UP045 — Optional[X] / Union[X, Y] are kept verbatim
+    # for now. Migrating ~100 occurrences to the PEP 604 `X | None`
+    # / `X | Y` syntax is a deliberate follow-up cleanup PR after
+    # v0.0.6 ships, not part of the Python-3.9 retirement work.
+    "UP007",
     "UP045",
 ]
 
@@ -83,7 +89,7 @@ ignore = [
 known-first-party = ["bankstatementparser"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_ignores = true

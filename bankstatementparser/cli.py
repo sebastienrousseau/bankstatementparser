@@ -28,7 +28,7 @@ from typing import Optional
 
 import pandas as pd
 
-from bankstatementparser import CamtParser, Pain001Parser
+from bankstatementparser import CamtParser, Pain001Parser, Transaction
 from bankstatementparser.input_validator import (
     InputValidator,
     ValidationError,
@@ -141,10 +141,12 @@ class BankStatementCLI:
             "--type",
             type=str,
             required=True,
-            choices=["camt", "pain001", "ingest"],
+            choices=["camt", "pain001", "ingest", "review"],
             help=(
-                'Type of the bank statement file: "camt", "pain001", '
-                'or "ingest" for the hybrid deterministic+LLM pipeline.'
+                'Type of operation: "camt"/"pain001" for direct '
+                'parsing, "ingest" for the hybrid pipeline, or '
+                '"review" to walk through a saved IngestResult JSON '
+                'and resolve discrepancies.'
             ),
         )
         parser.add_argument(
@@ -542,6 +544,251 @@ class BankStatementCLI:
         for warning in result.warnings:
             print(f"Warning: {warning}")
 
+    def run_review(
+        self,
+        file_path: Path,
+        output_path: Optional[Path] = None,
+    ) -> None:
+        """Walk through a saved IngestResult JSON and resolve discrepancies.
+
+        Reads the file produced by ``--type ingest --output ...``
+        (when that file is JSON) or any other source that emits an
+        :class:`~bankstatementparser.hybrid.IngestResult` via its
+        ``to_json()`` method. For every transaction whose status is
+        :class:`VerificationStatus.DISCREPANCY` or
+        :class:`VerificationStatus.FAILED`, the operator is prompted
+        with a single-character action menu:
+
+        * ``a`` accept the row as-is
+        * ``e`` edit the description and amount
+        * ``s`` skip (leave unresolved)
+        * ``d`` delete the row from the result
+        * ``q`` quit early without writing further changes
+
+        Every action is recorded in the ``audit_trail`` field of
+        the saved result, so the audit history is preserved across
+        review sessions.
+
+        The CLI is non-curses (plain stdin/stdout) so it works on
+        any terminal and is straightforward to mock in CI.
+        """
+        try:
+            from bankstatementparser.hybrid import (
+                IngestResult,
+                VerificationStatus,
+            )
+        except ImportError as exc:
+            print(
+                "Error: review mode requires the [hybrid] extra.\n"
+                "  Run: pip install 'bankstatementparser[hybrid]'"
+            )
+            logger.error(f"Hybrid import failed: {exc}")
+            sys.exit(1)
+            return  # pragma: no cover
+
+        try:
+            payload = file_path.read_text(encoding="utf-8")
+            result = IngestResult.from_json(payload)
+        except Exception as exc:
+            logger.error(f"Failed to load IngestResult: {exc}")
+            print(f"Error: cannot load IngestResult JSON - {exc}")
+            sys.exit(1)
+            return  # pragma: no cover
+
+        v = result.verification
+        if v is None or v.status is VerificationStatus.VERIFIED:
+            print(
+                "Verification status is "
+                f"{v.status.value.upper() if v else 'absent'}"
+                " — nothing to review."
+            )
+            return
+
+        print(
+            f"Verification: {v.status.value.upper()} - {v.message}"
+        )
+        print(f"Loaded {len(result.transactions)} transactions.")
+        print()
+
+        kept: list[Transaction] = []
+        audit: list[dict[str, object]] = list(result.audit_trail)
+
+        for index, tx in enumerate(result.transactions):
+            self._render_review_row(index, len(result.transactions), tx)
+            action = self._prompt_review_action()
+
+            if action == "q":
+                # Append everything from this row onward unchanged
+                # and stop reviewing further rows.
+                kept.extend(result.transactions[index:])
+                audit.append(
+                    {
+                        "row_index": index,
+                        "action": "quit",
+                    }
+                )
+                print("Review session quit by operator.")
+                break
+            elif action == "a":
+                kept.append(tx)
+                audit.append(
+                    {"row_index": index, "action": "accept"}
+                )
+            elif action == "s":
+                kept.append(tx)
+                audit.append(
+                    {"row_index": index, "action": "skip"}
+                )
+            elif action == "d":
+                audit.append(
+                    {
+                        "row_index": index,
+                        "action": "delete",
+                        "deleted_hash": tx.transaction_hash,
+                    }
+                )
+            else:
+                # action is guaranteed to be "e" by
+                # _prompt_review_action's whitelist; this branch is
+                # the only remaining option.
+                edited = self._edit_review_row(tx)
+                kept.append(edited)
+                audit.append(
+                    {
+                        "row_index": index,
+                        "action": "edit",
+                        "before_hash": tx.transaction_hash,
+                        "after_hash": edited.transaction_hash,
+                    }
+                )
+
+        # Reconstruct the result with the kept transactions and
+        # the appended audit trail. Verification is left untouched
+        # — re-running smart_ingest is the way to recompute it.
+        from dataclasses import replace
+
+        updated = replace(
+            result,
+            transactions=tuple(kept),
+            audit_trail=tuple(audit),
+        )
+
+        output_target = output_path or file_path
+        safe_name = self.validator.get_safe_filename(output_target.name)
+        safe_output = str(output_target.parent / safe_name)
+        Path(safe_output).write_text(
+            updated.to_json(), encoding="utf-8"
+        )
+        print(f"\nReview complete. Wrote {len(kept)} rows -> {safe_output}")
+        print(f"Audit trail entries: {len(audit)}")
+
+    def _render_review_row(
+        self,
+        index: int,
+        total: int,
+        tx: Transaction,
+    ) -> None:
+        """Print a single transaction in human-readable form."""
+        date = (
+            tx.booking_date.isoformat()
+            if tx.booking_date is not None
+            else "????-??-??"
+        )
+        desc = tx.description or "(no description)"
+        amount = tx.amount
+        confidence = tx.confidence
+        raw = tx.raw_source_text
+        bbox = tx.source_bbox
+
+        print(f"--- Row {index + 1} of {total} ---")
+        print(f"  date:        {date}")
+        print(f"  description: {desc}")
+        print(f"  amount:      {amount}")
+        if confidence is not None:
+            print(f"  confidence:  {confidence:.2f}")
+        if raw:
+            print(f"  source text: {raw[:160]}")
+        if bbox is not None:
+            print(
+                "  source bbox: "
+                f"({bbox.x0:.3f}, {bbox.y0:.3f}) -> "
+                f"({bbox.x1:.3f}, {bbox.y1:.3f}) "
+                f"page {bbox.page_index}"
+            )
+
+    def _prompt_review_action(self) -> str:
+        """Prompt the operator for an action character.
+
+        Loops until a valid character is entered. Reads from the
+        process stdin so tests can replace ``sys.stdin`` with an
+        ``io.StringIO`` to drive deterministic flows.
+        """
+        valid = {"a", "e", "s", "d", "q"}
+        while True:
+            try:
+                raw_input = input(
+                    "  [a]ccept / [e]dit / [s]kip / [d]elete / [q]uit > "
+                )
+            except EOFError:
+                # No more input — treat as quit so the test runner
+                # gets a clean exit instead of hanging.
+                return "q"
+            value = raw_input.strip().lower()[:1]
+            if value in valid:
+                return value
+            print(
+                "  Please enter one of: a, e, s, d, q"
+            )
+
+    def _edit_review_row(self, tx: Transaction) -> Transaction:
+        """Prompt the operator for new description and amount.
+
+        Returns a fresh ``Transaction`` with the edits applied. The
+        ``transaction_hash`` is automatically recomputed by the
+        Pydantic computed field.
+        """
+        from decimal import Decimal, InvalidOperation
+
+        from bankstatementparser.transaction_models import (
+            normalize_description,
+        )
+
+        current_desc = tx.description or ""
+        current_amount = tx.amount
+        try:
+            new_desc = (
+                input(f"  new description [{current_desc}]: ")
+                or current_desc
+            )
+            new_amount_raw = (
+                input(f"  new amount      [{current_amount}]: ")
+                or str(current_amount)
+            )
+            new_amount = Decimal(new_amount_raw)
+        except (EOFError, InvalidOperation):
+            print("  edit aborted; keeping original row")
+            return tx
+
+        return Transaction(
+            account_id=tx.account_id,
+            currency=tx.currency,
+            amount=new_amount,
+            booking_date=tx.booking_date,
+            value_date=tx.value_date,
+            description=new_desc,
+            normalized_description=normalize_description(new_desc),
+            reference=tx.reference,
+            transaction_id=tx.transaction_id,
+            counterparty=tx.counterparty,
+            source=tx.source,
+            source_index=tx.source_index,
+            source_method=tx.source_method,
+            confidence=tx.confidence,
+            category=tx.category,
+            raw_source_text=tx.raw_source_text,
+            source_bbox=tx.source_bbox,
+        )
+
     def run(self) -> None:
         """
         Parse command line arguments and perform the requested action.
@@ -651,6 +898,11 @@ class BankStatementCLI:
                     )
             elif args.type == "ingest":
                 self.run_ingest(
+                    validated_input_path,
+                    validated_output_path,
+                )
+            elif args.type == "review":
+                self.run_review(
                     validated_input_path,
                     validated_output_path,
                 )

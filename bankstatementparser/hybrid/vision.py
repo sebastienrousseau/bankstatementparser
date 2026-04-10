@@ -32,9 +32,10 @@ from __future__ import annotations
 
 import base64
 import os
+from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional, Union
 
 from .llm_extractor import (
     LLMExtractionResult,
@@ -66,6 +67,14 @@ booking_date (oldest first). When two rows share a date, preserve the
 visual top-to-bottom order so opening/closing balance arithmetic
 remains consistent.
 
+For each transaction row, also return its bounding box on the page
+as four NORMALIZED coordinates in the 0.0-1.0 range. ``x0,y0`` is
+the top-left of the row, ``x1,y1`` is the bottom-right. Origin is
+the top-left of the image. The bbox lets a downstream review UI
+highlight the exact pixels each row was extracted from. If you
+truly cannot estimate the bbox for a row, return ``null`` for the
+bbox field on that row only — do not skip the transaction.
+
 Schema:
 {
   "account_id": string|null,
@@ -78,7 +87,8 @@ Schema:
       "description": string,
       "amount": number,
       "reference": string|null,
-      "confidence": number
+      "confidence": number,
+      "bbox": {"x0": number, "y0": number, "x1": number, "y1": number}|null
     }
   ]
 }

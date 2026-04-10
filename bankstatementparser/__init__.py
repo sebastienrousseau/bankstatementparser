@@ -46,7 +46,7 @@ from .transaction_deduplicator import (
     ExactDuplicateGroup,
     MatchGroup,
 )
-from .transaction_models import Transaction
+from .transaction_models import BoundingBox, Transaction
 from .zip_security import (
     ZipSecurityError,
     ZipXMLSource,
@@ -67,6 +67,7 @@ __all__ = [
     "Pain001Parser",
     "Pain001ParseError",
     "ParserError",
+    "BoundingBox",
     "Transaction",
     "Deduplicator",
     "DeduplicationResult",

@@ -83,7 +83,7 @@ def test_smart_ingest_uses_deterministic_parser_when_format_detected(
     assert len(result.transactions) == 2
     assert result.transactions[0].source_method == "deterministic"
     assert result.transactions[0].transaction_hash
-    assert result.warnings == []
+    assert result.warnings == ()
 
 
 def test_smart_ingest_runs_balance_check_when_balances_provided(
@@ -412,3 +412,245 @@ def test_coerce_transactions_skips_unparsable_rows() -> None:
     ]
     txs = orchestrator._coerce_transactions(raw, source="csv")
     assert len(txs) == 1
+
+
+# ---------------------------------------------------------------------------
+# IngestResult JSON round-trip (#45)
+# ---------------------------------------------------------------------------
+
+
+def _make_full_result() -> orchestrator.IngestResult:
+    from bankstatementparser import BoundingBox, Transaction
+    from bankstatementparser.hybrid.verification import (
+        BalanceVerification,
+        VerificationStatus,
+    )
+
+    txs = [
+        Transaction(
+            amount=Decimal("100.00"),
+            booking_date="2026-04-01",  # type: ignore[arg-type]
+            description="Salary",
+            currency="GBP",
+            source_method="llm",
+            confidence=0.95,
+            source_bbox=BoundingBox(
+                x0=0.05, y0=0.10, x1=0.95, y1=0.14, page_index=0
+            ),
+        ),
+        Transaction(
+            amount=Decimal("-30.00"),
+            booking_date="2026-04-02",  # type: ignore[arg-type]
+            description="Coffee",
+            currency="GBP",
+            source_method="llm",
+            confidence=0.88,
+        ),
+    ]
+    verification = BalanceVerification(
+        status=VerificationStatus.VERIFIED,
+        opening_balance=Decimal("500.00"),
+        closing_balance=Decimal("570.00"),
+        total_credits=Decimal("100.00"),
+        total_debits=Decimal("30.00"),
+        expected_delta=Decimal("70.00"),
+        actual_delta=Decimal("70.00"),
+        discrepancy=Decimal("0.00"),
+        message="Balance verified within tolerance",
+    )
+    return orchestrator.IngestResult(
+        source_method="llm",
+        source_format="pdf",
+        transactions=tuple(txs),
+        verification=verification,
+        warnings=("a warning",),
+        audit_trail=(
+            {"action": "review_started", "operator": "alice"},
+        ),
+    )
+
+
+def test_ingest_result_json_round_trip_preserves_everything() -> None:
+    original = _make_full_result()
+    payload = original.to_json()
+    restored = orchestrator.IngestResult.from_json(payload)
+
+    assert restored.source_method == "llm"
+    assert restored.source_format == "pdf"
+    assert len(restored.transactions) == 2
+
+    # Decimals stay decimals (no float drift)
+    assert restored.transactions[0].amount == Decimal("100.00")
+    assert restored.transactions[1].amount == Decimal("-30.00")
+    # source_bbox round-trips
+    bbox = restored.transactions[0].source_bbox
+    assert bbox is not None
+    assert bbox.x0 == 0.05
+    assert bbox.page_index == 0
+    # transaction_hash stays stable across the round-trip
+    assert (
+        restored.transactions[0].transaction_hash
+        == original.transactions[0].transaction_hash
+    )
+
+    # Verification round-trips
+    assert restored.verification is not None
+    assert restored.verification.status.value == "verified"
+    assert restored.verification.opening_balance == Decimal("500.00")
+    assert restored.verification.actual_delta == Decimal("70.00")
+
+    # Warnings + audit trail preserved
+    assert restored.warnings == ("a warning",)
+    assert restored.audit_trail == (
+        {"action": "review_started", "operator": "alice"},
+    )
+
+
+def test_ingest_result_json_round_trip_with_no_verification() -> None:
+    from bankstatementparser import Transaction
+
+    original = orchestrator.IngestResult(
+        source_method="deterministic",
+        source_format="camt",
+        transactions=[
+            Transaction(amount=Decimal("10.00"), description="x")
+        ],
+    )
+    restored = orchestrator.IngestResult.from_json(original.to_json())
+    assert restored.verification is None
+    assert restored.warnings == ()
+    assert restored.audit_trail == ()
+
+
+def test_ingest_result_from_json_rejects_oversized_payload() -> None:
+    huge = "x" * (orchestrator.IngestResult.MAX_JSON_PAYLOAD_BYTES + 1)
+    with pytest.raises(ValueError, match="too large"):
+        orchestrator.IngestResult.from_json(huge)
+
+
+def test_ingest_result_from_json_rejects_non_object() -> None:
+    with pytest.raises(ValueError, match="must decode to an object"):
+        orchestrator.IngestResult.from_json('"a string"')
+
+
+def test_ingest_result_from_json_rejects_invalid_json() -> None:
+    with pytest.raises(ValueError, match="not valid JSON"):
+        orchestrator.IngestResult.from_json("not json")
+
+
+def test_ingest_result_from_json_rejects_unknown_schema_version() -> None:
+    payload = json.dumps({"schema_version": 99, "transactions": []})
+    with pytest.raises(ValueError, match="Unsupported"):
+        orchestrator.IngestResult.from_json(payload)
+
+
+def test_ingest_result_from_json_rejects_invalid_transactions() -> None:
+    payload = json.dumps(
+        {
+            "schema_version": 1,
+            "transactions": [{"booking_date": "2026-04-01"}],  # missing amount
+        }
+    )
+    with pytest.raises(ValueError, match="invalid transactions"):
+        orchestrator.IngestResult.from_json(payload)
+
+
+def test_ingest_result_from_json_rejects_non_list_warnings() -> None:
+    payload = json.dumps(
+        {"schema_version": 1, "transactions": [], "warnings": "oops"}
+    )
+    with pytest.raises(ValueError, match="warnings.*list"):
+        orchestrator.IngestResult.from_json(payload)
+
+
+def test_ingest_result_from_json_rejects_non_list_audit_trail() -> None:
+    payload = json.dumps(
+        {
+            "schema_version": 1,
+            "transactions": [],
+            "audit_trail": "oops",
+        }
+    )
+    with pytest.raises(ValueError, match="audit_trail.*list"):
+        orchestrator.IngestResult.from_json(payload)
+
+
+def test_ingest_result_from_json_rejects_non_object_verification() -> None:
+    payload = json.dumps(
+        {
+            "schema_version": 1,
+            "transactions": [],
+            "verification": "oops",
+        }
+    )
+    with pytest.raises(ValueError, match="verification.*object or null"):
+        orchestrator.IngestResult.from_json(payload)
+
+
+def test_ingest_result_from_json_rejects_invalid_verification_payload() -> (
+    None
+):
+    payload = json.dumps(
+        {
+            "schema_version": 1,
+            "transactions": [],
+            "verification": {"status": "verified"},  # missing required fields
+        }
+    )
+    with pytest.raises(ValueError, match="Invalid verification payload"):
+        orchestrator.IngestResult.from_json(payload)
+
+
+def test_ingest_result_round_trip_with_none_balance_fields() -> None:
+    """Verification with None opening/closing balances must round-trip."""
+    from bankstatementparser import Transaction
+    from bankstatementparser.hybrid.verification import (
+        BalanceVerification,
+        VerificationStatus,
+    )
+
+    verification = BalanceVerification(
+        status=VerificationStatus.FAILED,
+        opening_balance=None,  # exercises _decimal_to_str(None)
+        closing_balance=None,
+        total_credits=Decimal("100.00"),
+        total_debits=Decimal("0.00"),
+        expected_delta=None,
+        actual_delta=Decimal("100.00"),
+        discrepancy=None,
+        message="missing balances",
+    )
+    original = orchestrator.IngestResult(
+        source_method="llm",
+        source_format="pdf",
+        transactions=[Transaction(amount=Decimal("100.00"))],
+        verification=verification,
+    )
+
+    payload = original.to_json()
+    restored = orchestrator.IngestResult.from_json(payload)
+    assert restored.verification is not None
+    assert restored.verification.opening_balance is None
+    assert restored.verification.closing_balance is None
+    assert restored.verification.expected_delta is None
+    assert restored.verification.discrepancy is None
+
+
+def test_ingest_result_from_json_skips_non_dict_audit_entries() -> None:
+    payload = json.dumps(
+        {
+            "schema_version": 1,
+            "transactions": [],
+            "audit_trail": [
+                {"action": "ok"},
+                "not a dict",
+                {"action": "also ok"},
+            ],
+        }
+    )
+    restored = orchestrator.IngestResult.from_json(payload)
+    assert restored.audit_trail == (
+        {"action": "ok"},
+        {},
+        {"action": "also ok"},
+    )
