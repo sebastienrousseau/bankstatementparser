@@ -94,8 +94,10 @@ jobs:
             tests/test_hybrid_llm_extractor.py \
             tests/test_hybrid_orchestrator.py \
             tests/test_hybrid_pdf_text.py \
+            tests/test_hybrid_review_cli.py \
             tests/test_hybrid_verification.py \
             tests/test_hybrid_vision.py \
+            tests/test_enrichment_categorizer.py \
             tests/integration/test_zip_security.py
 
   integration-tests:
