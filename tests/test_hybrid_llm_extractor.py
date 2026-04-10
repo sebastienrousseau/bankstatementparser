@@ -383,3 +383,149 @@ def test_build_messages_includes_system_and_user() -> None:
     assert messages[0]["role"] == "system"
     assert messages[1]["role"] == "user"
     assert "hello" in messages[1]["content"]
+
+
+# ---------------------------------------------------------------------------
+# bbox parsing (#46)
+# ---------------------------------------------------------------------------
+
+
+def test_extract_populates_source_bbox_when_provided() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+                "bbox": {
+                    "x0": 0.05,
+                    "y0": 0.42,
+                    "x1": 0.95,
+                    "y1": 0.46,
+                },
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    result = extractor.extract("statement")
+    bbox = result.transactions[0].source_bbox
+    assert bbox is not None
+    assert bbox.x0 == 0.05
+    assert bbox.y1 == 0.46
+    assert bbox.page_index == 0
+
+
+def test_extract_accepts_explicit_page_index_in_bbox() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+                "bbox": {
+                    "x0": 0.0,
+                    "y0": 0.0,
+                    "x1": 1.0,
+                    "y1": 1.0,
+                    "page_index": 2,
+                },
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    result = extractor.extract("statement")
+    assert result.transactions[0].source_bbox is not None
+    assert result.transactions[0].source_bbox.page_index == 2
+
+
+def test_extract_leaves_source_bbox_none_when_omitted() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    result = extractor.extract("statement")
+    assert result.transactions[0].source_bbox is None
+
+
+def test_extract_leaves_source_bbox_none_when_explicitly_null() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+                "bbox": None,
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    result = extractor.extract("statement")
+    assert result.transactions[0].source_bbox is None
+
+
+def test_extract_rejects_non_object_bbox() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+                "bbox": "not-a-dict",
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    with pytest.raises(LLMExtractorError, match="non-object bbox"):
+        extractor.extract("statement")
+
+
+def test_extract_rejects_bbox_missing_required_keys() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+                "bbox": {"x0": 0.1, "y0": 0.2},
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    with pytest.raises(LLMExtractorError, match="invalid bbox"):
+        extractor.extract("statement")
+
+
+def test_extract_rejects_bbox_out_of_range() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+                "bbox": {"x0": 1.5, "y0": 0.2, "x1": 0.9, "y1": 0.4},
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    with pytest.raises(LLMExtractorError, match="invalid bbox"):
+        extractor.extract("statement")

@@ -36,7 +36,11 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
 
-from ..transaction_models import Transaction, normalize_description
+from ..transaction_models import (
+    BoundingBox,
+    Transaction,
+    normalize_description,
+)
 from .prompts import build_messages
 
 DEFAULT_MODEL = "ollama/llama3"
@@ -251,6 +255,7 @@ def _build_result(
         description_str = (
             str(description) if description is not None else None
         )
+        bbox = _parse_bbox(item.get("bbox"), index)
         transactions.append(
             Transaction(
                 account_id=str(account_id)
@@ -278,6 +283,7 @@ def _build_result(
                 raw_source_text=_slice_source_context(
                     description_str, source_text
                 ),
+                source_bbox=bbox,
             )
         )
 
@@ -289,6 +295,37 @@ def _build_result(
         transactions=transactions,
         raw_response=raw,
     )
+
+
+def _parse_bbox(value: Any, index: int) -> Optional[BoundingBox]:
+    """Convert an LLM-supplied bbox dict into a :class:`BoundingBox`.
+
+    Returns ``None`` when the LLM didn't include a bbox for the row
+    (the deterministic and text-LLM paths never do; the vision path
+    is allowed to omit it per row when the model can't estimate
+    coordinates). Raises :class:`LLMExtractorError` for malformed
+    bbox payloads so a hallucinated bbox doesn't silently corrupt
+    the model.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise LLMExtractorError(
+            f"Transaction at index {index} has non-object bbox: "
+            f"{type(value).__name__}"
+        )
+    try:
+        return BoundingBox(
+            x0=float(value["x0"]),
+            y0=float(value["y0"]),
+            x1=float(value["x1"]),
+            y1=float(value["y1"]),
+            page_index=int(value.get("page_index", 0)),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise LLMExtractorError(
+            f"Transaction at index {index} has invalid bbox: {exc}"
+        ) from exc
 
 
 def _safe_date(value: Any) -> Any:
