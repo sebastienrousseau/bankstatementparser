@@ -52,7 +52,7 @@ Every extracted row carries an immutable `transaction_hash`, an audit-trail `sou
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
 | **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
 | **Export** | CSV, JSON, Excel (`.xlsx`), and optional Polars DataFrames |
-| **100% coverage** | 541 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
+| **100% coverage** | 612 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
 
 ## Requirements
 
@@ -363,12 +363,12 @@ See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference of ISO 20022 X
 ## Project Layout
 
 ```text
-bankstatementparser/   Source code (21 modules: deterministic core + hybrid subpackage, 100% branch coverage)
+bankstatementparser/   Source code (23 modules: deterministic core + hybrid + enrichment subpackages, 100% branch coverage)
 bankstatementparser/hybrid/   v0.0.5 PDF pipeline: orchestrator, llm_extractor, vision, pdf_text, prompts, verification
 docs/compliance/       ISO 13485 validation, risk register, traceability matrix
 examples/              14 deterministic + 8 hybrid runnable example scripts
 scripts/               SBOM generation, checksums, signature verification
-tests/                 541 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                 612 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ## Security

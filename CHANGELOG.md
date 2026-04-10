@@ -9,12 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.6] — 2026-04-08
 
-> "Intelligence Layer (kickoff)" — first release in the v0.0.6
-> milestone. Drops Python 3.9 to retire the entire transitive CVE
-> allow-list inherited from v0.0.5 and unblock cleaner dependency
-> resolution for the rest of the milestone (categorization, review
-> mode, OCR bbox mapping). Closes
+> "Intelligence Layer" — the full v0.0.6 milestone. Drops Python
+> 3.9 to retire the entire transitive CVE allow-list inherited from
+> v0.0.5, adds a categorization enrichment module, an interactive
+> review mode for discrepancy resolution, and per-row bounding-box
+> extraction from the vision pipeline. Closes
+> [#44](https://github.com/sebastienrousseau/bankstatementparser/issues/44),
+> [#45](https://github.com/sebastienrousseau/bankstatementparser/issues/45),
+> [#46](https://github.com/sebastienrousseau/bankstatementparser/issues/46),
 > [#47](https://github.com/sebastienrousseau/bankstatementparser/issues/47).
+
+### Added
+
+#### `bankstatementparser.enrichment` subpackage (#44)
+
+- **`Categorizer`** — LiteLLM-backed transaction categorizer with
+  pluggable schema. Default taxonomy is Plaid's 13-category set.
+  Supports batch processing, graceful failure (no data loss on LLM
+  errors), and schema-normalizing category label matching.
+- **`EnrichedTransaction`** — wrapper (not mutator) around
+  `Transaction` carrying `category`, `is_business_expense`,
+  `enrichment_confidence`, and `rationale`. The original
+  `Transaction` is never modified so dedup keys and audit trails
+  stay stable.
+- **`DEFAULT_CATEGORY_SCHEMA`** — Plaid's 13-category taxonomy as
+  a tuple. Users with Xero, IRS Schedule C, or custom taxonomies
+  pass their own tuple.
+- **`[enrichment]`** install extra (litellm only).
+
+#### Interactive review mode (#45)
+
+- **`IngestResult.to_json()` / `.from_json()`** — stable JSON
+  round-trip with `schema_version=1`, Decimal amounts as strings
+  (no float drift), ISO-formatted dates, and an embedded
+  `audit_trail` array that persists across review sessions.
+- **`--type review` CLI subcommand** — reads a saved IngestResult
+  JSON, walks every transaction with a single-character action
+  menu (`a`ccept / `e`dit / `s`kip / `d`elete / `q`uit), records
+  every operator action in the audit trail, and writes the updated
+  result back to disk. Non-interactive (plain stdin/stdout) so it
+  works on any terminal and is easy to mock in tests.
+- **`.json`** added to `InputValidator.ALLOWED_INPUT_EXTENSIONS`
+  and `ALLOWED_OUTPUT_EXTENSIONS`.
+
+#### Per-row bounding-box extraction (#46)
+
+- **`BoundingBox`** Pydantic model with normalized (0.0–1.0)
+  coordinates and `page_index`, exported from the top-level
+  package.
+- **`Transaction.source_bbox: Optional[BoundingBox]`** — populated
+  by the vision path when the multimodal model returns spatial
+  coordinates. Always `None` for the deterministic and text-LLM
+  paths.
+- **`VISION_SYSTEM_PROMPT`** updated to ask the model for per-row
+  bounding boxes in the JSON schema.
+- **`_parse_bbox()`** helper in `llm_extractor.py` validates and
+  converts the LLM-supplied bbox dict into a `BoundingBox`,
+  rejecting malformed or out-of-range coordinates.
 
 ### Removed
 
