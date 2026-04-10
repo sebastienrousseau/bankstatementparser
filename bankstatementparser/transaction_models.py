@@ -24,7 +24,13 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    model_validator,
+)
 
 
 def _coerce_decimal(value: object) -> Decimal:
@@ -129,6 +135,18 @@ class BoundingBox(BaseModel):
     x1: float = Field(ge=0.0, le=1.0)
     y1: float = Field(ge=0.0, le=1.0)
     page_index: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def _check_non_inverted(self) -> BoundingBox:
+        if self.x0 > self.x1:
+            raise ValueError(
+                f"BoundingBox x0 ({self.x0}) must be <= x1 ({self.x1})"
+            )
+        if self.y0 > self.y1:
+            raise ValueError(
+                f"BoundingBox y0 ({self.y0}) must be <= y1 ({self.y1})"
+            )
+        return self
 
 
 class Transaction(BaseModel):

@@ -83,7 +83,7 @@ def test_smart_ingest_uses_deterministic_parser_when_format_detected(
     assert len(result.transactions) == 2
     assert result.transactions[0].source_method == "deterministic"
     assert result.transactions[0].transaction_hash
-    assert result.warnings == []
+    assert result.warnings == ()
 
 
 def test_smart_ingest_runs_balance_check_when_balances_provided(
@@ -461,12 +461,12 @@ def _make_full_result() -> orchestrator.IngestResult:
     return orchestrator.IngestResult(
         source_method="llm",
         source_format="pdf",
-        transactions=txs,
+        transactions=tuple(txs),
         verification=verification,
-        warnings=["a warning"],
-        audit_trail=[
-            {"action": "review_started", "operator": "alice"}
-        ],
+        warnings=("a warning",),
+        audit_trail=(
+            {"action": "review_started", "operator": "alice"},
+        ),
     )
 
 
@@ -500,10 +500,10 @@ def test_ingest_result_json_round_trip_preserves_everything() -> None:
     assert restored.verification.actual_delta == Decimal("70.00")
 
     # Warnings + audit trail preserved
-    assert restored.warnings == ["a warning"]
-    assert restored.audit_trail == [
-        {"action": "review_started", "operator": "alice"}
-    ]
+    assert restored.warnings == ("a warning",)
+    assert restored.audit_trail == (
+        {"action": "review_started", "operator": "alice"},
+    )
 
 
 def test_ingest_result_json_round_trip_with_no_verification() -> None:
@@ -518,8 +518,14 @@ def test_ingest_result_json_round_trip_with_no_verification() -> None:
     )
     restored = orchestrator.IngestResult.from_json(original.to_json())
     assert restored.verification is None
-    assert restored.warnings == []
-    assert restored.audit_trail == []
+    assert restored.warnings == ()
+    assert restored.audit_trail == ()
+
+
+def test_ingest_result_from_json_rejects_oversized_payload() -> None:
+    huge = "x" * (orchestrator.IngestResult.MAX_JSON_PAYLOAD_BYTES + 1)
+    with pytest.raises(ValueError, match="too large"):
+        orchestrator.IngestResult.from_json(huge)
 
 
 def test_ingest_result_from_json_rejects_non_object() -> None:
@@ -643,8 +649,8 @@ def test_ingest_result_from_json_skips_non_dict_audit_entries() -> None:
         }
     )
     restored = orchestrator.IngestResult.from_json(payload)
-    assert restored.audit_trail == [
+    assert restored.audit_trail == (
         {"action": "ok"},
         {},
         {"action": "also ok"},
-    ]
+    )

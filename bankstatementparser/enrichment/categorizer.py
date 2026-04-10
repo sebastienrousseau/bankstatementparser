@@ -51,6 +51,7 @@ and just instructs the LLM to pick from the provided list.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from collections.abc import Callable, Iterable
@@ -60,6 +61,8 @@ from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict
 
 from ..transaction_models import Transaction
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Default category schema
@@ -189,9 +192,29 @@ def _build_messages(
     ]
 
 
+def _sanitize_for_prompt(value: str) -> str:
+    """Strip control characters and common injection markers.
+
+    Bank statement descriptions are untrusted text interpolated into
+    an LLM prompt. No sanitizer is perfect against prompt injection,
+    but stripping control characters and known markers like
+    ``[SYSTEM``, ``[INST`` makes casual injection substantially
+    harder and prevents the most common attack patterns.
+    """
+    # 1. Strip ASCII control characters (0x00-0x1F except newline)
+    cleaned = re.sub(r"[\x00-\x09\x0b-\x1f]", "", value)
+    # 2. Collapse markdown/instruction markers
+    cleaned = cleaned.replace("[SYSTEM", "[SYS_").replace(
+        "[INST", "[INS_"
+    )
+    # 3. Strip backtick fences that could close a code block
+    cleaned = cleaned.replace("```", "")
+    return cleaned
+
+
 def _format_row(index: int, tx: Transaction) -> str:
     date = tx.booking_date.isoformat() if tx.booking_date else "????-??-??"
-    desc = tx.description or "(no description)"
+    desc = _sanitize_for_prompt(tx.description or "(no description)")
     return f"  [{index}] {date}  {tx.amount:>10}  {desc[:80]}"
 
 
@@ -203,6 +226,14 @@ def _format_row(index: int, tx: Transaction) -> str:
 @dataclass
 class Categorizer:
     """LiteLLM-backed transaction categorizer.
+
+    .. warning::
+
+        **Not thread-safe.** Instantiate one ``Categorizer`` per
+        thread if you need concurrent categorization. The
+        ``completion_fn`` callback is shared mutable state; calling
+        ``categorize_batch()`` from multiple threads on the same
+        instance may produce race conditions in the LLM client.
 
     Args:
         schema: Tuple of category strings the LLM is allowed to
@@ -225,6 +256,10 @@ class Categorizer:
     batch_size: int = 25
     _resolved_model: str = field(init=False, default="")
 
+    _schema_lookup: dict[str, str] = field(
+        init=False, default_factory=dict, repr=False
+    )
+
     def __post_init__(self) -> None:
         if not self.schema:
             raise ValueError("schema must be a non-empty tuple")
@@ -236,6 +271,8 @@ class Categorizer:
             or os.environ.get(ENV_FALLBACK_MODEL)
             or DEFAULT_ENRICHMENT_MODEL
         )
+        # Cache once instead of rebuilding per chunk
+        self._schema_lookup = {c.lower(): c for c in self.schema}
 
     def categorize(
         self, transaction: Transaction
@@ -304,7 +341,7 @@ class Categorizer:
 
         raw = _extract_message_content(response)
         payload = _parse_json_payload(raw)
-        return _build_enriched(chunk, payload, self.schema)
+        return _build_enriched(chunk, payload, self._schema_lookup)
 
     def _resolve_completion(self) -> CompletionFn:
         if self.completion_fn is not None:
@@ -373,7 +410,7 @@ def _parse_json_payload(raw: str) -> dict[str, Any]:
 def _build_enriched(
     chunk: list[Transaction],
     payload: dict[str, Any],
-    schema: tuple[str, ...],
+    schema_lookup: dict[str, str],
 ) -> list[EnrichedTransaction]:
     raw_results = payload.get("results")
     if not isinstance(raw_results, list):
@@ -392,9 +429,12 @@ def _build_enriched(
             raise CategorizerError(
                 "Enrichment 'results' entry missing integer 'index'"
             )
+        if idx in by_index:
+            logger.warning(
+                "LLM returned duplicate index %d; last entry wins",
+                idx,
+            )
         by_index[idx] = entry
-
-    schema_lookup = {c.lower(): c for c in schema}
     out: list[EnrichedTransaction] = []
     for index, tx in enumerate(chunk):
         entry = by_index.get(index)

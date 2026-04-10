@@ -513,6 +513,42 @@ def test_extract_rejects_bbox_missing_required_keys() -> None:
         extractor.extract("statement")
 
 
+def test_extract_rejects_inverted_bbox_x() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+                "bbox": {"x0": 0.9, "y0": 0.2, "x1": 0.1, "y1": 0.4},
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    with pytest.raises(LLMExtractorError, match="invalid bbox"):
+        extractor.extract("statement")
+
+
+def test_extract_rejects_inverted_bbox_y() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+                "bbox": {"x0": 0.1, "y0": 0.9, "x1": 0.5, "y1": 0.1},
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    with pytest.raises(LLMExtractorError, match="invalid bbox"):
+        extractor.extract("statement")
+
+
 def test_extract_rejects_bbox_out_of_range() -> None:
     payload = {
         "transactions": [

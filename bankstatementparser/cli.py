@@ -610,7 +610,7 @@ class BankStatementCLI:
         print(f"Loaded {len(result.transactions)} transactions.")
         print()
 
-        kept: list[object] = []
+        kept: list[Transaction] = []
         audit: list[dict[str, object]] = list(result.audit_trail)
 
         for index, tx in enumerate(result.transactions):
@@ -669,8 +669,8 @@ class BankStatementCLI:
 
         updated = replace(
             result,
-            transactions=kept,  # type: ignore[arg-type]
-            audit_trail=audit,
+            transactions=tuple(kept),
+            audit_trail=tuple(audit),
         )
 
         output_target = output_path or file_path

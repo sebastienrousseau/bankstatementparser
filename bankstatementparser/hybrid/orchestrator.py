@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal, DecimalException
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -92,10 +92,10 @@ class IngestResult:
 
     source_method: str
     source_format: Optional[str]
-    transactions: list[Transaction]
+    transactions: tuple[Transaction, ...]
     verification: Optional[BalanceVerification] = None
-    warnings: list[str] = field(default_factory=list)
-    audit_trail: list[dict[str, Any]] = field(default_factory=list)
+    warnings: tuple[str, ...] = ()
+    audit_trail: tuple[dict[str, Any], ...] = ()
 
     def to_json(self, *, indent: Optional[int] = 2) -> str:
         """Serialize to a stable JSON string.
@@ -123,9 +123,19 @@ class IngestResult:
             "audit_trail": list(self.audit_trail),
         }
 
+    # Reject payloads larger than 50 MB to prevent memory exhaustion
+    # on adversarially crafted JSON (e.g. a billion-row transaction
+    # array). Real bank statements never exceed a few hundred KB.
+    MAX_JSON_PAYLOAD_BYTES = 50 * 1024 * 1024
+
     @classmethod
     def from_json(cls, payload: str) -> IngestResult:
         """Reconstruct from a JSON string previously written by :meth:`to_json`."""
+        if len(payload) > cls.MAX_JSON_PAYLOAD_BYTES:
+            raise ValueError(
+                f"IngestResult JSON payload too large: "
+                f"{len(payload)} bytes > {cls.MAX_JSON_PAYLOAD_BYTES}"
+            )
         try:
             data = json.loads(payload)
         except json.JSONDecodeError as exc:
@@ -168,13 +178,13 @@ class IngestResult:
         return cls(
             source_method=str(data.get("source_method", "")),
             source_format=data.get("source_format"),
-            transactions=transactions,
+            transactions=tuple(transactions),
             verification=verification,
-            warnings=[str(w) for w in warnings_raw],
-            audit_trail=[
+            warnings=tuple(str(w) for w in warnings_raw),
+            audit_trail=tuple(
                 dict(entry) if isinstance(entry, dict) else {}
                 for entry in audit_raw
-            ],
+            ),
         )
 
 
@@ -336,9 +346,9 @@ def _run_deterministic(
     return IngestResult(
         source_method="deterministic",
         source_format=fmt,
-        transactions=transactions,
+        transactions=tuple(transactions),
         verification=verification,
-        warnings=warnings,
+        warnings=tuple(warnings),
     )
 
 
@@ -431,9 +441,9 @@ def _build_ingest_result(
     return IngestResult(
         source_method=source_method,
         source_format="pdf",
-        transactions=result.transactions,
+        transactions=tuple(result.transactions),
         verification=verification,
-        warnings=warnings,
+        warnings=tuple(warnings),
     )
 
 
