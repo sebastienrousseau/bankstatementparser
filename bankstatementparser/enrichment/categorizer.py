@@ -1,0 +1,445 @@
+# Copyright (C) 2023-2026 Bank Statement Parser. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""LiteLLM-backed transaction categorizer.
+
+This module is the only piece of :mod:`bankstatementparser` that
+returns *opinions* (a category label, an is-business-expense
+boolean) rather than *facts* extracted from the source statement.
+It lives behind the ``[enrichment]`` install extra so the
+deterministic core stays opinion-free.
+
+Wrapper rather than mutator
+---------------------------
+
+The categorizer returns :class:`EnrichedTransaction` instances that
+hold the original :class:`Transaction` plus the inferred fields.
+The original ``Transaction`` is **never mutated** — it is the only
+field on ``EnrichedTransaction``, accessible as ``et.transaction``.
+This guarantees that:
+
+* The deterministic ``Transaction.transaction_hash`` stays stable
+  even after enrichment, so downstream dedup and idempotent
+  ingestion still work.
+* Auditors can always recover the original "facts from source" by
+  ignoring the wrapper fields.
+* Removing categorization from the pipeline never loses data.
+
+Pluggable schema
+----------------
+
+:data:`DEFAULT_CATEGORY_SCHEMA` is the Plaid 13-category taxonomy,
+which is well-known and broadly applicable for personal-finance
+use cases. Users with their own taxonomy (Xero, IRS Schedule C, a
+custom internal one) pass their own list of category strings to
+:class:`Categorizer`. The categorizer treats the schema as opaque
+and just instructs the LLM to pick from the provided list.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field
+from typing import Any, Optional
+
+from pydantic import BaseModel, ConfigDict
+
+from ..transaction_models import Transaction
+
+# ---------------------------------------------------------------------------
+# Default category schema
+# ---------------------------------------------------------------------------
+
+# Plaid's 13-category taxonomy. Broadly applicable for personal
+# finance and small-business use cases. Users with a different
+# taxonomy (Xero, IRS Schedule C, etc.) pass their own list to
+# :class:`Categorizer`.
+DEFAULT_CATEGORY_SCHEMA: tuple[str, ...] = (
+    "Bank Fees",
+    "Cash Advance",
+    "Community",
+    "Food and Drink",
+    "Healthcare",
+    "Interest",
+    "Payment",
+    "Recreation",
+    "Service",
+    "Shops",
+    "Tax",
+    "Transfer",
+    "Travel",
+)
+
+DEFAULT_ENRICHMENT_MODEL = "ollama/llama3"
+ENV_ENRICHMENT_MODEL = "BSP_HYBRID_ENRICHMENT_MODEL"
+ENV_FALLBACK_MODEL = "BSP_HYBRID_MODEL"
+ENV_API_BASE = "BSP_HYBRID_API_BASE"
+
+CompletionFn = Callable[..., Any]
+
+
+class CategorizerError(RuntimeError):
+    """Raised when the enrichment LLM call or its parsing fails."""
+
+
+class EnrichedTransaction(BaseModel):
+    """A :class:`Transaction` plus inferred enrichment fields.
+
+    The wrapper composition (rather than inheritance) is deliberate:
+    the original ``Transaction`` stays unchanged, so dedup keys,
+    audit trails, and serialization that doesn't know about
+    enrichment all keep working.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    transaction: Transaction
+    category: Optional[str] = None
+    is_business_expense: Optional[bool] = None
+    enrichment_confidence: Optional[float] = None
+    rationale: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Prompts
+# ---------------------------------------------------------------------------
+
+
+SYSTEM_PROMPT_TEMPLATE = """You are a meticulous Personal Finance
+Categorizer. You receive a list of bank-statement transactions and
+return a category label for each one, drawn ONLY from this fixed
+schema:
+
+{schema_block}
+
+For every transaction you also return:
+  * is_business_expense — true if the row is plausibly a business
+    expense (B2B vendor, software subscription, professional
+    service); false for personal spending; null if you genuinely
+    cannot tell. THIS IS A LABEL, NOT TAX ADVICE.
+  * confidence — 0.0 to 1.0
+  * rationale — a single short sentence explaining the choice
+
+Output ONLY a single JSON object with this shape — no prose, no
+markdown:
+
+{{
+  "results": [
+    {{
+      "index": 0,
+      "category": "Food and Drink",
+      "is_business_expense": false,
+      "confidence": 0.92,
+      "rationale": "Coffee shop transaction"
+    }},
+    ...
+  ]
+}}
+
+Return exactly one result per input transaction, in the same order
+the inputs were given. The "index" field MUST match the input
+position. If you genuinely cannot categorize a row, return
+"category": null and explain why in the rationale.
+"""
+
+USER_PROMPT_TEMPLATE = """Categorize the following {count} transactions.
+Return the JSON array described in the system prompt.
+
+{rows}
+"""
+
+
+def _build_messages(
+    transactions: list[Transaction],
+    schema: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    schema_block = "\n".join(f"  - {c}" for c in schema)
+    rows = "\n".join(
+        _format_row(idx, tx) for idx, tx in enumerate(transactions)
+    )
+    return [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT_TEMPLATE.format(
+                schema_block=schema_block,
+            ),
+        },
+        {
+            "role": "user",
+            "content": USER_PROMPT_TEMPLATE.format(
+                count=len(transactions),
+                rows=rows,
+            ),
+        },
+    ]
+
+
+def _format_row(index: int, tx: Transaction) -> str:
+    date = tx.booking_date.isoformat() if tx.booking_date else "????-??-??"
+    desc = tx.description or "(no description)"
+    return f"  [{index}] {date}  {tx.amount:>10}  {desc[:80]}"
+
+
+# ---------------------------------------------------------------------------
+# Categorizer
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Categorizer:
+    """LiteLLM-backed transaction categorizer.
+
+    Args:
+        schema: Tuple of category strings the LLM is allowed to
+            pick from. Defaults to :data:`DEFAULT_CATEGORY_SCHEMA`.
+        model: LiteLLM model id. Defaults to
+            ``BSP_HYBRID_ENRICHMENT_MODEL``, then
+            ``BSP_HYBRID_MODEL``, then
+            :data:`DEFAULT_ENRICHMENT_MODEL`.
+        api_base: Optional API base override.
+        completion_fn: Injectable completion callable for testing.
+        batch_size: Number of transactions to send to the LLM in a
+            single call. Defaults to 25 to keep prompts under most
+            providers' practical context limits.
+    """
+
+    schema: tuple[str, ...] = DEFAULT_CATEGORY_SCHEMA
+    model: Optional[str] = None
+    api_base: Optional[str] = None
+    completion_fn: Optional[CompletionFn] = None
+    batch_size: int = 25
+    _resolved_model: str = field(init=False, default="")
+
+    def __post_init__(self) -> None:
+        if not self.schema:
+            raise ValueError("schema must be a non-empty tuple")
+        if self.batch_size < 1:
+            raise ValueError("batch_size must be at least 1")
+        self._resolved_model = (
+            self.model
+            or os.environ.get(ENV_ENRICHMENT_MODEL)
+            or os.environ.get(ENV_FALLBACK_MODEL)
+            or DEFAULT_ENRICHMENT_MODEL
+        )
+
+    def categorize(
+        self, transaction: Transaction
+    ) -> EnrichedTransaction:
+        """Convenience wrapper for single-row categorization."""
+        results = self.categorize_batch([transaction])
+        return results[0]
+
+    def categorize_batch(
+        self,
+        transactions: Iterable[Transaction],
+    ) -> list[EnrichedTransaction]:
+        """Categorize a list of transactions in batches.
+
+        Splits the input into chunks of :attr:`batch_size`, calls
+        the LLM for each chunk, and returns one
+        :class:`EnrichedTransaction` per input row in the same
+        order. If a chunk fails, the rows in that chunk are still
+        returned but with ``category=None`` and the failure
+        reported in ``rationale``.
+        """
+        items = list(transactions)
+        if not items:
+            return []
+
+        out: list[EnrichedTransaction] = []
+        for chunk_start in range(0, len(items), self.batch_size):
+            chunk = items[chunk_start : chunk_start + self.batch_size]
+            try:
+                out.extend(self._categorize_chunk(chunk))
+            except CategorizerError as exc:
+                # Surface the failure as None-categories for the
+                # whole chunk so callers can still see every input
+                # row in the output. The audit trail makes the
+                # failure visible without losing data.
+                out.extend(
+                    EnrichedTransaction(
+                        transaction=tx,
+                        rationale=f"categorization failed: {exc}",
+                    )
+                    for tx in chunk
+                )
+        return out
+
+    def _categorize_chunk(
+        self,
+        chunk: list[Transaction],
+    ) -> list[EnrichedTransaction]:
+        completion = self._resolve_completion()
+        messages = _build_messages(chunk, self.schema)
+
+        kwargs: dict[str, Any] = {
+            "model": self._resolved_model,
+            "messages": messages,
+            "temperature": 0.0,
+        }
+        if self.api_base:
+            kwargs["api_base"] = self.api_base
+
+        try:
+            response = completion(**kwargs)
+        except Exception as exc:
+            raise CategorizerError(
+                f"Enrichment completion failed: {exc}"
+            ) from exc
+
+        raw = _extract_message_content(response)
+        payload = _parse_json_payload(raw)
+        return _build_enriched(chunk, payload, self.schema)
+
+    def _resolve_completion(self) -> CompletionFn:
+        if self.completion_fn is not None:
+            return self.completion_fn
+        try:  # pragma: no cover - optional dep
+            from litellm import completion
+        except ImportError as exc:  # pragma: no cover - optional dep
+            raise CategorizerError(
+                "litellm is required for the enrichment module. "
+                "Install with: pip install bankstatementparser[enrichment]"
+            ) from exc
+        return completion  # type: ignore[no-any-return]  # pragma: no cover
+
+
+# ---------------------------------------------------------------------------
+# Response parsing
+# ---------------------------------------------------------------------------
+
+
+def _extract_message_content(response: Any) -> str:
+    """Pull the assistant message content out of an OpenAI-style response."""
+    try:
+        if isinstance(response, dict):
+            content = response["choices"][0]["message"]["content"]
+        else:
+            content = response.choices[0].message.content
+    except (AttributeError, KeyError, IndexError, TypeError) as exc:
+        raise CategorizerError(
+            f"Unexpected enrichment response shape: {exc}"
+        ) from exc
+    if not isinstance(content, str) or not content.strip():
+        raise CategorizerError(
+            "Enrichment LLM returned empty content"
+        )
+    return content
+
+
+_JSON_FENCE_RE = re.compile(
+    r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL
+)
+
+
+def _parse_json_payload(raw: str) -> dict[str, Any]:
+    text = raw.strip()
+    fence = _JSON_FENCE_RE.search(text)
+    if fence:
+        text = fence.group(1)
+    else:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            text = text[start : end + 1]
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise CategorizerError(
+            f"Enrichment LLM did not return valid JSON: {exc}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise CategorizerError(
+            "Enrichment payload must be a JSON object"
+        )
+    return payload
+
+
+def _build_enriched(
+    chunk: list[Transaction],
+    payload: dict[str, Any],
+    schema: tuple[str, ...],
+) -> list[EnrichedTransaction]:
+    raw_results = payload.get("results")
+    if not isinstance(raw_results, list):
+        raise CategorizerError(
+            "Enrichment payload missing 'results' list"
+        )
+
+    by_index: dict[int, dict[str, Any]] = {}
+    for entry in raw_results:
+        if not isinstance(entry, dict):
+            raise CategorizerError(
+                "Enrichment 'results' entries must be objects"
+            )
+        idx = entry.get("index")
+        if not isinstance(idx, int):
+            raise CategorizerError(
+                "Enrichment 'results' entry missing integer 'index'"
+            )
+        by_index[idx] = entry
+
+    schema_lookup = {c.lower(): c for c in schema}
+    out: list[EnrichedTransaction] = []
+    for index, tx in enumerate(chunk):
+        entry = by_index.get(index)
+        if entry is None:
+            out.append(
+                EnrichedTransaction(
+                    transaction=tx,
+                    rationale="LLM did not return a result for this row",
+                )
+            )
+            continue
+
+        category = entry.get("category")
+        if isinstance(category, str):
+            normalized = schema_lookup.get(category.strip().lower())
+            category = normalized  # may be None if not in schema
+        else:
+            category = None
+
+        is_business = entry.get("is_business_expense")
+        if not isinstance(is_business, bool):
+            is_business = None
+
+        confidence_raw = entry.get("confidence")
+        try:
+            confidence = (
+                float(confidence_raw)
+                if confidence_raw is not None
+                else None
+            )
+        except (TypeError, ValueError):
+            confidence = None
+
+        rationale_raw = entry.get("rationale")
+        rationale = (
+            str(rationale_raw) if rationale_raw is not None else None
+        )
+
+        out.append(
+            EnrichedTransaction(
+                transaction=tx,
+                category=category,
+                is_business_expense=is_business,
+                enrichment_confidence=confidence,
+                rationale=rationale,
+            )
+        )
+    return out
