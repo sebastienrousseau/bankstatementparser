@@ -88,6 +88,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install poetry
 poetry install --with dev
+make install-hooks   # pre-commit hook runs `make verify` before every commit
 ```
 
 ## Quick Start

@@ -14,12 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: install dist release test lint typecheck security verify clean
+.PHONY: install install-all install-hooks dist release test lint typecheck security verify clean
 
 # ----- Local development -----------------------------------------------------
 
 install:
 	poetry install --with dev
+
+# Wire the pre-commit hook so `make verify` runs before every commit.
+# One-time setup per clone — idempotent, safe to re-run.
+install-hooks:
+	git config core.hooksPath .githooks
+	@echo "pre-commit hook installed (.githooks/pre-commit)"
 
 # Install with all hybrid extras (litellm, pypdf, pdfplumber, pypdfium2).
 install-all:

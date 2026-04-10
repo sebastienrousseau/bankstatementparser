@@ -13,6 +13,16 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install poetry
 poetry install --with dev
+make install-hooks   # wires the pre-commit hook (runs `make verify` on every commit)
+```
+
+The pre-commit hook runs the full verification pipeline (ruff + mypy +
+pytest + bandit, ~80 s on Apple Silicon) before every commit. This is
+the same gate CI enforces — if the hook passes locally, CI will pass
+on GitHub. To skip on a quick-iteration WIP commit:
+
+```bash
+git commit --no-verify -m "WIP: ..."   # NOT recommended for push-ready commits
 ```
 
 ### Optional extras for hybrid pipeline work

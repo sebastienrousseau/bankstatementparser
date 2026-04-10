@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# pre-commit hook — runs the full verification pipeline before
+# every commit. Mirrors the exact gates CI enforces so nothing
+# that would fail the GitHub Actions pipeline can be committed
+# locally.
+#
+# Runs: ruff → mypy → pytest (100% coverage) → bandit
+# Expected time: ~80s on Apple Silicon, ~120s on CI runners.
+#
+# To skip on a quick-iteration commit (NOT recommended for
+# commits you intend to push):
+#
+#   git commit --no-verify -m "WIP: ..."
+#
+# To install this hook (one-time, per-clone setup):
+#
+#   git config core.hooksPath .githooks
+#
+# Or symlink it manually:
+#
+#   ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit
+
+set -euo pipefail
+
+echo "=== pre-commit: running full verification pipeline ==="
+echo ""
+
+# Ensure we're using the project's Poetry virtualenv, not a
+# system Python that might be missing dev dependencies.
+if ! command -v poetry &>/dev/null; then
+    echo "ERROR: poetry not found. Install with: pip install poetry"
+    exit 1
+fi
+
+# Run the same 4 gates CI runs, via the Makefile target.
+# If any gate fails, the commit is aborted with exit code 1.
+if [ -f Makefile ] && grep -q "^verify:" Makefile; then
+    make verify
+else
+    # Fallback if Makefile is missing (shouldn't happen, but
+    # defensive programming).
+    poetry run ruff check bankstatementparser tests examples scripts
+    poetry run mypy bankstatementparser
+    poetry run pytest --cov=bankstatementparser
+    poetry run bandit -r bankstatementparser examples scripts -c pyproject.toml
+fi
+
+echo ""
+echo "=== pre-commit: all gates passed ==="
