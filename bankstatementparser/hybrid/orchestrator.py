@@ -43,11 +43,12 @@ to every result when balances are available.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from decimal import Decimal, DecimalException
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from pydantic import ValidationError
 
@@ -55,7 +56,11 @@ from ..additional_parsers import create_parser, detect_statement_format
 from ..transaction_models import Transaction
 from .llm_extractor import LLMExtractionResult, LLMExtractor
 from .pdf_text import extract_text
-from .verification import BalanceVerification, verify_balance
+from .verification import (
+    BalanceVerification,
+    VerificationStatus,
+    verify_balance,
+)
 from .vision import VisionExtractor
 
 # A digital PDF will yield hundreds-to-thousands of characters of text.
@@ -77,6 +82,12 @@ class IngestResult:
     * ``"deterministic"`` — parsed by an ISO/exchange-format parser
     * ``"llm"`` — parsed by the text-LLM fallback (digital PDF)
     * ``"vision"`` — parsed by the multimodal-LLM fallback (scan)
+
+    Use :meth:`to_json` / :meth:`from_json` to round-trip the
+    result through a stable on-disk format. The interactive
+    ``--type review`` CLI subcommand (#45) consumes saved
+    ``IngestResult`` JSON to walk operators through the
+    discrepancy rows.
     """
 
     source_method: str
@@ -84,6 +95,147 @@ class IngestResult:
     transactions: list[Transaction]
     verification: Optional[BalanceVerification] = None
     warnings: list[str] = field(default_factory=list)
+    audit_trail: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_json(self, *, indent: Optional[int] = 2) -> str:
+        """Serialize to a stable JSON string.
+
+        The output round-trips losslessly through :meth:`from_json`,
+        including ``Decimal`` amounts (encoded as strings to avoid
+        float drift), ``date`` fields (ISO format), the
+        :class:`VerificationStatus` enum, and any ``audit_trail``
+        entries the review CLI has appended.
+        """
+        return json.dumps(
+            self._to_dict(), indent=indent, sort_keys=False
+        )
+
+    def _to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "source_method": self.source_method,
+            "source_format": self.source_format,
+            "transactions": [
+                tx.model_dump(mode="json") for tx in self.transactions
+            ],
+            "verification": _verification_to_dict(self.verification),
+            "warnings": list(self.warnings),
+            "audit_trail": list(self.audit_trail),
+        }
+
+    @classmethod
+    def from_json(cls, payload: str) -> IngestResult:
+        """Reconstruct from a JSON string previously written by :meth:`to_json`."""
+        try:
+            data = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"IngestResult JSON is not valid JSON: {exc}"
+            ) from exc
+        if not isinstance(data, dict):
+            raise ValueError(
+                "IngestResult JSON must decode to an object"
+            )
+        return cls._from_dict(data)
+
+    @classmethod
+    def _from_dict(cls, data: dict[str, Any]) -> IngestResult:
+        version = data.get("schema_version")
+        if version not in (None, 1):
+            raise ValueError(
+                f"Unsupported IngestResult schema_version: {version}"
+            )
+        try:
+            transactions = [
+                Transaction.model_validate(t)
+                for t in data.get("transactions", [])
+            ]
+        except ValidationError as exc:
+            raise ValueError(
+                f"IngestResult contains invalid transactions: {exc}"
+            ) from exc
+
+        verification = _verification_from_dict(data.get("verification"))
+        warnings_raw = data.get("warnings") or []
+        if not isinstance(warnings_raw, list):
+            raise ValueError("IngestResult 'warnings' must be a list")
+        audit_raw = data.get("audit_trail") or []
+        if not isinstance(audit_raw, list):
+            raise ValueError(
+                "IngestResult 'audit_trail' must be a list"
+            )
+
+        return cls(
+            source_method=str(data.get("source_method", "")),
+            source_format=data.get("source_format"),
+            transactions=transactions,
+            verification=verification,
+            warnings=[str(w) for w in warnings_raw],
+            audit_trail=[
+                dict(entry) if isinstance(entry, dict) else {}
+                for entry in audit_raw
+            ],
+        )
+
+
+def _verification_to_dict(
+    verification: Optional[BalanceVerification],
+) -> Optional[dict[str, Any]]:
+    if verification is None:
+        return None
+    return {
+        "status": verification.status.value,
+        "opening_balance": _decimal_to_str(verification.opening_balance),
+        "closing_balance": _decimal_to_str(verification.closing_balance),
+        "total_credits": _decimal_to_str(verification.total_credits),
+        "total_debits": _decimal_to_str(verification.total_debits),
+        "expected_delta": _decimal_to_str(verification.expected_delta),
+        "actual_delta": _decimal_to_str(verification.actual_delta),
+        "discrepancy": _decimal_to_str(verification.discrepancy),
+        "message": verification.message,
+    }
+
+
+def _verification_from_dict(
+    data: Any,
+) -> Optional[BalanceVerification]:
+    if data is None:
+        return None
+    if not isinstance(data, dict):
+        raise ValueError(
+            "IngestResult 'verification' must be an object or null"
+        )
+    try:
+        return BalanceVerification(
+            status=VerificationStatus(data["status"]),
+            opening_balance=_decimal_from_str(data.get("opening_balance")),
+            closing_balance=_decimal_from_str(data.get("closing_balance")),
+            total_credits=_decimal_from_str(data["total_credits"])
+            or Decimal("0"),
+            total_debits=_decimal_from_str(data["total_debits"])
+            or Decimal("0"),
+            expected_delta=_decimal_from_str(data.get("expected_delta")),
+            actual_delta=_decimal_from_str(data["actual_delta"])
+            or Decimal("0"),
+            discrepancy=_decimal_from_str(data.get("discrepancy")),
+            message=str(data.get("message", "")),
+        )
+    except (KeyError, ValueError, DecimalException) as exc:
+        raise ValueError(
+            f"Invalid verification payload: {exc}"
+        ) from exc
+
+
+def _decimal_to_str(value: Optional[Decimal]) -> Optional[str]:
+    if value is None:
+        return None
+    return format(value, "f")
+
+
+def _decimal_from_str(value: Any) -> Optional[Decimal]:
+    if value is None or value == "":
+        return None
+    return Decimal(str(value))
 
 
 def smart_ingest(
