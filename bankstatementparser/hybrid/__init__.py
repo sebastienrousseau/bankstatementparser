@@ -27,6 +27,11 @@ their LLM/PDF entry points are actually invoked.
 from __future__ import annotations
 
 from .llm_extractor import LLMExtractor, LLMExtractorError
+from .ollama_direct import (
+    OllamaDirectError,
+    is_ollama_model,
+    ollama_direct_completion,
+)
 from .orchestrator import (
     LOW_TEXT_DENSITY_THRESHOLD,
     IngestResult,
@@ -46,11 +51,14 @@ __all__ = [
     "IngestResult",
     "LLMExtractor",
     "LLMExtractorError",
+    "OllamaDirectError",
     "PDFExtractionError",
     "VerificationStatus",
     "VisionExtractor",
     "VisionExtractorError",
     "extract_text",
+    "is_ollama_model",
+    "ollama_direct_completion",
     "smart_ingest",
     "verify_balance",
 ]

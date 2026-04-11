@@ -4,7 +4,7 @@ Parse bank statements across **six structured formats** (CAMT, PAIN.001, CSV, OF
 
 Built for finance teams, treasury analysts, and fintech developers who need reliable, auditable extraction across the full spectrum of bank statement formats — without sending data to external services unless they explicitly opt in.
 
-[![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.6)](https://pypi.org/project/bankstatementparser/)
+[![PyPI](https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.7)](https://pypi.org/project/bankstatementparser/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge)](https://pypi.org/project/bankstatementparser/)
 [![Codecov](https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge)](https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main)
 [![License](https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge)](LICENSE)
@@ -45,6 +45,11 @@ Every extracted row carries an immutable `transaction_hash`, an audit-trail `sou
 | **Local-first LLM** *(v0.0.5)* | Ollama is the default backend; switch to Anthropic, OpenAI, or any LiteLLM provider via `BSP_HYBRID_MODEL`. Vision is opt-in via `BSP_HYBRID_VISION_MODEL` — no surprise downloads. |
 | **Golden Rule verification** *(v0.0.5)* | Every result carries `opening + credits − debits == closing` status: `VERIFIED`, `DISCREPANCY`, or `FAILED`. |
 | **Idempotent dedup** *(v0.0.5)* | Every `Transaction` carries a stable `transaction_hash` (MD5 of date + normalized description + amount). `Deduplicator.dedupe_by_hash()` makes incremental ingestion safe to re-run. |
+| **Categorization** *(v0.0.6)* | `bankstatementparser.enrichment.Categorizer` tags transactions with a pluggable category schema (Plaid 13-category default) and an optional `is_business_expense` flag. Wrapper model — never mutates the original `Transaction`. |
+| **Interactive review** *(v0.0.6)* | `--type review` CLI walks through discrepancies with accept/edit/skip/delete/quit. `IngestResult.to_json()` / `.from_json()` for stable round-trip with embedded audit trail. |
+| **Bounding boxes** *(v0.0.6)* | `Transaction.source_bbox` carries per-row normalized coordinates from the vision path for downstream review UIs. |
+| **Direct Ollama bridge** *(v0.0.7)* | Auto-bypasses the upstream LiteLLM ↔ Ollama hang on long vision prompts. `ollama/minicpm-v` recommended over `ollama/llava` for document OCR. |
+| **Strip mode** *(v0.0.7)* | `VisionExtractor(strip_rows=True)` splits dense pages into overlapping bands for small local models — fixes sign-flip errors and improves accuracy on 15+ row statements. |
 | **Auto-detection** | `detect_statement_format()` identifies the format; `create_parser()` returns the right parser |
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Streaming** | `parse_streaming()` at 27,000+ tx/s (CAMT) and 52,000+ tx/s (PAIN.001) with bounded memory |
@@ -52,7 +57,7 @@ Every extracted row carries an immutable `transaction_hash`, an audit-trail `sou
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
 | **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
 | **Export** | CSV, JSON, Excel (`.xlsx`), and optional Polars DataFrames |
-| **100% coverage** | 644 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
+| **100% coverage** | 672 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
 
 ## Requirements
 
@@ -271,9 +276,13 @@ bankstatementparser --type camt --input statement.xml --streaming --show-pii
 # v0.0.5 — hybrid pipeline (auto-routes deterministic / text-LLM / vision)
 bankstatementparser --type ingest --input statement.pdf
 bankstatementparser --type ingest --input statement.pdf --output ledger.csv
+
+# v0.0.6 — interactive review of saved IngestResult JSON
+bankstatementparser --type review --input result.json
+bankstatementparser --type review --input result.json --output reviewed.json
 ```
 
-Supports `--type camt`, `--type pain001`, and `--type ingest` (v0.0.5). The `python -m bankstatementparser.cli ...` invocation form continues to work for parity with older releases.
+Supports `--type camt`, `--type pain001`, `--type ingest` (v0.0.5), and `--type review` (v0.0.6). The `python -m bankstatementparser.cli ...` invocation form continues to work for parity with older releases.
 
 ## Deduplication
 
@@ -364,12 +373,12 @@ See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference of ISO 20022 X
 ## Project Layout
 
 ```text
-bankstatementparser/   Source code (23 modules: deterministic core + hybrid + enrichment subpackages, 100% branch coverage)
-bankstatementparser/hybrid/   v0.0.5 PDF pipeline: orchestrator, llm_extractor, vision, pdf_text, prompts, verification
+bankstatementparser/   Source code (24 modules: deterministic core + hybrid + enrichment subpackages, 100% branch coverage)
+bankstatementparser/hybrid/   PDF pipeline: orchestrator, llm_extractor, vision, pdf_text, prompts, verification, ollama_direct
 docs/compliance/       ISO 13485 validation, risk register, traceability matrix
 examples/              14 deterministic + 8 hybrid runnable example scripts
 scripts/               SBOM generation, checksums, signature verification
-tests/                 644 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                 672 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ## Security

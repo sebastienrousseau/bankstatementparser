@@ -12,7 +12,7 @@
 
 ### 3. Is the extraction process deterministic?
 
-**Yes — byte-identical output on every run for the deterministic path.** Given the same input file, `CamtParser`, `Pain001Parser`, `CsvStatementParser`, `OfxParser`, `Mt940Parser`, and `QfxParser` produce the same result every time. No randomness, no model inference, no heuristic sampling. Verify this yourself: run the same file twice and diff the output. CI enforces determinism with 644 tests at 100% branch coverage, including property-based fuzzing via Hypothesis.
+**Yes — byte-identical output on every run for the deterministic path.** Given the same input file, `CamtParser`, `Pain001Parser`, `CsvStatementParser`, `OfxParser`, `Mt940Parser`, and `QfxParser` produce the same result every time. No randomness, no model inference, no heuristic sampling. Verify this yourself: run the same file twice and diff the output. CI enforces determinism with 672 tests at 100% branch coverage, including property-based fuzzing via Hypothesis.
 
 The v0.0.5 hybrid pipeline (`smart_ingest()`) extends this with two LLM fallbacks for PDFs that have no structured equivalent. Those paths are explicitly tagged as non-deterministic via `source_method='llm'` or `'vision'` on every extracted `Transaction` so audit trails can distinguish "facts from source" from "AI-inferred". The deterministic core is unchanged.
 
@@ -106,7 +106,7 @@ Every row carries `source_method`, `transaction_hash`, `confidence`, and (for LL
 
 ### 13. Which local LLM should I use?
 
-**Default is `ollama/llama3` (text path) and `ollama/llava` (vision path) — but with caveats.**
+**Text path: `ollama/llama3`. Vision path: `ollama/minicpm-v` (v0.0.7+).**
 
 For the **text path**, llama3 (4.7 GB) runs comfortably on Apple Silicon Metal or NVIDIA CUDA and produces clean structured-JSON extractions. Verified end-to-end against the synthetic statement in `examples/hybrid/sample_data/digital.pdf`: all 11 transactions extracted with `confidence=1.00`, balance `VERIFIED`, ~25s runtime on M-series. Set:
 
@@ -116,12 +116,34 @@ ollama pull llama3
 export BSP_HYBRID_MODEL=ollama/llama3
 ```
 
-For the **vision path**, local 7B models (`llava`, `bakllava`) are **not yet production-grade** for dense statement tables. The v0.0.5 smoke test surfaced two real issues:
+For the **vision path**, the v0.0.7 release made two important changes:
 
-1. **Upstream LiteLLM ↔ Ollama bug**: short prompts work fine, but the library's full structured-JSON system prompt hangs LiteLLM at the 600s timeout. Direct Ollama `/api/chat` calls succeed in ~18s. Worth filing upstream.
-2. **Quality**: even when llava-7b responds, it hallucinates extensively on dense tables (CLIP downscales the page to 336×336 internally, destroying fine detail).
+1. **Built-in direct Ollama bridge.** v0.0.5 + v0.0.6 shipped a documented workaround for an upstream LiteLLM ↔ Ollama bug where long structured-JSON system prompts hung at the 600 s timeout. v0.0.7 ships the bypass automatically: any `ollama/*` model now routes through `bankstatementparser.hybrid.ollama_direct_completion` instead of LiteLLM, completing in ~18-35 s instead of timing out. No user action required.
 
-**Recommended production path for vision:** hosted multimodal models — `gpt-4o`, `claude-opus-4-6`, `gemini-2.5-pro`. All work with LiteLLM out of the box and don't have either issue. Set:
+2. **Recommended local model is now `minicpm-v` (5.5 GB)**, not `llava` (4.7 GB). minicpm-v is explicitly trained for OCR and document understanding tasks; llava was a general-purpose multimodal model that pre-dated the document-specific fine-tunes that arrived in 2025. Smoke-tested side by side on the same synthetic scanned PDF:
+
+   ```text
+   ollama/llava       — currency wrong (INR), fabricated rows, hallucinates
+   ollama/minicpm-v   — currency right (GBP), all 11 rows extracted, ~33s
+   ```
+
+   Pull and switch:
+
+   ```bash
+   ollama pull minicpm-v
+   export BSP_HYBRID_VISION_MODEL=ollama/minicpm-v
+   ```
+
+For pages with **many transactions** (more than ~15 rows), use the new `strip_rows=True` mode to split each page into horizontal bands and run one LLM call per band. This trades a few extra calls for substantially better accuracy on dense tables:
+
+```python
+from bankstatementparser.hybrid import VisionExtractor, smart_ingest
+
+vision = VisionExtractor(strip_rows=True, n_strips=4)
+result = smart_ingest("statement.pdf", vision_extractor=vision)
+```
+
+**Production-grade vision** still wants a hosted multimodal model — `gpt-4o`, `claude-opus-4-6`, `gemini-2.5-pro`. All work with LiteLLM out of the box and don't have the row-confabulation or sign-flip issues that small local models exhibit on dense tables:
 
 ```bash
 export BSP_HYBRID_VISION_MODEL=anthropic/claude-opus-4-6
@@ -162,7 +184,7 @@ Bank Statement Parser is designed for environments where auditability is non-neg
 To verify reproducibility locally:
 
 ```bash
-poetry run pytest                             # 644 tests, 100% branch coverage
+poetry run pytest                             # 672 tests, 100% branch coverage
 poetry run python scripts/verify_locked_hashes.py   # SHA-256 hash verification
 git log --show-signature -1                   # Verify commit signature
 ```

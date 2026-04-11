@@ -92,6 +92,7 @@ jobs:
             tests/test_hybrid_cli.py \
             tests/test_hybrid_dedupe_by_hash.py \
             tests/test_hybrid_llm_extractor.py \
+            tests/test_hybrid_ollama_direct.py \
             tests/test_hybrid_orchestrator.py \
             tests/test_hybrid_pdf_text.py \
             tests/test_hybrid_review_cli.py \
