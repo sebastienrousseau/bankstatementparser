@@ -73,8 +73,9 @@ celerybeat-schedule
 # Plan files
 plan.json
 
-# Hybrid examples — generated artefacts (run generate_sample_pdfs.py to recreate)
+# Examples — generated artefacts
 examples/hybrid/sample_data/
+example-output/
 
 # Miscellaneous
 .DS_Store
