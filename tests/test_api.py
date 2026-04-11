@@ -106,7 +106,7 @@ def test_health_endpoint(
     health_fn = app._routes["GET /health"]
     import asyncio
 
-    result = asyncio.get_event_loop().run_until_complete(health_fn())
+    result = asyncio.run(health_fn())
     assert result["status"] == "ok"
     assert result["version"] == "0.0.8"
 
