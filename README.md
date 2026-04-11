@@ -50,6 +50,11 @@ Every extracted row carries an immutable `transaction_hash`, an audit-trail `sou
 | **Bounding boxes** *(v0.0.6)* | `Transaction.source_bbox` carries per-row normalized coordinates from the vision path for downstream review UIs. |
 | **Direct Ollama bridge** *(v0.0.7)* | Auto-bypasses the upstream LiteLLM ↔ Ollama hang on long vision prompts. `ollama/minicpm-v` recommended over `ollama/llava` for document OCR. |
 | **Strip mode** *(v0.0.7)* | `VisionExtractor(strip_rows=True)` splits dense pages into overlapping bands for small local models — fixes sign-flip errors and improves accuracy on 15+ row statements. |
+| **Multi-currency verification** *(v0.0.8)* | `verify_balance_multi_currency()` groups transactions by currency and runs the Golden Rule independently per group — no more false `DISCREPANCY` on multi-currency statements. |
+| **hledger + beancount export** *(v0.0.8)* | `to_hledger()` and `to_beancount()` produce journal strings for plaintext-accounting workflows. Uses `Transaction.category` as the contra-account when set. |
+| **Bulk directory scanner** *(v0.0.8)* | `scan_and_ingest(directory, pattern="**/*.pdf")` scans a folder tree, runs `smart_ingest` on every match, deduplicates across the entire batch. |
+| **Account mapping** *(v0.0.8)* | `AccountMapper` with ordered regex rules loaded from JSON config. First match wins. Pairs with the ledger exporter for end-to-end plaintext-accounting workflows. |
+| **REST API** *(v0.0.8)* | FastAPI microservice: `POST /ingest` a file, get JSON back. `GET /health` for monitoring. `pip install 'bankstatementparser[api]'`. |
 | **Auto-detection** | `detect_statement_format()` identifies the format; `create_parser()` returns the right parser |
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Streaming** | `parse_streaming()` at 27,000+ tx/s (CAMT) and 52,000+ tx/s (PAIN.001) with bounded memory |
@@ -78,9 +83,15 @@ pip install 'bankstatementparser[hybrid-plus]'
 
 # Add the multimodal vision path for scanned/photocopied PDFs (adds pypdfium2)
 pip install 'bankstatementparser[hybrid-vision]'
+
+# Add LLM-powered transaction categorization
+pip install 'bankstatementparser[enrichment]'
+
+# Add the REST API microservice (FastAPI + uvicorn)
+pip install 'bankstatementparser[api]'
 ```
 
-The core install has zero AI dependencies. Every `[hybrid*]` extra is opt-in and pure-Python — no `poppler`, no system libraries, no GPU required.
+The core install has zero AI dependencies. Every extra is opt-in and pure-Python — no `poppler`, no system libraries, no GPU required.
 
 ### Local Development
 
@@ -284,6 +295,21 @@ bankstatementparser --type review --input result.json --output reviewed.json
 
 Supports `--type camt`, `--type pain001`, `--type ingest` (v0.0.5), and `--type review` (v0.0.6). The `python -m bankstatementparser.cli ...` invocation form continues to work for parity with older releases.
 
+### REST API *(v0.0.8)*
+
+```bash
+pip install 'bankstatementparser[api]'
+bankstatementparser-api --port 8000
+
+# POST a file, get JSON back
+curl -F file=@statement.pdf http://localhost:8000/ingest
+
+# Health check
+curl http://localhost:8000/health
+```
+
+Default bind is `127.0.0.1` (localhost-only). Use `--host 0.0.0.0` for container deployments.
+
 ## Deduplication
 
 Detect duplicate transactions across multiple sources:
@@ -329,6 +355,58 @@ lazy_df = parser.to_polars_lazy()
 
 Install with `pip install bankstatementparser[polars]`.
 
+### hledger + beancount *(v0.0.8)*
+
+Export transactions to plaintext-accounting journal formats:
+
+```python
+from bankstatementparser.export import to_hledger, to_beancount
+
+journal = to_hledger(transactions, account="Assets:Bank:Checking")
+Path("journal.ledger").write_text(journal)
+
+# Or beancount format:
+journal = to_beancount(transactions, account="Assets:Bank:Checking")
+```
+
+Uses `Transaction.category` as the contra-account when set by the enrichment module.
+
+### Bulk directory scanner *(v0.0.8)*
+
+Scan a folder tree and ingest every statement, deduplicating across the batch:
+
+```python
+from bankstatementparser.hybrid import scan_and_ingest
+
+batch = scan_and_ingest("statements/2026/", pattern="**/*.pdf")
+print(f"{batch.file_count} files, {batch.total_unique} unique transactions")
+```
+
+### Account mapping *(v0.0.8)*
+
+Map transactions to ledger accounts via configurable regex rules:
+
+```python
+from bankstatementparser.enrichment import AccountMapper
+
+mapper = AccountMapper.from_json("mapping.json")
+for tx, account in zip(transactions, mapper.map_batch(transactions)):
+    print(f"{tx.description} -> {account}")
+```
+
+### Multi-currency verification *(v0.0.8)*
+
+```python
+from bankstatementparser.hybrid import verify_balance_multi_currency
+
+results = verify_balance_multi_currency(
+    transactions,
+    balances={"GBP": (opening, closing), "EUR": (opening, closing)},
+)
+for currency, v in results.items():
+    print(f"{currency}: {v.status.value}")
+```
+
 ## Examples
 
 See [`examples/`](examples/README.md) for 22 runnable scripts (14 deterministic + 8 hybrid):
@@ -373,12 +451,15 @@ See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference of ISO 20022 X
 ## Project Layout
 
 ```text
-bankstatementparser/   Source code (29 modules: deterministic core + hybrid + enrichment subpackages, 100% branch coverage)
-bankstatementparser/hybrid/   PDF pipeline: orchestrator, llm_extractor, vision, pdf_text, prompts, verification, ollama_direct
-docs/compliance/       ISO 13485 validation, risk register, traceability matrix
-examples/              14 deterministic + 8 hybrid runnable example scripts
-scripts/               SBOM generation, checksums, signature verification
-tests/                 718 tests (unit, integration, property-based, security, hybrid mocks)
+bankstatementparser/            Source code (29 modules, 100% branch coverage)
+bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
+bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
+bankstatementparser/export/     hledger + beancount journal export
+bankstatementparser/api.py      REST API microservice (FastAPI)
+docs/compliance/                ISO 13485 validation, risk register, traceability matrix
+examples/                       14 deterministic + 8 hybrid runnable example scripts
+scripts/                        SBOM generation, checksums, signature verification
+tests/                          718 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ## Security
