@@ -45,6 +45,11 @@ Every extracted row carries an immutable `transaction_hash`, an audit-trail `sou
 | **Local-first LLM** *(v0.0.5)* | Ollama is the default backend; switch to Anthropic, OpenAI, or any LiteLLM provider via `BSP_HYBRID_MODEL`. Vision is opt-in via `BSP_HYBRID_VISION_MODEL` — no surprise downloads. |
 | **Golden Rule verification** *(v0.0.5)* | Every result carries `opening + credits − debits == closing` status: `VERIFIED`, `DISCREPANCY`, or `FAILED`. |
 | **Idempotent dedup** *(v0.0.5)* | Every `Transaction` carries a stable `transaction_hash` (MD5 of date + normalized description + amount). `Deduplicator.dedupe_by_hash()` makes incremental ingestion safe to re-run. |
+| **Categorization** *(v0.0.6)* | `bankstatementparser.enrichment.Categorizer` tags transactions with a pluggable category schema (Plaid 13-category default) and an optional `is_business_expense` flag. Wrapper model — never mutates the original `Transaction`. |
+| **Interactive review** *(v0.0.6)* | `--type review` CLI walks through discrepancies with accept/edit/skip/delete/quit. `IngestResult.to_json()` / `.from_json()` for stable round-trip with embedded audit trail. |
+| **Bounding boxes** *(v0.0.6)* | `Transaction.source_bbox` carries per-row normalized coordinates from the vision path for downstream review UIs. |
+| **Direct Ollama bridge** *(v0.0.7)* | Auto-bypasses the upstream LiteLLM ↔ Ollama hang on long vision prompts. `ollama/minicpm-v` recommended over `ollama/llava` for document OCR. |
+| **Strip mode** *(v0.0.7)* | `VisionExtractor(strip_rows=True)` splits dense pages into overlapping bands for small local models — fixes sign-flip errors and improves accuracy on 15+ row statements. |
 | **Auto-detection** | `detect_statement_format()` identifies the format; `create_parser()` returns the right parser |
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Streaming** | `parse_streaming()` at 27,000+ tx/s (CAMT) and 52,000+ tx/s (PAIN.001) with bounded memory |
@@ -271,9 +276,13 @@ bankstatementparser --type camt --input statement.xml --streaming --show-pii
 # v0.0.5 — hybrid pipeline (auto-routes deterministic / text-LLM / vision)
 bankstatementparser --type ingest --input statement.pdf
 bankstatementparser --type ingest --input statement.pdf --output ledger.csv
+
+# v0.0.6 — interactive review of saved IngestResult JSON
+bankstatementparser --type review --input result.json
+bankstatementparser --type review --input result.json --output reviewed.json
 ```
 
-Supports `--type camt`, `--type pain001`, and `--type ingest` (v0.0.5). The `python -m bankstatementparser.cli ...` invocation form continues to work for parity with older releases.
+Supports `--type camt`, `--type pain001`, `--type ingest` (v0.0.5), and `--type review` (v0.0.6). The `python -m bankstatementparser.cli ...` invocation form continues to work for parity with older releases.
 
 ## Deduplication
 
