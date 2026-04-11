@@ -22,6 +22,7 @@ the single most important integrity check in the hybrid pipeline.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
@@ -131,3 +132,53 @@ def verify_balance(
             f"actual {actual_delta} (off by {discrepancy})"
         ),
     )
+
+
+def verify_balance_multi_currency(
+    transactions: Iterable[Transaction],
+    *,
+    balances: Optional[dict[str, tuple[Decimal, Decimal]]] = None,
+    tolerance: Decimal = Decimal("0.01"),
+) -> dict[str, BalanceVerification]:
+    """Run the Golden Rule **per currency**.
+
+    Multi-currency statements (common in international business
+    banking) mix transactions in different currencies. The single-
+    currency :func:`verify_balance` would always report
+    ``DISCREPANCY`` because it sums GBP and EUR amounts together.
+
+    This function groups transactions by ``Transaction.currency``
+    and runs an independent Golden Rule check for each group.
+
+    Args:
+        transactions: Iterable of normalized transactions.
+        balances: Optional ``{currency: (opening, closing)}`` dict.
+            When ``None``, verification runs with ``FAILED`` status
+            for every currency (no balances provided). When a
+            currency appears in the transactions but not in this
+            dict, its verification is also ``FAILED``.
+        tolerance: Per-currency tolerance. Defaults to one cent.
+
+    Returns:
+        A dict mapping each currency code (uppercase) to its
+        :class:`BalanceVerification`. Transactions with
+        ``currency=None`` are grouped under the key ``"UNKNOWN"``.
+    """
+    balances = balances or {}
+    groups: dict[str, list[Transaction]] = defaultdict(list)
+    for tx in transactions:
+        key = (tx.currency or "UNKNOWN").upper()
+        groups[key].append(tx)
+
+    results: dict[str, BalanceVerification] = {}
+    for currency, txs in sorted(groups.items()):
+        pair = balances.get(currency)
+        opening = pair[0] if pair else None
+        closing = pair[1] if pair else None
+        results[currency] = verify_balance(
+            txs,
+            opening_balance=opening,
+            closing_balance=closing,
+            tolerance=tolerance,
+        )
+    return results

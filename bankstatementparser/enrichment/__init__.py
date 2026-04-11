@@ -46,6 +46,7 @@ deterministic fields.
 
 from __future__ import annotations
 
+from .account_mapper import AccountMapper, AccountRule
 from .categorizer import (
     DEFAULT_CATEGORY_SCHEMA,
     Categorizer,
@@ -54,6 +55,8 @@ from .categorizer import (
 )
 
 __all__ = [
+    "AccountMapper",
+    "AccountRule",
     "DEFAULT_CATEGORY_SCHEMA",
     "Categorizer",
     "CategorizerError",

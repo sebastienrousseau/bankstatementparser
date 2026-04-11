@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.7"
+version = "0.0.8"
 description = "BankStatementParser is your essential tool for easy bank statement management. Designed with finance and treasury experts in mind, it offers a simple way to handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from your financial data and spend less time on processing. It's the smart, hassle-free way to stay on top of your transactions."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache Software License"
@@ -23,6 +23,8 @@ litellm = {version = ">=1.83.0", optional = true}
 pypdf = {version = ">=4.0.0", optional = true}
 pdfplumber = {version = ">=0.11.0", optional = true}
 pypdfium2 = {version = ">=4.30.0", optional = true}
+fastapi = {version = ">=0.115.0", optional = true}
+uvicorn = {version = ">=0.34.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
@@ -39,9 +41,11 @@ hybrid = ["litellm", "pypdf"]
 hybrid-plus = ["litellm", "pypdf", "pdfplumber"]
 hybrid-vision = ["litellm", "pypdf", "pypdfium2"]
 enrichment = ["litellm"]
+api = ["fastapi", "uvicorn"]
 
 [tool.poetry.scripts]
 bankstatementparser = "bankstatementparser.cli:main"
+bankstatementparser-api = "bankstatementparser.api:main"
 
 [build-system]
 requires = ["poetry-core"]
@@ -108,7 +112,7 @@ module = ["polars", "polars.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*", "httpx", "httpx.*"]
+module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*", "httpx", "httpx.*", "fastapi", "fastapi.*", "uvicorn", "uvicorn.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

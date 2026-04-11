@@ -99,6 +99,11 @@ jobs:
             tests/test_hybrid_verification.py \
             tests/test_hybrid_vision.py \
             tests/test_enrichment_categorizer.py \
+            tests/test_account_mapper.py \
+            tests/test_multi_currency_verification.py \
+            tests/test_export_ledger.py \
+            tests/test_scanner.py \
+            tests/test_api.py \
             tests/test_docs_accuracy.py \
             tests/integration/test_zip_security.py
 
