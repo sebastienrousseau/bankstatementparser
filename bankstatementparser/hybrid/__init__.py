@@ -38,10 +38,12 @@ from .orchestrator import (
     smart_ingest,
 )
 from .pdf_text import PDFExtractionError, extract_text
+from .scanner import ScanResult, scan_and_ingest
 from .verification import (
     BalanceVerification,
     VerificationStatus,
     verify_balance,
+    verify_balance_multi_currency,
 )
 from .vision import VisionExtractor, VisionExtractorError
 
@@ -53,12 +55,15 @@ __all__ = [
     "LLMExtractorError",
     "OllamaDirectError",
     "PDFExtractionError",
+    "ScanResult",
     "VerificationStatus",
     "VisionExtractor",
     "VisionExtractorError",
     "extract_text",
     "is_ollama_model",
     "ollama_direct_completion",
+    "scan_and_ingest",
     "smart_ingest",
+    "verify_balance_multi_currency",
     "verify_balance",
 ]

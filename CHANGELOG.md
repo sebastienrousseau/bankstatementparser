@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.8] — 2026-04-11
+
+> "Full Platform" — closes every gap identified in the competitive
+> analysis. Multi-currency balance verification, hledger/beancount
+> export, bulk directory scanner, account mapping rules, and a REST
+> API microservice.
+
+### Added
+
+- **Multi-currency balance verification** —
+  `verify_balance_multi_currency()` groups by currency and runs
+  an independent Golden Rule check per group.
+- **hledger + beancount export** — `to_hledger()` and
+  `to_beancount()` in `bankstatementparser.export`.
+- **Bulk directory scanner** — `scan_and_ingest()` scans a folder
+  tree, runs smart_ingest on every match, deduplicates across the
+  batch.
+- **Account mapping rules** — `AccountMapper` with regex rules
+  loaded from JSON config.
+- **REST API** — FastAPI wrapper with `/ingest` and `/health`
+  endpoints. `[api]` extra.
+
+### Changed
+
+- Version bumped `0.0.7` → `0.0.8`.
+
 ## [0.0.7] — 2026-04-08
 
 > "Universal Vision" — turns the local vision path from 🔴 to 🟢
@@ -427,7 +453,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.7...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.8...HEAD
+[0.0.8]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.8
 [0.0.7]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.7
 [0.0.6]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.6
 [0.0.5]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.5
