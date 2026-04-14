@@ -27,7 +27,7 @@ fastapi = {version = ">=0.115.0", optional = true}
 uvicorn = {version = ">=0.34.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
+pytest = ">=8,<10"
 pytest-cov = "^7.1.0"
 pytest-benchmark = "^5.1.0"
 ruff = "^0.15.7"
