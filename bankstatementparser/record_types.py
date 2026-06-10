@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TypedDict
 
 
 class BalanceRecord(TypedDict, total=False):
-    Amount: float
+    Amount: Decimal
     Currency: str | None
     Code: str | None
     Description: str | None
@@ -31,7 +32,7 @@ class BalanceRecord(TypedDict, total=False):
 
 
 class TransactionRecord(TypedDict, total=False):
-    Amount: float
+    Amount: Decimal
     Currency: str | None
     DrCr: str | None
     Debtor: str | None
@@ -44,7 +45,7 @@ class TransactionRecord(TypedDict, total=False):
     CreditorAddress: str | None
     date: str | None
     description: str | None
-    amount: float | None
+    amount: Decimal | None
     currency: str | None
     balance: object
     account_id: str | None
@@ -78,16 +79,16 @@ class StatementStatsRecord(TypedDict, total=False):
     AccountId: str | None
     StatementCreated: str | None
     NumTransactions: int
-    NetAmount: float
+    NetAmount: Decimal
 
 
 class SummaryRecord(TypedDict, total=False):
     account_id: str | None
     statement_date: str | None
     transaction_count: int
-    total_amount: float
-    opening_balance: float | None
-    closing_balance: float | None
+    total_amount: Decimal
+    opening_balance: Decimal | None
+    closing_balance: Decimal | None
     currency: str | None
     message_id: str | None
     initiating_party: str | None

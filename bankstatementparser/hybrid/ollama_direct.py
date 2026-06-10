@@ -46,16 +46,15 @@ from __future__ import annotations
 
 import base64
 import os
-import re
 from typing import Any
 
-DEFAULT_API_BASE = "http://localhost:11434"
-ENV_API_BASE = "BSP_HYBRID_API_BASE"
-
-# Strip the LiteLLM provider prefix so the Ollama API receives a
-# bare model name. Matches "ollama/", "ollama_chat/", or any other
-# slash-prefixed router LiteLLM might use for the same backend.
-_PROVIDER_PREFIX_RE = re.compile(r"^ollama(?:_chat)?/", re.IGNORECASE)
+from .._llm_common import (
+    DEFAULT_API_BASE,
+    ENV_API_BASE,
+)
+from .._llm_common import (
+    OLLAMA_PREFIX_RE as _PROVIDER_PREFIX_RE,
+)
 
 
 class OllamaDirectError(RuntimeError):

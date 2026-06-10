@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+	<BkToCstmrStmt>
+		<GrpHdr>
+			<MsgId>GOLDEN-DUP-001</MsgId>
+			<CreDtTm>2026-04-30T17:00:00+01:00</CreDtTm>
+		</GrpHdr>
+		<Stmt>
+			<Id>GOLDEN-DUP</Id>
+			<CreDtTm>2026-04-30T17:00:00+01:00</CreDtTm>
+			<Acct>
+				<Id>
+					<IBAN>DE89370400440532013000</IBAN>
+				</Id>
+			</Acct>
+			<Ntry>
+				<Amt Ccy="EUR">4.50</Amt>
+				<CdtDbtInd>DBIT</CdtDbtInd>
+				<Sts>BOOK</Sts>
+				<BookgDt>
+					<Dt>2026-04-07</Dt>
+				</BookgDt>
+				<ValDt>
+					<Dt>2026-04-07</Dt>
+				</ValDt>
+				<NtryDtls>
+					<TxDtls>
+						<RltdPties>
+							<Cdtr>
+								<Nm>CITY COFFEE</Nm>
+							</Cdtr>
+						</RltdPties>
+						<RmtInf>
+							<Ustrd>CARD PAYMENT CITY COFFEE</Ustrd>
+						</RmtInf>
+					</TxDtls>
+				</NtryDtls>
+			</Ntry>
+			<Ntry>
+				<Amt Ccy="EUR">4.50</Amt>
+				<CdtDbtInd>DBIT</CdtDbtInd>
+				<Sts>BOOK</Sts>
+				<BookgDt>
+					<Dt>2026-04-07</Dt>
+				</BookgDt>
+				<ValDt>
+					<Dt>2026-04-07</Dt>
+				</ValDt>
+				<NtryDtls>
+					<TxDtls>
+						<RltdPties>
+							<Cdtr>
+								<Nm>CITY COFFEE</Nm>
+							</Cdtr>
+						</RltdPties>
+						<RmtInf>
+							<Ustrd>CARD PAYMENT CITY COFFEE</Ustrd>
+						</RmtInf>
+					</TxDtls>
+				</NtryDtls>
+			</Ntry>
+		</Stmt>
+	</BkToCstmrStmt>
+</Document>

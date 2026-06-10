@@ -30,6 +30,8 @@ import tempfile
 import time
 import unittest
 
+import pytest
+
 from bankstatementparser.camt_parser import CamtParser
 from bankstatementparser.pain001_parser import Pain001Parser
 
@@ -114,6 +116,7 @@ def _write(content: str) -> str:
     return path
 
 
+@pytest.mark.slow
 class TestTPSContract(unittest.TestCase):
     """Enforce minimum TPS for streaming.
 
@@ -173,6 +176,7 @@ class TestTPSContract(unittest.TestCase):
             os.unlink(path)
 
 
+@pytest.mark.slow
 class TestLatencyContract(unittest.TestCase):
     """Enforce < 50 ms time-to-first-result."""
 

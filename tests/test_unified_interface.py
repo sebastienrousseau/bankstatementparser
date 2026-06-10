@@ -11,6 +11,7 @@ import json
 import os
 import tempfile
 import unittest
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
 from xml.etree.ElementTree import ParseError
@@ -162,7 +163,7 @@ class TestUnifiedParserInterface(unittest.TestCase):
                 )
             if summary.get("total_amount") is not None:
                 self.assertIsInstance(
-                    summary["total_amount"], (int, float)
+                    summary["total_amount"], (int, float, Decimal)
                 )
 
     def test_export_csv_functionality(self):

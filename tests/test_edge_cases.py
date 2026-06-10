@@ -7,6 +7,7 @@ Tests for boundary conditions, error handling, and edge scenarios.
 import os
 import tempfile
 import unittest
+from decimal import Decimal
 
 import pandas as pd
 
@@ -170,7 +171,9 @@ class TestCamtParserEdgeCases(unittest.TestCase):
             self.assertEqual(
                 transactions.iloc[1]["Amount"], -100.00
             )  # DBIT is negative
-            self.assertEqual(transactions.iloc[2]["Amount"], 0.01)
+            self.assertEqual(
+                transactions.iloc[2]["Amount"], Decimal("0.01")
+            )
         finally:
             os.unlink(test_file)
 
@@ -208,10 +211,11 @@ class TestCamtParserEdgeCases(unittest.TestCase):
 
             self.assertEqual(len(transactions), 2)
             self.assertEqual(
-                transactions.iloc[0]["Amount"], 999999999999.99
+                transactions.iloc[0]["Amount"],
+                Decimal("999999999999.99"),
             )
-            self.assertAlmostEqual(
-                transactions.iloc[1]["Amount"], 0.000001, places=6
+            self.assertEqual(
+                transactions.iloc[1]["Amount"], Decimal("0.000001")
             )
         finally:
             os.unlink(test_file)
@@ -511,7 +515,7 @@ class TestBankStatementParsersEdgeCases(unittest.TestCase):
             self.assertEqual(len(parser.payments), 1)
 
             payment = parser.payments[0]
-            self.assertEqual(payment["Amount"], 0.01)
+            self.assertEqual(payment["Amount"], Decimal("0.01"))
             self.assertEqual(payment["Currency"], "EUR")
             self.assertEqual(payment["Name"], "Creditor")
 

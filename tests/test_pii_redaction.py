@@ -483,24 +483,19 @@ class TestPIIRedaction(unittest.TestCase):
 
         with patch("sys.argv", test_args):
             with patch.object(
-                self.cli,
-                "_sanitize_file_path",
-                return_value="/path/test.xml",
+                self.cli.validator,
+                "validate_input_file_path",
+                return_value=Path("/path/test.xml"),
             ):
                 with patch.object(
-                    self.cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path("/path/test.xml"),
-                ):
-                    with patch.object(
-                        self.cli, "parse_camt"
-                    ) as mock_parse_camt:
-                        self.cli.run()
+                    self.cli, "parse_camt"
+                ) as mock_parse_camt:
+                    self.cli.run()
 
-                        # Verify parse_camt was called with default show_pii=False
-                        mock_parse_camt.assert_called_once_with(
-                            Path("/path/test.xml"), None, False
-                        )
+                    # Verify parse_camt was called with default show_pii=False
+                    mock_parse_camt.assert_called_once_with(
+                        Path("/path/test.xml"), None, False
+                    )
 
     def test_cli_integration_with_show_pii_flag(self):
         """Integration test: CLI with --show-pii flag."""
@@ -515,24 +510,19 @@ class TestPIIRedaction(unittest.TestCase):
 
         with patch("sys.argv", test_args):
             with patch.object(
-                self.cli,
-                "_sanitize_file_path",
-                return_value="/path/test.xml",
+                self.cli.validator,
+                "validate_input_file_path",
+                return_value=Path("/path/test.xml"),
             ):
                 with patch.object(
-                    self.cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path("/path/test.xml"),
-                ):
-                    with patch.object(
-                        self.cli, "parse_camt"
-                    ) as mock_parse_camt:
-                        self.cli.run()
+                    self.cli, "parse_camt"
+                ) as mock_parse_camt:
+                    self.cli.run()
 
-                        # Verify parse_camt was called with show_pii=True
-                        mock_parse_camt.assert_called_once_with(
-                            Path("/path/test.xml"), None, True
-                        )
+                    # Verify parse_camt was called with show_pii=True
+                    mock_parse_camt.assert_called_once_with(
+                        Path("/path/test.xml"), None, True
+                    )
 
     def test_cli_integration_pain001_with_output_file(self):
         """Integration test: PAIN001 parsing with output file."""
@@ -548,31 +538,26 @@ class TestPIIRedaction(unittest.TestCase):
 
         with patch("sys.argv", test_args):
             with patch.object(
-                self.cli,
-                "_sanitize_file_path",
-                side_effect=["/path/test.xml", "/path/result.csv"],
+                self.cli.validator,
+                "validate_input_file_path",
+                return_value=Path("/path/test.xml"),
             ):
                 with patch.object(
                     self.cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path("/path/test.xml"),
+                    "validate_output_file_path",
+                    return_value=Path("/path/result.csv"),
                 ):
                     with patch.object(
-                        self.cli.validator,
-                        "validate_output_file_path",
-                        return_value=Path("/path/result.csv"),
-                    ):
-                        with patch.object(
-                            self.cli, "parse_pain"
-                        ) as mock_parse_pain:
-                            self.cli.run()
+                        self.cli, "parse_pain"
+                    ) as mock_parse_pain:
+                        self.cli.run()
 
-                            # Verify parse_pain was called with output file and default show_pii=False
-                            mock_parse_pain.assert_called_once_with(
-                                Path("/path/test.xml"),
-                                Path("/path/result.csv"),
-                                False,
-                            )
+                        # Verify parse_pain was called with output file and default show_pii=False
+                        mock_parse_pain.assert_called_once_with(
+                            Path("/path/test.xml"),
+                            Path("/path/result.csv"),
+                            False,
+                        )
 
     def test_edge_case_dataframe_with_only_pii_columns(self):
         """Test redaction with DataFrame containing only PII columns."""

@@ -38,7 +38,7 @@ from .orchestrator import (
     smart_ingest,
 )
 from .pdf_text import PDFExtractionError, extract_text
-from .scanner import ScanResult, scan_and_ingest
+from .scanner import FileFailure, ScanResult, scan_and_ingest
 from .verification import (
     BalanceVerification,
     VerificationStatus,
@@ -50,6 +50,7 @@ from .vision import VisionExtractor, VisionExtractorError
 __all__ = [
     "LOW_TEXT_DENSITY_THRESHOLD",
     "BalanceVerification",
+    "FileFailure",
     "IngestResult",
     "LLMExtractor",
     "LLMExtractorError",

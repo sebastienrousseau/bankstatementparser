@@ -23,12 +23,14 @@ import logging
 import os
 import re
 from collections.abc import Generator
+from decimal import Decimal
 from io import BytesIO
 from typing import Optional, Union, cast
 
 import pandas as pd
 from lxml import etree
 
+from ._amounts import iso_decimal
 from .base_parser import BankStatementParser
 from .exceptions import Pain001ParseError
 from .input_validator import InputValidator, ValidationError
@@ -700,7 +702,7 @@ class Pain001Parser(BankStatementParser):
             payment_info_records = root.findall(
                 ".//CstmrCdtTrfInitn/PmtInf"
             )
-            total_amount = 0.0
+            total_amount = Decimal("0")
             currency = "Unknown"
 
             for pmt in payment_info_records:
@@ -715,7 +717,10 @@ class Pain001Parser(BankStatementParser):
                             break
 
                     if amt_elem is not None and amt_elem.text:
-                        total_amount += float(amt_elem.text)
+                        total_amount += iso_decimal(
+                            amt_elem.text,
+                            context="InstdAmt element",
+                        )
                         if currency == "Unknown":
                             currency = amt_elem.get("Ccy", "Unknown")
 
@@ -736,7 +741,7 @@ class Pain001Parser(BankStatementParser):
                 "account_id": "Unknown",
                 "statement_date": "Unknown",
                 "transaction_count": 0,
-                "total_amount": 0.0,
+                "total_amount": Decimal("0"),
                 "currency": "Unknown",
                 "error": str(e),
             }

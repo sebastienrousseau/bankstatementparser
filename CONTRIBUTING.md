@@ -59,14 +59,14 @@ Or run them individually:
 ```bash
 poetry run ruff check bankstatementparser tests examples scripts
 poetry run mypy bankstatementparser
-poetry run pytest --cov=bankstatementparser  # 100% coverage gate is enforced
+poetry run pytest --cov=bankstatementparser  # coverage gate is enforced
 poetry run bandit -r bankstatementparser examples scripts -c pyproject.toml
 ```
 
-All four commands must pass with zero errors. The `--cov-fail-under=100`
-gate is enforced silently in `pyproject.toml` and surprises contributors
-who are at 99.9% — always pass `--cov=bankstatementparser` so you see
-the missing-lines report immediately.
+All four commands must pass with zero errors. A minimum-coverage gate
+(`--cov-fail-under` in `pyproject.toml`) is enforced silently — always
+pass `--cov=bankstatementparser` so you see the missing-lines report
+immediately.
 
 ## Signed Commits
 

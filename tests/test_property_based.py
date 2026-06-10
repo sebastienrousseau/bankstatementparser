@@ -27,8 +27,8 @@ Covers:
 
 from __future__ import annotations
 
-import math
 import unittest
+from decimal import Decimal
 from typing import Any
 
 from hypothesis import HealthCheck, assume, given, settings
@@ -161,12 +161,14 @@ class TestParseAmountProperties(unittest.TestCase):
 
     @given(text=_amount_text)
     @settings(max_examples=500)
-    def test_valid_number_strings_return_float(self, text: str) -> None:
-        """Valid numeric strings always produce a finite float."""
+    def test_valid_number_strings_return_decimal(
+        self, text: str
+    ) -> None:
+        """Valid numeric strings always produce a finite Decimal."""
         result = _parse_amount(text)
         self.assertIsNotNone(result)
-        self.assertIsInstance(result, float)
-        self.assertTrue(math.isfinite(result))
+        self.assertIsInstance(result, Decimal)
+        self.assertTrue(result.is_finite())
 
     @given(value=st.one_of(st.none(), st.just(float("nan"))))
     def test_none_and_nan_return_none(self, value: Any) -> None:
@@ -197,11 +199,10 @@ class TestParseAmountProperties(unittest.TestCase):
     def test_roundtrip_us_format(
         self, whole: int, frac: int
     ) -> None:
-        """US format '12345.67' round-trips to the expected float."""
+        """US format '12345.67' round-trips to the expected Decimal."""
         text = f"{whole}.{frac:02d}"
         result = _parse_amount(text)
-        expected = float(text)
-        self.assertAlmostEqual(result, expected, places=2)
+        self.assertEqual(result, Decimal(text))
 
     @given(
         whole=st.integers(min_value=0, max_value=999_999),
@@ -213,16 +214,15 @@ class TestParseAmountProperties(unittest.TestCase):
         """European '1234,56' parses to 1234.56."""
         text = f"{whole},{frac:02d}"
         result = _parse_amount(text)
-        expected = whole + frac / 100.0
-        self.assertAlmostEqual(result, expected, places=2)
+        self.assertEqual(result, Decimal(f"{whole}.{frac:02d}"))
 
     @given(text=_garbage_text)
     @settings(max_examples=300)
     def test_never_raises(self, text: str) -> None:
-        """_parse_amount never raises — always returns float or None."""
+        """_parse_amount never raises — always returns Decimal or None."""
         result = _parse_amount(text)
         self.assertTrue(
-            result is None or isinstance(result, float)
+            result is None or isinstance(result, Decimal)
         )
 
 
@@ -428,6 +428,12 @@ class TestParseStreamingTransactionProperties(unittest.TestCase):
             val_date=val_date,
             booking_date=booking_date,
         )
+        if amount is None:
+            with self.assertRaises(ValueError):
+                self.parser._parse_streaming_transaction(
+                    elem, "ACCT001", redact_pii=redact_pii
+                )
+            return
         result = self.parser._parse_streaming_transaction(
             elem, "ACCT001", redact_pii=redact_pii
         )
@@ -448,8 +454,8 @@ class TestParseStreamingTransactionProperties(unittest.TestCase):
             self.assertIn(key, result)
 
         self.assertEqual(result["AccountId"], "ACCT001")
-        self.assertIsInstance(result["Amount"], float)
-        self.assertTrue(math.isfinite(result["Amount"]))
+        self.assertIsInstance(result["Amount"], Decimal)
+        self.assertTrue(result["Amount"].is_finite())
 
     @given(
         amount=st.floats(
@@ -523,17 +529,11 @@ class TestParseStreamingTransactionProperties(unittest.TestCase):
                 result["CreditorAddress"], "***REDACTED***"
             )
 
-    def test_empty_element_returns_defaults(self) -> None:
-        """Completely empty <Ntry> returns zero-value defaults."""
+    def test_empty_element_raises(self) -> None:
+        """Completely empty <Ntry> raises — no silent 0.0 amounts."""
         elem = etree.Element("Ntry")
-        result = self.parser._parse_streaming_transaction(
-            elem, "X"
-        )
-        self.assertEqual(result["Amount"], 0.0)
-        self.assertEqual(result["Currency"], "")
-        self.assertEqual(result["DrCr"], "")
-        self.assertEqual(result["Debtor"], "")
-        self.assertEqual(result["Creditor"], "")
+        with self.assertRaises(ValueError):
+            self.parser._parse_streaming_transaction(elem, "X")
 
 
 if __name__ == "__main__":

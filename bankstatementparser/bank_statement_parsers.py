@@ -21,11 +21,14 @@ The actual parser implementations are in standalone modules with compatibility w
 """
 
 import os
+import warnings
 from pathlib import Path
 from typing import Any, Union
 
 import pandas as pd
 from lxml.etree import _Element
+
+from ._amounts import iso_decimal
 
 # Import parsers from standalone modules
 from .camt_parser import CamtParser
@@ -65,6 +68,13 @@ class Pain001Parser:
         Raises:
             FileNotFoundError: If the specified file cannot be found.
         """
+        warnings.warn(
+            "bank_statement_parsers.Pain001Parser is a compatibility "
+            "wrapper; use bankstatementparser.pain001_parser."
+            "Pain001Parser instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Store redact_pii setting
         self._redact_pii = redact_pii
 
@@ -185,7 +195,7 @@ class Pain001Parser:
 
         return {
             "Name": name,
-            "Amount": float(amount),
+            "Amount": iso_decimal(amount, context="InstdAmt element"),
             "Currency": currency,
             "Reference": reference,
             "CreditorAccount": account,
@@ -239,6 +249,12 @@ class Camt053Parser:
             FileParserError: If the file is not a valid CAMT.053 file or if it
             does not contain any statements.
         """
+        warnings.warn(
+            "Camt053Parser is a compatibility wrapper; use "
+            "bankstatementparser.camt_parser.CamtParser instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Use the enhanced standalone parser internally
         try:
             self._parser = CamtParser(str(file_name))

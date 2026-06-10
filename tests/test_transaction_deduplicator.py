@@ -171,6 +171,56 @@ def test_deduplicator_marks_suspected_date_shift_matches() -> None:
     assert result.unique_transactions[0].description == "Lunch"
 
 
+def test_deduplicator_excludes_suspected_with_custom_source_index() -> (
+    None
+):
+    # source_index values from the caller (e.g. row offsets in a
+    # larger file) must not leak into the exclusion logic, which
+    # operates on enumeration indices.
+    deduplicator = Deduplicator(value_date_window_days=3)
+    base = {
+        "account_id": "acct-1",
+        "currency": "EUR",
+        "amount": "1200.00",
+        "description": "Salary March 2026",
+    }
+    txs = [
+        Transaction.from_record(
+            {
+                **base,
+                "booking_date": "2026-03-20",
+                "value_date": "2026-03-20",
+            },
+            source_index=100,
+        ),
+        Transaction.from_record(
+            {
+                **base,
+                "booking_date": "2026-03-24",
+                "value_date": "2026-03-22",
+            },
+            source_index=200,
+        ),
+        Transaction.from_record(
+            {
+                "account_id": "acct-1",
+                "currency": "EUR",
+                "amount": "17.50",
+                "booking_date": "2026-03-24",
+                "value_date": "2026-03-24",
+                "description": "Lunch",
+            },
+            source_index=300,
+        ),
+    ]
+
+    result = deduplicator.deduplicate(txs)
+
+    assert len(result.suspected_matches) == 1
+    assert len(result.unique_transactions) == 1
+    assert result.unique_transactions[0].description == "Lunch"
+
+
 def test_deduplicator_normalizes_from_dataframe() -> None:
     deduplicator = Deduplicator()
     df = pd.DataFrame(

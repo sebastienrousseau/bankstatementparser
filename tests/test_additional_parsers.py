@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from decimal import Decimal
 from pathlib import Path
 
 from bankstatementparser import (
@@ -68,7 +69,8 @@ class TestAdditionalParsers(unittest.TestCase):
         summary = parser.get_summary()
 
         self.assertEqual(
-            df["amount"].round(2).tolist(), [1250.5, -200.25]
+            df["amount"].tolist(),
+            [Decimal("1250.50"), Decimal("-200.25")],
         )
         self.assertEqual(df["currency"].tolist(), ["EUR", "EUR"])
         self.assertEqual(summary["opening_balance"], 2250.5)
@@ -101,7 +103,8 @@ class TestAdditionalParsers(unittest.TestCase):
             df["description"].tolist(), ["Salary payment", "Groceries"]
         )
         self.assertEqual(
-            df["amount"].round(2).tolist(), [1250.5, -80.25]
+            df["amount"].tolist(),
+            [Decimal("1250.50"), Decimal("-80.25")],
         )
         self.assertEqual(summary["account_id"], "NL91ABNA0417164300")
         self.assertEqual(summary["opening_balance"], 1000.0)
@@ -157,10 +160,14 @@ class TestAdditionalParsers(unittest.TestCase):
         self.assertIsNone(_parse_amount(None))
         self.assertIsNone(_parse_amount(""))
         self.assertIsNone(_parse_amount("bad"))
-        self.assertEqual(_parse_amount("1234.56"), 1234.56)
-        self.assertEqual(_parse_amount("1,234.56"), 1234.56)
-        self.assertEqual(_parse_amount("1.234,56"), 1234.56)
-        self.assertEqual(_parse_amount("123,45"), 123.45)
+        self.assertEqual(_parse_amount("1234.56"), Decimal("1234.56"))
+        self.assertEqual(
+            _parse_amount("1,234.56"), Decimal("1234.56")
+        )
+        self.assertEqual(
+            _parse_amount("1.234,56"), Decimal("1234.56")
+        )
+        self.assertEqual(_parse_amount("123,45"), Decimal("123.45"))
 
     def test_detection_falls_back_to_content_signatures(self):
         with tempfile.NamedTemporaryFile(

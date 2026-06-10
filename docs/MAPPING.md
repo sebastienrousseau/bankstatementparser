@@ -10,7 +10,7 @@ Parsed by `CamtParser`. Output from `parse()` and `get_transactions()`.
 
 | DataFrame Column | XML Path | Type | Description |
 |---|---|---|---|
-| `Amount` | `Ntry/Amt` | float | Transaction amount (negative for debits) |
+| `Amount` | `Ntry/Amt` | Decimal | Transaction amount (negative for debits) |
 | `Currency` | `Ntry/Amt/@Ccy` | str | ISO 4217 currency code |
 | `DrCr` | `Ntry/CdtDbtInd` | str | `"CRDT"` (credit) or `"DBIT"` (debit) |
 | `Debtor` | `Ntry//Dbtr/Nm` | str | Debtor party name |
@@ -26,11 +26,11 @@ Output from `get_account_balances()`.
 
 | DataFrame Column | XML Path | Type | Description |
 |---|---|---|---|
-| `Amount` | `Bal/Amt` | float | Balance amount (negative for debits) |
+| `Amount` | `Bal/Amt` | Decimal | Balance amount (negative for debits) |
 | `Currency` | `Bal/Amt/@Ccy` | str | ISO 4217 currency code |
 | `Code` | `Bal/Tp/CdOrPrtry/Cd` | str | Balance type: `OPBD` (opening), `CLBD` (closing), `CLAV` (closing available) |
 | `Description` | — | str | Human-readable label derived from `Code` |
-| `CreditDebit` | `Bal/CdtDbtInd` | str | `"CRDT"` or `"DBIT"` |
+| `DrCr` | `Bal/CdtDbtInd` | str | `"CRDT"` or `"DBIT"` |
 | `Date` | `Bal/Dt/Dt` or `Bal/Dt/DtTm` | str | Balance date (ISO 8601) |
 | `AccountId` | `Stmt/Acct/Id/IBAN` or `Stmt/Acct/Id/Othr/Id` | str | Account identifier |
 
@@ -40,12 +40,11 @@ Output from `get_statement_stats()`.
 
 | DataFrame Column | XML Path | Type | Description |
 |---|---|---|---|
-| `AccountId` | `Stmt/Acct/Id/IBAN` | str | Account identifier |
 | `StatementId` | `Stmt/Id` | str | Statement identifier |
-| `EntryCount` | count of `Stmt/Ntry` | int | Number of transaction entries |
-| `TotalCredits` | sum of credit `Ntry/Amt` | float | Total credit amount |
-| `TotalDebits` | sum of debit `Ntry/Amt` | float | Total debit amount |
-| `NetAmount` | credits - debits | float | Net balance change |
+| `AccountId` | `Stmt/Acct/Id/IBAN` or `Stmt/Acct/Id/Othr/Id` | str | Account identifier |
+| `StatementCreated` | `Stmt/CreDtTm` | str | Statement creation timestamp |
+| `NumTransactions` | count of `Stmt/Ntry` | int | Number of transaction entries |
+| `NetAmount` | signed sum of `Ntry/Amt` | Decimal | Net balance change |
 
 ---
 
@@ -86,7 +85,7 @@ Parsed by `CsvStatementParser`. Column headers are normalized automatically.
 |---|---|---|
 | `date` | `Date`, `Transaction Date`, `Booking Date`, `Buchungstag` | str |
 | `description` | `Description`, `Narrative`, `Details`, `Verwendungszweck` | str |
-| `amount` | `Amount`, `Value`, `Sum`, `Betrag` | float |
+| `amount` | `Amount`, `Value`, `Sum`, `Betrag` | Decimal |
 
 Split credit/debit columns (`Credit`/`Debit`, `Haben`/`Soll`) are detected and merged into a single signed `amount`.
 
@@ -99,7 +98,7 @@ Parsed by `OfxParser` / `QfxParser`. Tags extracted via regex.
 | DataFrame Column | OFX Tag | Type | Description |
 |---|---|---|---|
 | `date` | `<DTPOSTED>` | str | Transaction date (YYYYMMDD) |
-| `amount` | `<TRNAMT>` | float | Transaction amount |
+| `amount` | `<TRNAMT>` | Decimal | Transaction amount |
 | `description` | `<NAME>` or `<MEMO>` | str | Transaction description |
 | `type` | `<TRNTYPE>` | str | Transaction type (e.g., `DEBIT`, `CREDIT`) |
 | `id` | `<FITID>` | str | Financial institution transaction ID |
@@ -113,7 +112,7 @@ Parsed by `Mt940Parser`.
 | DataFrame Column | MT940 Field | Type | Description |
 |---|---|---|---|
 | `date` | `:61:` (positions 1–6) | str | Transaction date (YYMMDD) |
-| `amount` | `:61:` (amount portion) | float | Transaction amount |
+| `amount` | `:61:` (amount portion) | Decimal | Transaction amount |
 | `type` | `:61:` (C/D indicator) | str | `"C"` (credit) or `"D"` (debit) |
 | `description` | `:86:` | str | Transaction narrative |
 | `account_id` | `:25:` | str | Account identification |

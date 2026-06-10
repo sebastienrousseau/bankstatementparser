@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 import pandas as pd
@@ -29,7 +30,13 @@ from .pain001_parser import Pain001Parser
 from .record_types import SummaryRecord, TransactionRecord
 
 CSV_COLUMN_GROUPS = {
-    "date": {"date", "bookingdate", "transactiondate", "valuedate"},
+    "date": {
+        "date",
+        "bookingdate",
+        "transactiondate",
+        "valuedate",
+        "buchungstag",
+    },
     "description": {
         "description",
         "details",
@@ -37,10 +44,11 @@ CSV_COLUMN_GROUPS = {
         "narrative",
         "payee",
         "name",
+        "verwendungszweck",
     },
-    "amount": {"amount", "transactionamount"},
-    "debit": {"debit", "withdrawal", "outflow"},
-    "credit": {"credit", "deposit", "inflow"},
+    "amount": {"amount", "transactionamount", "betrag", "value", "sum"},
+    "debit": {"debit", "withdrawal", "outflow", "soll"},
+    "credit": {"credit", "deposit", "inflow", "haben"},
     "balance": {"balance", "runningbalance"},
     "currency": {"currency", "ccy"},
     "account_id": {"account", "accountnumber", "iban"},
@@ -55,10 +63,23 @@ def _normalized_name(name: str) -> str:
 def _read_validated_text(file_name: str | Path) -> tuple[Path, str]:
     validator = InputValidator()
     path = validator.validate_input_file_path(str(file_name))
-    return path, path.read_text(encoding="utf-8", errors="ignore")
+    try:
+        return path, path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        # Silently dropping undecodable bytes (errors="ignore")
+        # could corrupt amounts and descriptions mid-token.
+        raise ValidationError(
+            f"File is not valid UTF-8: {path} ({exc})"
+        ) from exc
 
 
-def _parse_amount(value: object) -> float | None:
+def _parse_amount(value: object) -> Decimal | None:
+    """Tolerantly parse a locale-formatted amount into a Decimal.
+
+    Returns ``None`` when the value is blank or unparseable —
+    callers that require an amount must use :func:`_require_amount`
+    so garbage fails loudly instead of becoming ``0.0``.
+    """
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None
     text = str(value).strip()
@@ -74,9 +95,34 @@ def _parse_amount(value: object) -> float | None:
     else:
         normalized = text
     try:
-        return float(normalized)
-    except ValueError:
+        amount = Decimal(normalized)
+    except InvalidOperation:
         return None
+    return amount if amount.is_finite() else None
+
+
+def _require_amount(value: object, *, context: str) -> Decimal:
+    """Parse an amount that must be present and valid."""
+    amount = _parse_amount(value)
+    if amount is None:
+        raise ValidationError(
+            f"Unparseable amount {value!r} in {context}"
+        )
+    return amount
+
+
+def _amount_or_zero(value: object, *, context: str) -> Decimal:
+    """Parse an amount where a blank cell legitimately means zero.
+
+    Used for CSV credit/debit column pairs, where an empty cell on
+    one side is the normal representation of "no entry". Non-blank
+    garbage still fails loudly.
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return Decimal("0")
+    if not str(value).strip():
+        return Decimal("0")
+    return _require_amount(value, context=context)
 
 
 class CsvStatementParser(BankStatementParser):
@@ -114,21 +160,36 @@ class CsvStatementParser(BankStatementParser):
 
         amount_col = self._find_column(raw_df, "amount")
         if amount_col:
-            parsed["amount"] = raw_df[amount_col].map(_parse_amount)
+            parsed["amount"] = raw_df[amount_col].map(
+                lambda v: _require_amount(
+                    v, context=f"CSV column {amount_col!r}"
+                )
+            )
         else:
             credit_col = self._find_column(raw_df, "credit")
             debit_col = self._find_column(raw_df, "debit")
+            zero = pd.Series(
+                [Decimal("0")] * len(raw_df), index=raw_df.index
+            )
             credit = (
-                raw_df[credit_col].map(_parse_amount)
+                raw_df[credit_col].map(
+                    lambda v: _amount_or_zero(
+                        v, context=f"CSV column {credit_col!r}"
+                    )
+                )
                 if credit_col
-                else pd.Series([0.0] * len(raw_df), index=raw_df.index)
+                else zero
             )
             debit = (
-                raw_df[debit_col].map(_parse_amount)
+                raw_df[debit_col].map(
+                    lambda v: _amount_or_zero(
+                        v, context=f"CSV column {debit_col!r}"
+                    )
+                )
                 if debit_col
-                else pd.Series([0.0] * len(raw_df), index=raw_df.index)
+                else zero
             )
-            parsed["amount"] = credit.fillna(0.0) - debit.fillna(0.0)
+            parsed["amount"] = credit - debit
 
         for logical_name in (
             "currency",
@@ -140,7 +201,7 @@ class CsvStatementParser(BankStatementParser):
             if source_col:
                 parsed[logical_name] = raw_df[source_col]
 
-        self._parsed_df = parsed.fillna(value={"amount": 0.0})
+        self._parsed_df = parsed
         return self._parsed_df.copy()
 
     def get_summary(self) -> SummaryRecord:
@@ -160,7 +221,11 @@ class CsvStatementParser(BankStatementParser):
                 else None
             ),
             "transaction_count": int(len(df)),
-            "total_amount": float(df["amount"].fillna(0.0).sum()),
+            "total_amount": (
+                sum(df["amount"].dropna(), Decimal("0"))
+                if "amount" in df.columns
+                else Decimal("0")
+            ),
             "opening_balance": (
                 _parse_amount(balance.iloc[0])
                 if not balance.empty
@@ -209,6 +274,7 @@ class OfxParser(BankStatementParser):
         )
         for block in blocks:
             posted = self._tag_value(block, "DTPOSTED") or ""
+            transaction_id = self._tag_value(block, "FITID")
             rows.append(
                 {
                     "date": posted[:8],
@@ -216,13 +282,16 @@ class OfxParser(BankStatementParser):
                         self._tag_value(block, "MEMO")
                         or self._tag_value(block, "NAME")
                     ),
-                    "amount": _parse_amount(
-                        self._tag_value(block, "TRNAMT")
-                    )
-                    or 0.0,
+                    "amount": _require_amount(
+                        self._tag_value(block, "TRNAMT"),
+                        context=(
+                            "OFX STMTTRN "
+                            f"{transaction_id or '(no FITID)'}"
+                        ),
+                    ),
                     "currency": currency,
                     "account_id": account_id,
-                    "transaction_id": self._tag_value(block, "FITID"),
+                    "transaction_id": transaction_id,
                     "transaction_type": self._tag_value(
                         block, "TRNTYPE"
                     ),
@@ -246,9 +315,11 @@ class OfxParser(BankStatementParser):
                 else None
             ),
             "transaction_count": int(len(df)),
-            "total_amount": float(df["amount"].fillna(0.0).sum())
-            if "amount" in df.columns
-            else 0.0,
+            "total_amount": (
+                sum(df["amount"].dropna(), Decimal("0"))
+                if "amount" in df.columns
+                else Decimal("0")
+            ),
             "opening_balance": None,
             "closing_balance": None,
             "currency": (
@@ -266,8 +337,8 @@ class Mt940Parser(BankStatementParser):
         super().__init__(file_name)
         self._path, self._text = _read_validated_text(file_name)
         self._parsed_df: pd.DataFrame | None = None
-        self._opening_balance: float | None = None
-        self._closing_balance: float | None = None
+        self._opening_balance: Decimal | None = None
+        self._closing_balance: Decimal | None = None
         self._account_id: str | None = None
         self._currency: str | None = None
 
@@ -299,11 +370,18 @@ class Mt940Parser(BankStatementParser):
                     line,
                 )
                 if match is not None:
-                    sign = -1.0 if match.group(2) == "D" else 1.0
+                    sign = (
+                        Decimal("-1")
+                        if match.group(2) == "D"
+                        else Decimal("1")
+                    )
                     current_record: TransactionRecord = {
                         "date": match.group(1),
                         "amount": sign
-                        * (_parse_amount(match.group(3)) or 0.0),
+                        * _require_amount(
+                            match.group(3),
+                            context="MT940 :61: line",
+                        ),
                         "transaction_id": match.group(4).strip()
                         or None,
                         "account_id": self._account_id,
@@ -328,9 +406,11 @@ class Mt940Parser(BankStatementParser):
                 else None
             ),
             "transaction_count": int(len(df)),
-            "total_amount": float(df["amount"].fillna(0.0).sum())
-            if "amount" in df.columns
-            else 0.0,
+            "total_amount": (
+                sum(df["amount"].dropna(), Decimal("0"))
+                if "amount" in df.columns
+                else Decimal("0")
+            ),
             "opening_balance": self._opening_balance,
             "closing_balance": self._closing_balance,
             "currency": self._currency,
@@ -357,7 +437,7 @@ def detect_statement_format(file_name: str | Path) -> str:
     ):
         return "pain001"
     if suffix == ".xml" and (
-        "bk to cstmr stmt" in lowered or "camt." in lowered
+        "bktocstmrstmt" in lowered or "camt." in lowered
     ):
         return "camt"
     if "<ofx>" in lowered or "<banktranlist>" in lowered:

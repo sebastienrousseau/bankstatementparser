@@ -111,6 +111,13 @@ jobs:
         run: |
           poetry run pytest --no-cov tests/integration tests/test_enterprise_coverage.py
 
+      - name: Run performance contracts (slow suite)
+        # Timing-sensitive tests are excluded from the coverage run
+        # (`-m "not slow"` in pyproject addopts) so they don't flake
+        # under coverage instrumentation. The CLI -m overrides it.
+        run: |
+          poetry run pytest --no-cov -m slow tests/test_performance_contracts.py
+
   platform-parity:
     name: Platform Parity
     runs-on: ${{ matrix.os }}

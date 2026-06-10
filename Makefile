@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: install install-all install-hooks dist release test lint typecheck security verify clean
+.PHONY: install install-all install-hooks dist release test test-slow lint typecheck security verify clean
 
 # ----- Local development -----------------------------------------------------
 
@@ -35,6 +35,12 @@ install-all:
 
 test:
 	poetry run pytest --cov=bankstatementparser
+
+# Timing-sensitive performance contracts (excluded from the default
+# run via `-m "not slow"` in pyproject addopts). The CLI -m here
+# overrides the addopts marker filter.
+test-slow:
+	poetry run pytest --no-cov -m slow
 
 lint:
 	poetry run ruff check bankstatementparser tests examples scripts

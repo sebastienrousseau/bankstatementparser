@@ -58,3 +58,27 @@ This project enforces the following automated security controls:
 - **Secret scanning** — Gitleaks with `.gitleaks.toml` configuration
 - **Dependency auditing** — pip-audit, lock file hash verification, CycloneDX SBOM
 - **Build provenance** — GitHub attestation on every tagged release
+
+## XML Parsing: Why lxml
+
+CAMT.053 and PAIN.001 files are parsed with **lxml** rather than
+`defusedxml` because the parsers rely on lxml-specific features
+(streaming via `iterparse`, full XPath). The known XML attack classes
+are mitigated by constructing every `XMLParser` with hardened
+settings instead:
+
+| Setting | Mitigates |
+|---|---|
+| `resolve_entities=False` | XXE — external/internal entities are never expanded |
+| `load_dtd=False` | DTD-based attacks (parameter entities, DTD retrieval) |
+| `no_network=True` | SSRF via network-reachable DTDs or entities |
+| `huge_tree=False` | Memory exhaustion from oversized documents (libxml2 hard limits apply) |
+| `recover=False` (default) | Silent acceptance of malformed content; billion-laughs payloads are rejected at parse time by libxml2's entity-amplification limit |
+
+Recovery-mode parsing (`recover=True`) is **opt-in** via
+`CamtParser(..., allow_recovery=True)` and logs a warning when used,
+because it can silently drop malformed content. Input size limits and
+content validation are additionally enforced by
+`bankstatementparser/input_validator.py` before any bytes reach lxml.
+These properties are pinned by `tests/test_security.py` and
+`tests/test_security_updated.py`.

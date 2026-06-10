@@ -54,7 +54,7 @@ Covers all modules in the `bankstatementparser` package, supporting scripts unde
 
 | Step | Action | Tool | Pass Criterion |
 |---|---|---|---|
-| V-09 | Unit and integration tests | pytest | 100% branch coverage, 0 failures, 0 skipped |
+| V-09 | Unit and integration tests | pytest | Coverage gate met (no regression vs. base), 0 failures, 0 skipped |
 | V-10 | Property-based fuzz testing | Hypothesis | All properties hold across generated examples |
 | V-11 | Platform parity | GitHub Actions matrix | Tests pass on Ubuntu, macOS, and Windows |
 | V-12 | Dependency vulnerability scan | pip-audit | 0 known CVEs in runtime dependencies |

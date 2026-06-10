@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+	<BkToCstmrStmt>
+		<GrpHdr>
+			<MsgId>GOLDEN-GARBLED-001</MsgId>
+			<CreDtTm>2026-04-30T17:00:00+01:00</CreDtTm>
+		</GrpHdr>
+		<Stmt>
+			<Id>GOLDEN-GARBLED</Id>
+			<CreDtTm>2026-04-30T17:00:00+01:00</CreDtTm>
+			<Acct>
+				<Id>
+					<IBAN>DE89370400440532013000</IBAN>
+				</Id>
+			</Acct>
+			<Ntry>
+				<Amt Ccy="EUR">12..34</Amt>
+				<CdtDbtInd>CRDT</CdtDbtInd>
+				<Sts>BOOK</Sts>
+				<BookgDt>
+					<Dt>2026-04-10</Dt>
+				</BookgDt>
+				<ValDt>
+					<Dt>2026-04-10</Dt>
+				</ValDt>
+			</Ntry>
+		</Stmt>
+	</BkToCstmrStmt>
+</Document>

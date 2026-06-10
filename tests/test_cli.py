@@ -1,4 +1,3 @@
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -39,34 +38,6 @@ class TestBankStatementCLI(unittest.TestCase):
         # Test that required arguments are configured
         with self.assertRaises(SystemExit):
             parser.parse_args([])
-
-    def test_sanitize_file_path_basic(self):
-        """Test basic file path sanitization."""
-        test_path = "test.xml"
-        result = self.cli._sanitize_file_path(test_path)
-        self.assertTrue(os.path.isabs(result))
-
-    def test_sanitize_file_path_absolute(self):
-        """Test sanitization of absolute paths."""
-        test_path = "/tmp/test.xml"
-        result = self.cli._sanitize_file_path(test_path)
-        self.assertEqual(result, os.path.abspath(test_path))
-
-    def test_sanitize_file_path_traversal_attempt(self):
-        """Test handling of path traversal attempts."""
-        test_path = "../../../etc/passwd"
-        result = self.cli._sanitize_file_path(test_path)
-        self.assertTrue(os.path.isabs(result))
-
-    def test_sanitize_file_path_windows_style(self):
-        """Test handling of different path formats."""
-        with patch("os.path.commonpath") as mock_common:
-            mock_common.side_effect = ValueError("Different drives")
-            with patch("bankstatementparser.cli.logger") as mock_logger:
-                test_path = "C:\\test.xml"
-                result = self.cli._sanitize_file_path(test_path)
-                mock_logger.warning.assert_called_once()
-                self.assertTrue(os.path.isabs(result))
 
     @patch("bankstatementparser.cli.CamtParser")
     @patch("pandas.DataFrame.to_csv")
@@ -240,20 +211,15 @@ class TestBankStatementCLI(unittest.TestCase):
     def test_run_camt_success(self, mock_logger):
         """Test successful CAMT parsing via run method."""
         with patch.object(
-            self.cli,
-            "_sanitize_file_path",
-            return_value="/path/test.xml",
+            self.cli.validator,
+            "validate_input_file_path",
+            return_value=Path("/path/test.xml"),
         ):
-            with patch.object(
-                self.cli.validator,
-                "validate_input_file_path",
-                return_value=Path("/path/test.xml"),
-            ):
-                with patch.object(self.cli, "parse_camt") as mock_parse:
-                    self.cli.run()
-                    mock_parse.assert_called_once_with(
-                        Path("/path/test.xml"), None, False
-                    )
+            with patch.object(self.cli, "parse_camt") as mock_parse:
+                self.cli.run()
+                mock_parse.assert_called_once_with(
+                    Path("/path/test.xml"), None, False
+                )
 
     @patch(
         "sys.argv",
@@ -263,20 +229,15 @@ class TestBankStatementCLI(unittest.TestCase):
     def test_run_pain001_success(self, mock_logger):
         """Test successful PAIN001 parsing via run method."""
         with patch.object(
-            self.cli,
-            "_sanitize_file_path",
-            return_value="/path/test.xml",
+            self.cli.validator,
+            "validate_input_file_path",
+            return_value=Path("/path/test.xml"),
         ):
-            with patch.object(
-                self.cli.validator,
-                "validate_input_file_path",
-                return_value=Path("/path/test.xml"),
-            ):
-                with patch.object(self.cli, "parse_pain") as mock_parse:
-                    self.cli.run()
-                    mock_parse.assert_called_once_with(
-                        Path("/path/test.xml"), None, False
-                    )
+            with patch.object(self.cli, "parse_pain") as mock_parse:
+                self.cli.run()
+                mock_parse.assert_called_once_with(
+                    Path("/path/test.xml"), None, False
+                )
 
     @patch(
         "sys.argv",
@@ -294,29 +255,24 @@ class TestBankStatementCLI(unittest.TestCase):
     def test_run_with_output_success(self, mock_logger):
         """Test successful parsing with output file via run method."""
         with patch.object(
-            self.cli,
-            "_sanitize_file_path",
-            side_effect=["/path/test.xml", "/path/output.csv"],
+            self.cli.validator,
+            "validate_input_file_path",
+            return_value=Path("/path/test.xml"),
         ):
             with patch.object(
                 self.cli.validator,
-                "validate_input_file_path",
-                return_value=Path("/path/test.xml"),
+                "validate_output_file_path",
+                return_value=Path("/path/output.csv"),
             ):
                 with patch.object(
-                    self.cli.validator,
-                    "validate_output_file_path",
-                    return_value=Path("/path/output.csv"),
-                ):
-                    with patch.object(
-                        self.cli, "parse_camt"
-                    ) as mock_parse:
-                        self.cli.run()
-                        mock_parse.assert_called_with(
-                            Path("/path/test.xml"),
-                            Path("/path/output.csv"),
-                            False,
-                        )
+                    self.cli, "parse_camt"
+                ) as mock_parse:
+                    self.cli.run()
+                    mock_parse.assert_called_with(
+                        Path("/path/test.xml"),
+                        Path("/path/output.csv"),
+                        False,
+                    )
 
     @patch(
         "sys.argv",
@@ -334,23 +290,18 @@ class TestBankStatementCLI(unittest.TestCase):
     def test_run_with_max_size(self, mock_logger):
         """Test run with custom max size parameter."""
         with patch.object(
-            self.cli,
-            "_sanitize_file_path",
-            return_value="/path/test.xml",
+            self.cli.validator,
+            "validate_input_file_path",
+            return_value=Path("/path/test.xml"),
         ):
-            with patch.object(
-                self.cli.validator,
-                "validate_input_file_path",
-                return_value=Path("/path/test.xml"),
-            ):
-                with patch.object(self.cli, "parse_camt") as mock_parse:
-                    self.cli.run()
-                    # Verify validator was updated with new size
-                    self.assertEqual(
-                        self.cli.validator.max_file_size,
-                        50 * 1024 * 1024,
-                    )
-                    mock_parse.assert_called_once()
+            with patch.object(self.cli, "parse_camt") as mock_parse:
+                self.cli.run()
+                # Verify validator was updated with new size
+                self.assertEqual(
+                    self.cli.validator.max_file_size,
+                    50 * 1024 * 1024,
+                )
+                mock_parse.assert_called_once()
 
     @patch(
         "sys.argv",
@@ -359,8 +310,8 @@ class TestBankStatementCLI(unittest.TestCase):
     def test_run_input_validation_failed(self):
         """Test run with input validation failure."""
         with patch.object(
-            self.cli,
-            "_sanitize_file_path",
+            self.cli.validator,
+            "validate_input_file_path",
             side_effect=ValidationError("Invalid path"),
         ):
             with patch("sys.exit") as mock_exit:
@@ -384,41 +335,14 @@ class TestBankStatementCLI(unittest.TestCase):
     def test_run_output_validation_failed(self):
         """Test run with output validation failure."""
         with patch.object(
-            self.cli,
-            "_sanitize_file_path",
-            side_effect=["/path/test.xml", "/path/invalid.csv"],
+            self.cli.validator,
+            "validate_input_file_path",
+            return_value=Path("/path/test.xml"),
         ):
             with patch.object(
                 self.cli.validator,
-                "validate_input_file_path",
-                return_value=Path("/path/test.xml"),
-            ):
-                with patch.object(
-                    self.cli.validator,
-                    "validate_output_file_path",
-                    side_effect=ValidationError("Invalid output"),
-                ):
-                    with patch("sys.exit") as mock_exit:
-                        with patch("builtins.print") as mock_print:
-                            self.cli.run()
-                            mock_exit.assert_called_with(1)
-                            mock_print.assert_called()
-
-    @patch(
-        "sys.argv",
-        ["cli.py", "--type", "unsupported", "--input", "test.xml"],
-    )
-    def test_run_unsupported_type(self):
-        """Test run with unsupported file type."""
-        with patch.object(
-            self.cli,
-            "_sanitize_file_path",
-            return_value="/path/test.xml",
-        ):
-            with patch.object(
-                self.cli.validator,
-                "validate_input_file_path",
-                return_value=Path("/path/test.xml"),
+                "validate_output_file_path",
+                side_effect=ValidationError("Invalid output"),
             ):
                 with patch("sys.exit") as mock_exit:
                     with patch("builtins.print") as mock_print:
@@ -427,30 +351,42 @@ class TestBankStatementCLI(unittest.TestCase):
                         mock_print.assert_called()
 
     @patch(
+        "sys.argv",
+        ["cli.py", "--type", "unsupported", "--input", "test.xml"],
+    )
+    def test_run_unsupported_type(self):
+        """Test run with unsupported file type."""
+        with patch.object(
+            self.cli.validator,
+            "validate_input_file_path",
+            return_value=Path("/path/test.xml"),
+        ):
+            with patch("sys.exit") as mock_exit:
+                with patch("builtins.print") as mock_print:
+                    self.cli.run()
+                    mock_exit.assert_called_with(1)
+                    mock_print.assert_called()
+
+    @patch(
         "sys.argv", ["cli.py", "--type", "camt", "--input", "test.xml"]
     )
     def test_run_parsing_exception(self):
         """Test run with parsing exception."""
         with patch.object(
-            self.cli,
-            "_sanitize_file_path",
-            return_value="/path/test.xml",
+            self.cli.validator,
+            "validate_input_file_path",
+            return_value=Path("/path/test.xml"),
         ):
             with patch.object(
-                self.cli.validator,
-                "validate_input_file_path",
-                return_value=Path("/path/test.xml"),
+                self.cli,
+                "parse_camt",
+                side_effect=Exception("Parse error"),
             ):
-                with patch.object(
-                    self.cli,
-                    "parse_camt",
-                    side_effect=Exception("Parse error"),
-                ):
-                    with patch("sys.exit") as mock_exit:
-                        with patch("builtins.print") as mock_print:
-                            self.cli.run()
-                            mock_exit.assert_called_with(1)
-                            mock_print.assert_called()
+                with patch("sys.exit") as mock_exit:
+                    with patch("builtins.print") as mock_print:
+                        self.cli.run()
+                        mock_exit.assert_called_with(1)
+                        mock_print.assert_called()
 
 
 if __name__ == "__main__":

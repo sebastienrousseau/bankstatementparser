@@ -24,7 +24,7 @@ Maps every design input (user need) through implementation to verification evide
 | DI-05 | Parse CSV, OFX, QFX, and MT940 formats | Auto-detect format and return structured data | `additional_parsers.py` | `test_additional_parsers.py` | — |
 | DI-06 | Validate input files before parsing | Reject dangerous paths, oversized files, non-XML content, and binary payloads | `input_validator.py` | `test_input_validator.py`, `test_security_boundaries.py` | R-006 |
 | DI-07 | Redact PII in output by default | Mask account numbers, names, and addresses unless explicitly opted in | `cli.py`, `camt_parser.py`, `pain001_parser.py` | `test_pii_redaction.py` | R-005 |
-| DI-08 | Stream large files without exhausting memory | Incremental XML parsing with element cleanup | `camt_parser.py`, `pain001_parser.py` (`parse_streaming`) | `test_performance.py`, `test_coverage_gaps.py` | R-007 |
+| DI-08 | Stream large files without exhausting memory | Incremental XML parsing with element cleanup | `camt_parser.py`, `pain001_parser.py` (`parse_streaming`) | `test_performance.py`, `test_error_paths.py` | R-007 |
 | DI-09 | Export to CSV, JSON, and Excel | Write parsed data to standard interchange formats | `base_parser.py`, `camt_parser.py` | `test_unified_interface.py`, `test_edge_cases.py` | — |
 | DI-10 | Command-line interface | Parse statements via `python -m bankstatementparser.cli` | `cli.py` | `test_cli.py` | — |
 | DI-11 | Enforce signed commits in CI | Block unverified commits from reaching `main` | `scripts/verify_github_commit_signatures.py` | `commit-signature-verification.yml` | R-004 |

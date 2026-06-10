@@ -184,12 +184,14 @@ class Transaction(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def transaction_hash(self) -> str:
-        """Idempotent fingerprint of date|normalized_description|amount.
+        """Idempotent fingerprint of date|normalized_description|amount|id.
 
         Generated from normalized fields so the same transaction
         produces the same hash regardless of source (deterministic
-        parser vs. LLM extraction). MD5 is used for a compact,
-        non-cryptographic identity key.
+        parser vs. LLM extraction). The bank-assigned transaction_id
+        (or reference) is included when present so two distinct
+        same-day, same-amount transactions never collide. MD5 is used
+        for a compact, non-cryptographic identity key.
         """
         date_part = (
             self.booking_date.isoformat()
@@ -205,6 +207,7 @@ class Transaction(BaseModel):
                 date_part,
                 self.normalized_description,
                 self.amount_key(),
+                self.transaction_id or self.reference or "",
             ]
         )
         return hashlib.md5(  # noqa: S324

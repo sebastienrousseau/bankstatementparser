@@ -23,8 +23,9 @@ import argparse
 import logging
 import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -59,47 +60,6 @@ class BankStatementCLI:
         """Initialize the CLI by setting up the argument parser."""
         self.parser = self.setup_arg_parser()
         self.validator = InputValidator()
-
-    def _sanitize_file_path(self, file_path: str) -> str:
-        """
-        Sanitize and validate file path for security.
-
-        Args:
-            file_path (str): Input file path to sanitize.
-
-        Returns:
-            str: Sanitized absolute path.
-
-        Raises:
-            ValidationError: If path is invalid or potentially dangerous.
-        """
-        # Check for None or empty path
-        if file_path is None:
-            raise ValueError("File path cannot be None")
-
-        # Convert to absolute path to prevent directory traversal
-        abs_path = os.path.abspath(file_path)
-
-        # Get the common path with current working directory to prevent escaping
-        cwd = os.path.abspath(os.getcwd())
-        try:
-            common_path = os.path.commonpath([abs_path, cwd])
-            # Allow paths under current working directory or use system temp directory
-            import tempfile
-
-            system_temp = os.path.abspath(tempfile.gettempdir())
-            if not (
-                common_path == cwd or abs_path.startswith(system_temp)
-            ):
-                # For production, you might want to be more restrictive
-                logger.info(
-                    f"Path outside working directory: {file_path}"
-                )
-        except ValueError:
-            # Different drives on Windows or other path issues
-            logger.warning(f"Path validation warning for: {file_path}")
-
-        return abs_path
 
     def _redact_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -203,125 +163,23 @@ class BankStatementCLI:
             show_pii (bool): Whether to display unredacted PII data.
             streaming (bool): Whether to use streaming parsing for large files.
         """
-        try:
-            parser = CamtParser(str(file_path))
 
-            if streaming:
-                # Use streaming parsing to process transactions incrementally
-                transactions = []
-                transaction_count = 0
+        def get_camt_stats(parser: Any) -> list[dict[str, Any]]:
+            data = parser.get_statement_stats()
+            if isinstance(data, dict):
+                return [data]
+            return list(data)
 
-                if output_path:
-                    # For output file, use atomic write operation with temp file
-                    safe_name = self.validator.get_safe_filename(
-                        output_path.name
-                    )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
-                    temp_output = f"{safe_output_path}.tmp"
-
-                    with open(temp_output, "w", encoding="utf-8") as f:
-                        # Write CSV header
-                        header_written = False
-
-                        for transaction_data in parser.parse_streaming(
-                            redact_pii=not show_pii
-                        ):
-                            transaction_count += 1
-
-                            # Convert to DataFrame for consistent formatting
-                            tx_df = pd.DataFrame([transaction_data])
-
-                            if not header_written:
-                                # Write header on first transaction
-                                tx_df.to_csv(f, index=False, mode="w")
-                                header_written = True
-                            else:
-                                # Write data without header
-                                tx_df.to_csv(
-                                    f,
-                                    index=False,
-                                    mode="a",
-                                    header=False,
-                                )
-
-                    # Atomically move temp file to final location
-                    os.replace(temp_output, safe_output_path)
-                    print(
-                        f"Parsed {transaction_count} transactions in streaming mode, saved to {safe_output_path}"
-                    )
-
-                else:
-                    # For console output, collect a reasonable number of transactions
-                    max_console_transactions = 100
-
-                    for transaction_data in parser.parse_streaming(
-                        redact_pii=not show_pii
-                    ):
-                        transactions.append(transaction_data)
-                        transaction_count += 1
-
-                        # Limit console output to prevent overwhelming display
-                        if (
-                            transaction_count
-                            >= max_console_transactions
-                        ):
-                            break
-
-                    data_df = pd.DataFrame(transactions)
-
-                    if show_pii:
-                        print("WARNING: Displaying unredacted PII data")
-                        print(data_df)
-                    else:
-                        redacted_df = self._redact_dataframe(data_df)
-                        print(redacted_df)
-
-                    if transaction_count >= max_console_transactions:
-                        print(
-                            f"\n... (showing first {max_console_transactions} transactions in streaming mode)"
-                        )
-
-            else:
-                # Use traditional parsing
-                data = parser.get_statement_stats()
-
-                if isinstance(data, dict):
-                    data = [data]
-
-                data_df = pd.DataFrame(data)
-
-                if output_path:
-                    # Use safe filename for output
-                    safe_name = self.validator.get_safe_filename(
-                        output_path.name
-                    )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
-                    data_df.to_csv(safe_output_path, index=False)
-                    print(f"Parsed data saved to {safe_output_path}")
-                else:
-                    if show_pii:
-                        print("WARNING: Displaying unredacted PII data")
-                        print(data_df)
-                    else:
-                        redacted_df = self._redact_dataframe(data_df)
-                        print(redacted_df)
-
-        except FileNotFoundError as e:
-            logger.error(f"File not found: {e}")
-            print(f"Error: Input file not found - {str(e)}")
-            sys.exit(1)
-        except ValidationError as e:
-            logger.error(f"Validation error: {e}")
-            print(f"Error: Invalid input - {str(e)}")
-            sys.exit(1)
-        except Exception as e:
-            logger.error(f"Unexpected error during CAMT parsing: {e}")
-            print(f"Error: Failed to parse CAMT file - {str(e)}")
-            sys.exit(1)
+        self._parse_statement_file(
+            file_path,
+            output_path,
+            show_pii,
+            streaming,
+            parser_factory=CamtParser,
+            get_data=get_camt_stats,
+            noun="transactions",
+            format_label="CAMT",
+        )
 
     def parse_pain(
         self,
@@ -341,14 +199,49 @@ class BankStatementCLI:
             show_pii (bool): Whether to display unredacted PII data.
             streaming (bool): Whether to use streaming parsing for large files.
         """
+        self._parse_statement_file(
+            file_path,
+            output_path,
+            show_pii,
+            streaming,
+            parser_factory=Pain001Parser,
+            get_data=lambda parser: parser.parse(),
+            noun="payments",
+            format_label="PAIN.001",
+        )
+
+    def _parse_statement_file(
+        self,
+        file_path: Path,
+        output_path: Optional[Path],
+        show_pii: bool,
+        streaming: bool,
+        *,
+        parser_factory: Callable[[str], Any],
+        get_data: Callable[[Any], Any],
+        noun: str,
+        format_label: str,
+    ) -> None:
+        """Shared CAMT/PAIN.001 parse-and-output flow.
+
+        Args:
+            file_path: Validated path to the statement file.
+            output_path: Validated path to save the parsed data, or None
+                to print to console.
+            show_pii: Whether to display unredacted PII data.
+            streaming: Whether to use streaming parsing for large files.
+            parser_factory: Builds the parser from the file path.
+            get_data: Returns non-streaming records from the parser.
+            noun: Record noun for user-facing messages.
+            format_label: Format name for error messages.
+        """
         try:
-            # Instantiate the PAIN.001 parser
-            parser = Pain001Parser(str(file_path))
+            parser = parser_factory(str(file_path))
 
             if streaming:
-                # Use streaming parsing to process payments incrementally
-                payments = []
-                payment_count = 0
+                # Process records incrementally to bound memory usage
+                records = []
+                record_count = 0
 
                 if output_path:
                     # For output file, use atomic write operation with temp file
@@ -364,23 +257,23 @@ class BankStatementCLI:
                         # Write CSV header
                         header_written = False
 
-                        for payment_data in parser.parse_streaming(
+                        for record_data in parser.parse_streaming(
                             redact_pii=not show_pii
                         ):
-                            payment_count += 1
+                            record_count += 1
 
                             # Convert to DataFrame for consistent formatting
-                            payment_df = pd.DataFrame([payment_data])
+                            record_df = pd.DataFrame([record_data])
 
                             if not header_written:
-                                # Write header on first payment
-                                payment_df.to_csv(
+                                # Write header on first record
+                                record_df.to_csv(
                                     f, index=False, mode="w"
                                 )
                                 header_written = True
                             else:
                                 # Write data without header
-                                payment_df.to_csv(
+                                record_df.to_csv(
                                     f,
                                     index=False,
                                     mode="a",
@@ -390,24 +283,24 @@ class BankStatementCLI:
                     # Atomically move temp file to final location
                     os.replace(temp_output, safe_output_path)
                     print(
-                        f"Parsed {payment_count} payments in streaming mode, saved to {safe_output_path}"
+                        f"Parsed {record_count} {noun} in streaming mode, saved to {safe_output_path}"
                     )
 
                 else:
-                    # For console output, collect a reasonable number of payments
-                    max_console_payments = 100
+                    # For console output, collect a reasonable number of records
+                    max_console_records = 100
 
-                    for payment_data in parser.parse_streaming(
+                    for record_data in parser.parse_streaming(
                         redact_pii=not show_pii
                     ):
-                        payments.append(payment_data)
-                        payment_count += 1
+                        records.append(record_data)
+                        record_count += 1
 
                         # Limit console output to prevent overwhelming display
-                        if payment_count >= max_console_payments:
+                        if record_count >= max_console_records:
                             break
 
-                    data_df = pd.DataFrame(payments)
+                    data_df = pd.DataFrame(records)
 
                     if show_pii:
                         print("WARNING: Displaying unredacted PII data")
@@ -416,15 +309,14 @@ class BankStatementCLI:
                         redacted_df = self._redact_dataframe(data_df)
                         print(redacted_df)
 
-                    if payment_count >= max_console_payments:
+                    if record_count >= max_console_records:
                         print(
-                            f"\n... (showing first {max_console_payments} payments in streaming mode)"
+                            f"\n... (showing first {max_console_records} {noun} in streaming mode)"
                         )
 
             else:
                 # Use traditional parsing
-                parsed_data = parser.parse()
-                data_df = pd.DataFrame(parsed_data)
+                data_df = pd.DataFrame(get_data(parser))
 
                 if output_path:
                     # Use safe filename for output
@@ -454,9 +346,11 @@ class BankStatementCLI:
             sys.exit(1)
         except Exception as e:
             logger.error(
-                f"Unexpected error during PAIN.001 parsing: {e}"
+                f"Unexpected error during {format_label} parsing: {e}"
             )
-            print(f"Error: Failed to parse PAIN.001 file - {str(e)}")
+            print(
+                f"Error: Failed to parse {format_label} file - {str(e)}"
+            )
             sys.exit(1)
 
     def run_ingest(
@@ -835,10 +729,8 @@ class BankStatementCLI:
 
         # Validate input file
         try:
-            # First sanitize the path for security
-            sanitized_input = self._sanitize_file_path(args.input)
             validated_input_path = (
-                self.validator.validate_input_file_path(sanitized_input)
+                self.validator.validate_input_file_path(args.input)
             )
             logger.info(f"Input file validated: {validated_input_path}")
         except (ValidationError, FileNotFoundError) as e:
@@ -851,11 +743,9 @@ class BankStatementCLI:
         validated_output_path = None
         if args.output:
             try:
-                # First sanitize the path for security
-                sanitized_output = self._sanitize_file_path(args.output)
                 validated_output_path = (
                     self.validator.validate_output_file_path(
-                        sanitized_output
+                        args.output
                     )
                 )
                 logger.info(

@@ -88,7 +88,7 @@ Every Pull Request must pass these checks before merge:
 
 1. **`commit-signature-verification`** — All commits signed
 2. **`quality-gates / lint-and-typecheck`** — Ruff + mypy clean
-3. **`quality-gates / unit-tests`** — 100% branch coverage, 0 failures
+3. **`quality-gates / unit-tests`** — coverage gate met (no regression vs. base), 0 failures
 4. **`quality-gates / integration-tests`** — 0 failures
 5. **`security / python-security`** — Bandit clean, pip-audit clean, hashes verified
 

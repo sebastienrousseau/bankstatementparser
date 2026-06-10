@@ -38,6 +38,11 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, Optional, Union
 
+from .._llm_common import (
+    ENV_API_BASE,
+    ENV_VISION_MODEL,
+    warn_if_data_leaves_machine,
+)
 from ..transaction_models import Transaction
 from .llm_extractor import (
     LLMExtractionResult,
@@ -49,9 +54,6 @@ from .llm_extractor import (
 
 PathLike = Union[str, Path]
 CompletionFn = Callable[..., Any]
-
-ENV_VISION_MODEL = "BSP_HYBRID_VISION_MODEL"
-ENV_API_BASE = "BSP_HYBRID_API_BASE"
 
 # Render scale factor: 2.0 ≈ 144 DPI, a sweet spot between OCR
 # legibility and base64 payload size for the LLM call.
@@ -172,6 +174,7 @@ class VisionExtractor:
         self.model = model or os.environ.get(ENV_VISION_MODEL)
         self.api_base = api_base or os.environ.get(ENV_API_BASE)
         self._completion_fn = completion_fn
+        warn_if_data_leaves_machine(self.model, self.api_base)
         self.render_scale = render_scale
         self.max_pages = max_pages
         self.strip_rows = strip_rows

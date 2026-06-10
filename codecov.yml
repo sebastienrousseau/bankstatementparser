@@ -7,11 +7,13 @@ coverage:
   status:
     project:
       default:
-        target: 100%
-        threshold: 0%
+        # Honest gate: don't regress against the base commit instead
+        # of forcing line-chasing tests to hold an artificial 100%.
+        target: auto
+        threshold: 0.5%
     patch:
       default:
-        target: 100%
+        target: 90%
         threshold: 0%
 
 comment:

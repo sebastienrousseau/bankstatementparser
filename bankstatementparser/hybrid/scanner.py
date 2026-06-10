@@ -16,9 +16,11 @@
 """Bulk directory scanner for the hybrid pipeline.
 
 Scans an organized folder tree, runs :func:`smart_ingest` on every
-matching file, and deduplicates across the entire batch via
-:meth:`Deduplicator.dedupe_by_hash`. Designed for the common
-treasury pattern of ``statements/2026/04/*.pdf``.
+matching file, and deduplicates file-by-file via
+:meth:`Deduplicator.dedupe_by_hash` (each file is one batch, so
+repeats within a statement survive while overlapping exports are
+skipped). Designed for the common treasury pattern of
+``statements/2026/04/*.pdf``.
 
 Usage::
 
@@ -45,6 +47,14 @@ PathLike = Union[str, Path]
 
 
 @dataclass(frozen=True)
+class FileFailure:
+    """A file that could not be ingested during a scan."""
+
+    path: str
+    error: str
+
+
+@dataclass(frozen=True)
 class ScanResult:
     """Output of :func:`scan_and_ingest`."""
 
@@ -54,6 +64,12 @@ class ScanResult:
     file_count: int
     total_unique: int
     total_skipped: int
+    failures: tuple[FileFailure, ...] = ()
+
+    @property
+    def failure_count(self) -> int:
+        """Number of files that failed to ingest."""
+        return len(self.failures)
 
 
 def scan_and_ingest(
@@ -98,22 +114,38 @@ def scan_and_ingest(
         if p.is_file() and p.suffix.lower() in extensions
     )
 
+    dedup = Deduplicator()
     all_results: list[IngestResult] = []
-    all_transactions: list[Transaction] = []
+    unique: list[Transaction] = []
+    skipped: list[str] = []
+    failures: list[FileFailure] = []
 
     for file_path in files:
         logger.info("Ingesting %s", file_path)
         try:
             result = smart_ingest(file_path)
-            all_results.append(result)
-            all_transactions.extend(result.transactions)
         except Exception as exc:
             logger.warning("Failed to ingest %s: %s", file_path, exc)
+            failures.append(
+                FileFailure(path=str(file_path), error=str(exc))
+            )
+            continue
+        all_results.append(result)
+        # Each file is its own dedup batch: genuine repeats within
+        # one statement survive, while a file that re-exports
+        # already-seen transactions is skipped.
+        file_unique, file_skipped = dedup.dedupe_by_hash(
+            result.transactions, seen_hashes=seen_hashes
+        )
+        unique.extend(file_unique)
+        skipped.extend(file_skipped)
 
-    dedup = Deduplicator()
-    unique, skipped = dedup.dedupe_by_hash(
-        all_transactions, seen_hashes=seen_hashes
-    )
+    if failures:
+        logger.warning(
+            "Scan finished with %d of %d files failed",
+            len(failures),
+            len(files),
+        )
 
     return ScanResult(
         results=tuple(all_results),
@@ -122,4 +154,5 @@ def scan_and_ingest(
         file_count=len(files),
         total_unique=len(unique),
         total_skipped=len(skipped),
+        failures=tuple(failures),
     )

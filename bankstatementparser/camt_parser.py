@@ -22,6 +22,7 @@ Provides a class CamtParser for parsing CAMT format bank statement files.
 import logging
 import re
 from collections.abc import Generator
+from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from typing import Optional, Union
@@ -29,6 +30,7 @@ from typing import Optional, Union
 import pandas as pd
 from lxml import etree
 
+from ._amounts import iso_decimal
 from .base_parser import BankStatementParser
 from .input_validator import InputValidator, ValidationError
 from .record_types import (
@@ -61,12 +63,20 @@ class CamtParser(BankStatementParser):
     _source_is_memory: bool
     _xml_bytes: bytes
 
-    def __init__(self, file_name: Union[str, Path]) -> None:
+    def __init__(
+        self,
+        file_name: Union[str, Path],
+        *,
+        allow_recovery: bool = False,
+    ) -> None:
         """
         Initializes the parser with the given file.
 
         Parameters:
             file_name (str): Path to the CAMT format statement file.
+            allow_recovery (bool): If True, retry malformed XML with
+                lxml's recovery parser (which silently drops broken
+                content). Strict parsing is the default.
 
         Raises:
             FileNotFoundError: If file does not exist.
@@ -74,6 +84,7 @@ class CamtParser(BankStatementParser):
             etree.XMLSyntaxError: If there is an issue parsing the XML.
         """
         super().__init__(file_name)
+        self._allow_recovery = allow_recovery
         self._initialize_from_file(file_name)
         self._set_definitions()
 
@@ -84,10 +95,14 @@ class CamtParser(BankStatementParser):
         *,
         source_name: str = "<memory>",
         max_bytes: Optional[int] = None,
+        allow_recovery: bool = False,
     ) -> "CamtParser":
         """Create a parser from an in-memory XML string."""
         return cls._from_memory(
-            xml_content, source_name=source_name, max_bytes=max_bytes
+            xml_content,
+            source_name=source_name,
+            max_bytes=max_bytes,
+            allow_recovery=allow_recovery,
         )
 
     @classmethod
@@ -97,10 +112,14 @@ class CamtParser(BankStatementParser):
         *,
         source_name: str = "<memory>",
         max_bytes: Optional[int] = None,
+        allow_recovery: bool = False,
     ) -> "CamtParser":
         """Create a parser from in-memory XML bytes."""
         return cls._from_memory(
-            xml_content, source_name=source_name, max_bytes=max_bytes
+            xml_content,
+            source_name=source_name,
+            max_bytes=max_bytes,
+            allow_recovery=allow_recovery,
         )
 
     @classmethod
@@ -110,6 +129,7 @@ class CamtParser(BankStatementParser):
         *,
         source_name: str,
         max_bytes: Optional[int],
+        allow_recovery: bool = False,
     ) -> "CamtParser":
         """Internal constructor for memory-backed XML sources."""
         validator = InputValidator(max_file_size=max_bytes)
@@ -123,6 +143,7 @@ class CamtParser(BankStatementParser):
         parser._file_path = None
         parser._source_name = safe_source_name
         parser._source_is_memory = True
+        parser._allow_recovery = allow_recovery
         parser._xml_bytes = parser._normalize_xml_bytes(raw_bytes)
         parser.tree = parser._parse_xml_bytes(
             parser._xml_bytes, parser._source_name
@@ -221,6 +242,8 @@ class CamtParser(BankStatementParser):
             try:
                 return etree.fromstring(data_bytes, strict_parser)
             except etree.XMLSyntaxError as strict_err:
+                if not getattr(self, "_allow_recovery", False):
+                    raise
                 error_msg = str(strict_err).lower()
                 is_entity_error = any(
                     kw in error_msg
@@ -234,6 +257,13 @@ class CamtParser(BankStatementParser):
                     ]
                 )
                 if is_entity_error:
+                    logger.warning(
+                        "Strict XML parse of %s failed (%s); "
+                        "retrying in recovery mode — malformed "
+                        "content may be silently dropped",
+                        source_name,
+                        strict_err,
+                    )
                     recovery_parser = etree.XMLParser(
                         recover=True,
                         encoding="utf-8",
@@ -357,7 +387,9 @@ class CamtParser(BankStatementParser):
                     "Balance element missing both Cd and Prtry type elements, using N/A"
                 )
                 code = "N/A"
-            amount = float(amt_elems[0].text)
+            amount = iso_decimal(
+                amt_elems[0].text, context="balance element"
+            )
             currency = ccy_elems[0]
             cdt_dbt = cdt_dbt_elems[0].text
             date = date_elems[0].text
@@ -463,7 +495,12 @@ class CamtParser(BankStatementParser):
                 )
                 continue
 
-            amounts.append(float(amount_elems[0].text))
+            amounts.append(
+                iso_decimal(
+                    amount_elems[0].text,
+                    context="transaction entry",
+                )
+            )
             currencies.append(currency_elems[0])
             cdt_dbt_inds.append(cdt_dbt_elems[0].text)
 
@@ -667,14 +704,17 @@ class CamtParser(BankStatementParser):
         num_transactions = len(entry_elems)
 
         # Calculate net amount directly without full transaction parsing
-        net_amount = 0.0
+        net_amount = Decimal("0")
         if entry_elems:
             for entry in entry_elems:
                 amount_elems = entry.xpath("./Amt")
                 cdt_dbt_elems = entry.xpath("./CdtDbtInd")
 
                 if amount_elems and cdt_dbt_elems:
-                    amount = float(amount_elems[0].text)
+                    amount = iso_decimal(
+                        amount_elems[0].text,
+                        context="transaction entry",
+                    )
                     if cdt_dbt_elems[0].text == "DBIT":
                         amount = -amount
                     net_amount += amount
@@ -792,12 +832,14 @@ class CamtParser(BankStatementParser):
         # Fast-path extraction using find/findtext instead of xpath.
         # find() uses direct tree traversal — ~5x faster than xpath().
         amt_elem = entry_elem.find("Amt")
-        amount = (
-            float(amt_elem.text) if amt_elem is not None else 0.0
+        if amt_elem is None:
+            raise ValueError(
+                "Transaction entry missing <Amt> element"
+            )
+        amount = iso_decimal(
+            amt_elem.text, context="transaction entry"
         )
-        currency = (
-            amt_elem.get("Ccy", "") if amt_elem is not None else ""
-        )
+        currency = amt_elem.get("Ccy", "")
 
         cdt_dbt_elem = entry_elem.find("CdtDbtInd")
         cdt_dbt = (
@@ -924,7 +966,9 @@ class CamtParser(BankStatementParser):
                 "transaction_count": first_stat.get(
                     "NumTransactions", 0
                 ),
-                "total_amount": first_stat.get("NetAmount", 0.0),
+                "total_amount": first_stat.get(
+                    "NetAmount", Decimal("0")
+                ),
                 "currency": "Unknown",  # Will be extracted from first transaction if available
             }
 

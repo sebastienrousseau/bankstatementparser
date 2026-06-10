@@ -344,17 +344,6 @@ class TestCLICoverageExtra(unittest.TestCase):
     def setUp(self):
         self.cli = BankStatementCLI()
 
-    def test_sanitize_file_path_none_and_valueerror_warning(self):
-        with self.assertRaises(ValueError):
-            self.cli._sanitize_file_path(None)
-
-        with patch("os.path.commonpath", side_effect=ValueError("bad")):
-            with patch(
-                "bankstatementparser.cli.logger.warning"
-            ) as warn:
-                self.cli._sanitize_file_path("test.xml")
-                warn.assert_called_once()
-
     def test_parse_camt_streaming_console_limit_and_show_pii(self):
         parser = MagicMock()
         parser.parse_streaming.return_value = (
@@ -469,20 +458,15 @@ class TestCLICoverageExtra(unittest.TestCase):
             self.cli.parser, "parse_args", return_value=args
         ):
             with patch.object(
-                self.cli,
-                "_sanitize_file_path",
-                return_value="/tmp/x.xml",
+                self.cli.validator,
+                "validate_input_file_path",
+                return_value=Path("/tmp/x.xml"),
             ):
-                with patch.object(
-                    self.cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path("/tmp/x.xml"),
+                with (
+                    patch("builtins.print") as mock_print,
+                    patch("sys.exit") as mock_exit,
                 ):
-                    with (
-                        patch("builtins.print") as mock_print,
-                        patch("sys.exit") as mock_exit,
-                    ):
-                        self.cli.run()
+                    self.cli.run()
         self.assertTrue(
             any(
                 "specified type is not supported" in str(c.args[0])
@@ -497,25 +481,20 @@ class TestCLICoverageExtra(unittest.TestCase):
             self.cli.parser, "parse_args", return_value=args
         ):
             with patch.object(
-                self.cli,
-                "_sanitize_file_path",
-                return_value="/tmp/x.xml",
+                self.cli.validator,
+                "validate_input_file_path",
+                return_value=Path("/tmp/x.xml"),
             ):
                 with patch.object(
-                    self.cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path("/tmp/x.xml"),
+                    self.cli,
+                    "parse_camt",
+                    side_effect=RuntimeError("boom"),
                 ):
-                    with patch.object(
-                        self.cli,
-                        "parse_camt",
-                        side_effect=RuntimeError("boom"),
+                    with (
+                        patch("builtins.print") as mock_print,
+                        patch("sys.exit") as mock_exit,
                     ):
-                        with (
-                            patch("builtins.print") as mock_print,
-                            patch("sys.exit") as mock_exit,
-                        ):
-                            self.cli.run()
+                        self.cli.run()
         self.assertTrue(
             any(
                 "Parsing failed" in str(c.args[0])

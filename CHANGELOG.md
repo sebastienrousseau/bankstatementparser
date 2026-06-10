@@ -13,7 +13,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > wins from the v0.0.9 deep audit, drains all open Dependabot
 > version-bump PRs, and resolves all open Dependabot security alerts.
 
+### Added
+
+- **Golden-file behavior corpus** — `tests/test_data/golden/` pins
+  the exact parsed output (Decimal amounts, currencies, per-account
+  balances, net amounts, strict-failure behavior) for realistic
+  statement shapes: multi-currency CAMT, namespace-less CAMT,
+  genuine same-day duplicates, garbled amounts, and
+  German-formatted CSV. Enforced by `tests/test_golden_files.py`.
+- **German CSV header recognition** — `CsvStatementParser` now maps
+  `Buchungstag`, `Verwendungszweck`, `Betrag`, `Soll`, and `Haben`
+  to the canonical date/description/amount/debit/credit columns,
+  matching what `docs/MAPPING.md` already promised.
+- **`CamtParser(..., allow_recovery=True)`** — opt-in recovery-mode
+  reparse for malformed XML. Strict parsing is now the default (see
+  Security below); recovery logs a warning because it can silently
+  drop malformed content.
+
 ### Fixed
+
+- **Decimal end-to-end, no silent `0.0`** — every monetary amount
+  produced by the parsers (CAMT, PAIN.001, CSV, OFX/QFX, MT940) and
+  carried through DataFrames and summaries is `decimal.Decimal`.
+  Garbled amounts (e.g. `12..34`) and missing `<Amt>` elements now
+  raise `ValueError`/`ValidationError` instead of silently becoming
+  `0.0`.
+- **Deduplication correctness** — `Transaction.transaction_hash`
+  now includes `transaction_id or reference`, so distinct same-day
+  transactions with bank-assigned IDs never collide.
+  `dedupe_by_hash` uses occurrence-counted keys, making
+  re-ingestion idempotent while genuine same-day repeats (two
+  identical coffees) survive within a batch. `scan_and_ingest`
+  deduplicates file-by-file so cross-file overlaps are still
+  caught.
+- **Index-space bug in `Deduplicator.deduplicate()`** — suspected-
+  match exclusion previously trusted the caller-controlled
+  `source_index`; it now uses the internal enumeration index, so
+  custom `source_index` values can no longer exclude the wrong
+  rows.
 
 - **`value_date` no longer silently copies `booking_date`** in the
   LLM-backed extractor (`hybrid/llm_extractor.py`). LLM payloads that
@@ -61,6 +98,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (HTTP 422) to avoid leaking filesystem paths. Authentication,
   authorization, and rate limiting remain out of scope — see README
   for the documented deployment posture.
+- **CAMT recovery-mode parsing is opt-in** — `CamtParser` rejects
+  malformed XML (including entity-amplification payloads such as
+  billion-laughs) at parse time by default; `recover=True` reparse
+  only happens with an explicit `allow_recovery=True` and logs a
+  warning. `SECURITY.md` gains an "XML Parsing: Why lxml" section
+  documenting the hardened parser settings and their mitigations.
+
+### Deprecated
+
+- **`bank_statement_parsers.Pain001Parser` and `Camt053Parser`**
+  compatibility wrappers now emit `DeprecationWarning`; use
+  `pain001_parser.Pain001Parser` and `camt_parser.CamtParser`
+  directly.
 
 ### Removed
 
@@ -102,6 +152,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   picked up automatically. `tests/integration/test_zip_security.py`
   remains in the coverage run because it exercises
   `bankstatementparser.zip_security` directly.
+- **LLM response parsing consolidated** — the duplicated
+  markdown-fence stripping / JSON extraction / transaction
+  coercion logic in `LLMExtractor` and `VisionExtractor` now lives
+  in one module, `bankstatementparser/_llm_common.py`.
+- **CLI internals deduplicated** — `parse_camt` and `parse_pain`
+  delegate to a single shared implementation
+  (`BankStatementCLI._parse_statement_file`); behaviour and the
+  public method names are unchanged.
+- **Honest coverage gate** — the `--cov-fail-under=100` gate (which
+  forced tests written to satisfy line arrows rather than behaviour)
+  is replaced by a measured floor of 98% (current: 99.5%) plus
+  codecov `target: auto`, which fails any PR that regresses coverage
+  against its base commit. `tests/test_branch_coverage.py` was
+  rewritten as behaviour-framed `tests/test_parser_edge_behavior.py`,
+  and `tests/test_coverage_gaps.py` renamed to
+  `tests/test_error_paths.py` with behavioural docstrings replacing
+  line-number references. README/FAQ "100% coverage" claims replaced
+  with the real test count and gate description.
 
 ## [0.0.8] — 2026-04-11
 

@@ -107,9 +107,13 @@ class TestSecurityCamtParser(unittest.TestCase):
             bomb_file = f.name
 
         try:
-            # Should handle gracefully without consuming excessive memory
-            parser = CamtParser(bomb_file)
-            # Test should complete quickly
+            # Strict default: the bomb is rejected outright.
+            with self.assertRaises(etree.XMLSyntaxError):
+                CamtParser(bomb_file)
+
+            # Opt-in recovery mode handles it gracefully without
+            # expanding entities or consuming excessive memory.
+            parser = CamtParser(bomb_file, allow_recovery=True)
             statements = parser.get_statement_stats()
             self.assertIsInstance(statements.to_dict(), dict)
         finally:

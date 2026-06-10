@@ -382,7 +382,7 @@ def test_extract_message_content_rejects_unexpected_shape() -> None:
     )
     out = cat.categorize_batch([_tx("-1.00", "x")])
     assert out[0].category is None
-    assert "Unexpected enrichment response shape" in (
+    assert "Unexpected LLM response shape" in (
         out[0].rationale or ""
     )
 
@@ -459,7 +459,7 @@ def test_parse_json_rejects_non_object_payload() -> None:
         }
     )
     out = cat.categorize_batch([_tx("-1.00", "x")])
-    assert "must be a JSON object" in (out[0].rationale or "")
+    assert "did not return valid JSON" in (out[0].rationale or "")
 
 
 def test_build_enriched_rejects_missing_results_key() -> None:
