@@ -4,7 +4,8 @@
 
 | Version | Supported | Notes |
 |---|---|---|
-| 0.0.8 (current) | Yes | Requires Python ≥ 3.10 |
+| 0.0.9 (current) | Yes | Requires Python ≥ 3.10 (LLM extras: ≤ 3.13) |
+| 0.0.8 | Yes | Requires Python ≥ 3.10 |
 | 0.0.7 | Yes | Requires Python ≥ 3.10 |
 | 0.0.6 | Yes | Requires Python ≥ 3.10 |
 | 0.0.5 | Yes | Last release supporting Python 3.9 |

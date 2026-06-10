@@ -131,7 +131,7 @@ def _allowed_suffix(name: str) -> bool:
 def create_app(
     *,
     title: str = "Bank Statement Parser API",
-    version: str = "0.0.8",
+    version: str = "0.0.9",
     max_upload_bytes: Optional[int] = None,
 ) -> Any:
     """Create a FastAPI application wrapping :func:`smart_ingest`.

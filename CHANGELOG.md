@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.9] — 2026-06-10
+
 > "Audit pass" — addresses the three Critical findings and six quick
-> wins from the v0.0.9 deep audit (see PR description for context).
+> wins from the v0.0.9 deep audit, drains all open Dependabot
+> version-bump PRs, and resolves all open Dependabot security alerts.
 
 ### Fixed
 
@@ -546,7 +549,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.8...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.9...HEAD
+[0.0.9]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.9
 [0.0.8]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.8
 [0.0.7]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.7
 [0.0.6]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.6
