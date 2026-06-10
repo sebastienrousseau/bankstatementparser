@@ -360,6 +360,77 @@ def test_safe_date_handles_date_and_none() -> None:
     assert _safe_date("2026-04-01") == today
 
 
+# ---------------------------------------------------------------------------
+# value_date handling — regression for the v0.0.8 bug where value_date was
+# silently populated from booking_date even when the LLM never supplied one.
+# ---------------------------------------------------------------------------
+
+
+def test_extract_value_date_is_none_when_not_supplied() -> None:
+    """LLM payload without ``value_date`` must produce ``value_date is None``.
+
+    Earlier code copied ``booking_date`` into ``value_date`` whenever the
+    LLM omitted it, which silently corrupted downstream temporal-dedup
+    and value-date reconciliation. The honest answer is ``None``.
+    """
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    result = extractor.extract("statement")
+    tx = result.transactions[0]
+    assert tx.booking_date is not None
+    assert tx.value_date is None
+
+
+def test_extract_value_date_uses_supplied_value_when_distinct() -> None:
+    from datetime import date
+
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "value_date": "2026-04-03",
+                "description": "Outgoing wire",
+                "amount": -250.0,
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    result = extractor.extract("statement")
+    tx = result.transactions[0]
+    assert tx.booking_date == date(2026, 4, 1)
+    assert tx.value_date == date(2026, 4, 3)
+
+
+def test_extract_value_date_null_is_treated_as_none() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "value_date": None,
+                "description": "Card payment",
+                "amount": -10.0,
+            }
+        ]
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: _fake_response(payload)
+    )
+    result = extractor.extract("statement")
+    assert result.transactions[0].value_date is None
+
+
 def test_extract_accepts_null_booking_date() -> None:
     payload = {
         "transactions": [

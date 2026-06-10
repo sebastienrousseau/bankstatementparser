@@ -231,7 +231,14 @@ class TestCamtParserCoverageExtra(unittest.TestCase):
         self.assertIn("BookgDt", tx)
         self.assertTrue(tx["BookgDt"])
 
-    def test_streaming_warning_branch(self):
+    def test_streaming_propagates_per_row_error(self):
+        """R-007: streaming must fail-fast on per-row parse errors.
+
+        The previous behaviour was to log a warning and ``continue``,
+        which silently dropped malformed transactions from the stream
+        — directly contradicting the R-007 control in the risk
+        register and the equivalent PAIN.001 streaming behaviour.
+        """
         parser = CamtParser(str(self.camt_file))
         with patch.object(
             parser,
@@ -239,10 +246,11 @@ class TestCamtParserCoverageExtra(unittest.TestCase):
             side_effect=RuntimeError("broken"),
         ):
             with patch(
-                "bankstatementparser.camt_parser.logger.warning"
-            ) as warn:
-                self.assertEqual(list(parser.parse_streaming()), [])
-                warn.assert_called()
+                "bankstatementparser.camt_parser.logger.error"
+            ) as err:
+                with self.assertRaises(RuntimeError):
+                    list(parser.parse_streaming())
+                err.assert_called()
 
     def test_streaming_transaction_valdt_dttm_fallback_and_missing_booking(
         self,

@@ -52,6 +52,9 @@ verify: lint typecheck test security
 
 clean:
 	rm -rf ./dist ./build ./*.egg-info
+	rm -rf ./htmlcov ./coverage.xml ./.coverage
+	rm -rf ./.pytest_cache ./.ruff_cache ./.mypy_cache ./.hypothesis ./.benchmarks
+	find . -type d -name __pycache__ -not -path './.git/*' -exec rm -rf {} +
 
 # Produce sdist + wheel via Poetry. Replaces the legacy
 # `python3 setup.py sdist bdist_wheel` flow that drifted out of sync with

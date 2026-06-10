@@ -37,6 +37,7 @@ Schema:
   "transactions": [
     {
       "booking_date": "YYYY-MM-DD",
+      "value_date": "YYYY-MM-DD"|null,  // settlement date if different from booking_date; null if not shown
       "description": string,
       "amount": number,            // negative for debits, positive for credits
       "reference": string|null,

@@ -278,7 +278,7 @@ def _build_result(
                 else None,
                 amount=amount,
                 booking_date=_safe_date(item.get("booking_date")),
-                value_date=_safe_date(item.get("booking_date")),
+                value_date=_safe_date(item.get("value_date")),
                 description=description_str,
                 normalized_description=normalize_description(
                     description_str

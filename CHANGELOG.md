@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+> "Audit pass" — addresses the three Critical findings and six quick
+> wins from the v0.0.9 deep audit (see PR description for context).
+
+### Fixed
+
+- **`value_date` no longer silently copies `booking_date`** in the
+  LLM-backed extractor (`hybrid/llm_extractor.py`). LLM payloads that
+  omit `value_date` now produce `Transaction.value_date is None`
+  instead of an incorrect duplicate of `booking_date`. The text and
+  vision prompts have been extended to allow an optional
+  `value_date: "YYYY-MM-DD"|null` field for future model responses.
+- **CAMT `parse_streaming` is now fail-fast on per-row errors**
+  (`camt_parser.py`). Previously the streaming loop logged a warning
+  and `continue`'d, silently dropping malformed transactions and
+  contradicting the R-007 control in
+  `docs/compliance/RISK_REGISTER.md`. Behaviour now matches the
+  equivalent PAIN.001 streaming path and the documented control.
+
+### Security
+
+- **18 Dependabot security alerts closed** (#39–#56). Critical: litellm
+  SQL injection in proxy API key verification (1.81.16–1.83.6) →
+  bumped to 1.88.1. High: urllib3 cross-origin header leak (2.6.x) +
+  decompression-bomb bypass → 2.7.0; lxml `iterparse` / `ETCompatXMLParser`
+  default-config XXE → 6.1.1; litellm sandbox escape (1.81.8–1.83.9),
+  authenticated command exec, SSTI in `/prompts/test` → 1.88.1.
+  Medium: starlette host-header validation → 1.2.1; aiohttp cross-origin
+  cookie + untrusted-data deserialization (<3.14.0) → 3.14.1; idna
+  `idna.encode()` bypass (<3.15) → 3.18; pypdf FlateDecode RAM-exhaust
+  + long-runtime paths (<6.10.2) → 6.13.2; python-dotenv symlink
+  follow in `set_key` (<1.2.2) → 1.2.2; pytest tmpdir vulnerability
+  (<9.0.3) → 9.0.3.
+- **`litellm` is now Python-version-restricted to `<3.14`** in
+  `pyproject.toml`. All security-patched litellm versions (≥1.83.10)
+  declare `python <3.14,>=3.10` upstream, so this restriction is
+  honest disclosure rather than a new limitation. The deterministic
+  core remains supported on Python 3.10–3.14; the optional
+  `[hybrid]`, `[hybrid-plus]`, `[hybrid-vision]`, and `[enrichment]`
+  extras now require Python 3.10–3.13 (matching upstream litellm).
+  Previously the lockfile silently held two litellm versions and
+  installed the vulnerable 1.83.7 on Python 3.12+.
+- **REST API safety floor** (`api.py`). Uploads are streamed in
+  chunks; the request is rejected with HTTP 413 once the cumulative
+  size exceeds `BSP_API_MAX_UPLOAD_BYTES` (default 25 MB). The
+  caller-supplied filename is reduced to its basename and the suffix
+  must match `InputValidator.ALLOWED_INPUT_EXTENSIONS` (HTTP 400
+  otherwise). On parse failure the response carries a UUID
+  `correlation_id`; the raw exception is logged server-side only
+  (HTTP 422) to avoid leaking filesystem paths. Authentication,
+  authorization, and rate limiting remain out of scope — see README
+  for the documented deployment posture.
+
+### Removed
+
+- **`setup.py`** — stale legacy metadata mirror declaring
+  `version="0.0.4"` (vs. the real `0.0.8`). Modern pip reads
+  `pyproject.toml` directly; `setup.cfg` is retained for the same
+  reason but kept in lock-step.
+- **`tests/integration/test_euxis_dispatch*.py`** (4 files,
+  ~2,500 LOC) and `tests/integration/test_manifests/`. These tested
+  a `MockEuxisDispatcher` defined inside the test file with no
+  corresponding production code in the package. `DI-14` in the
+  traceability matrix has been removed.
+
+### Changed
+
+- **Dependency bumps** — closes the 20 open Dependabot PRs (#53–#78
+  except #57 superseded). Notable: **pytest 8.4.2 → 9.0.3** (constraint
+  widened to `>=8.0.0,<10.0.0` in `pyproject.toml`), **lxml 6.0.2 →
+  6.1.1**, **numpy 1.26.x → 2.4.6** (via pandas), **pydantic-core
+  2.41.5 → 2.46.4**, **hypothesis 6.151.10 → 6.155.2**, **ruff 0.15.9
+  → 0.15.16**, **mypy 1.19.1 → 1.20.2**, **pypdf 6.10.0 → 6.13.2**,
+  **pypdfium2 5.6.0 → 5.9.0**, **litellm 1.83.4 → 1.83.7+**, **starlette
+  1.0.0 → 1.2.1**, **idna 3.11 → 3.18**, **urllib3 2.6.3 → 2.7.0**.
+  GitHub Actions SHA pins refreshed for `actions/checkout`,
+  `github/codeql-action`, `gitleaks/gitleaks-action`,
+  `actions/dependency-review-action`, and `actions/upload-artifact`.
+  Lockfile hash verification (`scripts/verify_locked_hashes.py`)
+  passes against all 113 packages; `requirements.txt` regenerated
+  from `poetry.lock`.
+- **Apache 2.0 license header** added to
+  `bankstatementparser/additional_parsers.py` (license hygiene).
+- **`make clean`** now also removes `coverage.xml`, `.coverage`,
+  `htmlcov/`, `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`,
+  `.hypothesis/`, `.benchmarks/`, and stale `__pycache__/`
+  directories.
+- **CI test selection** is no longer an enumerated list of files
+  (`.github/workflows/quality-gates.yml`). The unit-tests job now
+  runs `pytest tests/ --ignore=…` so newly added test files are
+  picked up automatically. `tests/integration/test_zip_security.py`
+  remains in the coverage run because it exercises
+  `bankstatementparser.zip_security` directly.
+
 ## [0.0.8] — 2026-04-11
 
 > "Full Platform" — closes every gap identified in the competitive

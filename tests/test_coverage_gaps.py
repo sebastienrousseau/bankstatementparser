@@ -298,27 +298,25 @@ class TestCamtParserCoverage(unittest.TestCase):
                     tx["CreditorAddress"], "***REDACTED***"
                 )
 
-    def test_streaming_malformed_transaction_continues(self):
-        """Cover malformed transaction error in streaming (lines 590-593)."""
+    def test_streaming_malformed_transaction_propagates(self):
+        """R-007: streaming must fail-fast on per-row parse errors.
+
+        Previously this test asserted the parser swallowed the
+        exception and continued, which directly contradicted the
+        R-007 control in ``docs/compliance/RISK_REGISTER.md`` and
+        the equivalent fail-fast behaviour in
+        :class:`Pain001Parser`. The current behaviour is to log
+        the error and propagate it so downstream balance checks
+        cannot silently miss dropped rows.
+        """
         parser = CamtParser(self.camt_file)
-        # Patch _parse_streaming_transaction to raise on first call, then work normally
-        original_method = parser._parse_streaming_transaction
-        call_count = [0]
-
-        def side_effect(elem, account_id, redact_pii=False):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                raise ValueError("Malformed transaction")
-            return original_method(elem, account_id, redact_pii)
-
         with patch.object(
             parser,
             "_parse_streaming_transaction",
-            side_effect=side_effect,
+            side_effect=ValueError("Malformed transaction"),
         ):
-            transactions = list(parser.parse_streaming())
-            # Should still get remaining transactions
-            self.assertGreater(len(transactions), 0)
+            with self.assertRaises(ValueError):
+                list(parser.parse_streaming())
 
     def test_streaming_file_not_found(self):
         """Streaming should use the normalized in-memory XML buffer."""

@@ -752,6 +752,11 @@ class CamtParser(BankStatementParser):
                 current_statement = None
 
             elif event == "end" and elem.tag == "Ntry":
+                # Fail-fast on per-row parse errors — silent `continue` here
+                # would drop transactions from the stream and corrupt any
+                # downstream balance check. This matches PAIN.001's
+                # streaming behaviour and the R-007 control documented in
+                # docs/compliance/RISK_REGISTER.md.
                 try:
                     transaction_data = (
                         self._parse_streaming_transaction(
@@ -760,8 +765,8 @@ class CamtParser(BankStatementParser):
                     )
                     yield transaction_data
                 except Exception as e:
-                    logger.warning("Error parsing transaction: %s", e)
-                    continue
+                    logger.error("Error parsing transaction: %s", e)
+                    raise
                 finally:
                     elem.clear()
                     while elem.getprevious() is not None:

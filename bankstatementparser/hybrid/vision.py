@@ -98,6 +98,7 @@ Schema:
   "transactions": [
     {
       "booking_date": "YYYY-MM-DD",
+      "value_date": "YYYY-MM-DD"|null,
       "description": string,
       "amount": number,
       "reference": string|null,
@@ -440,6 +441,7 @@ markdown — using this schema:
   "transactions": [
     {
       "booking_date": "YYYY-MM-DD",
+      "value_date": "YYYY-MM-DD"|null,
       "description": string,
       "amount": number,
       "reference": string|null,
@@ -463,6 +465,7 @@ no markdown — using this schema:
   "transactions": [
     {
       "booking_date": "YYYY-MM-DD",
+      "value_date": "YYYY-MM-DD"|null,
       "description": string,
       "amount": number,
       "reference": string|null,

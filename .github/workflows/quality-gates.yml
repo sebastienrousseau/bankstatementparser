@@ -19,7 +19,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -50,7 +50,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -67,45 +67,19 @@ jobs:
         run: poetry install --with dev
 
       - name: Run unit and package-quality suite
+        # Collect everything under tests/ for unit coverage. Integration
+        # tests that don't drive package coverage run in a separate job
+        # without coverage; the pytest-benchmark suite is excluded here
+        # because it requires baseline files and is not part of the
+        # coverage gate. ``test_zip_security.py`` lives under integration/
+        # but exercises ``bankstatementparser.zip_security`` directly, so
+        # it stays in the coverage run.
         run: |
-          poetry run pytest \
-            tests/test_transaction_deduplicator.py \
-            tests/test_polars_export.py \
-            tests/test_additional_parsers.py \
-            tests/test_input_validator.py \
-            tests/test_camt_parser.py \
-            tests/test_security_updated.py \
-            tests/test_performance.py \
-            tests/test_unified_interface.py \
-            tests/test_security.py \
-            tests/test_pain001_parser.py \
-            tests/test_bank_statement_parsers.py \
-            tests/test_cli.py \
-            tests/test_pii_redaction.py \
-            tests/test_edge_cases.py \
-            tests/test_branch_coverage.py \
-            tests/test_coverage_gaps.py \
-            tests/test_enterprise_coverage.py \
-            tests/test_property_based.py \
-            tests/test_large_file_streaming.py \
-            tests/test_performance_contracts.py \
-            tests/test_hybrid_cli.py \
-            tests/test_hybrid_dedupe_by_hash.py \
-            tests/test_hybrid_llm_extractor.py \
-            tests/test_hybrid_ollama_direct.py \
-            tests/test_hybrid_orchestrator.py \
-            tests/test_hybrid_pdf_text.py \
-            tests/test_hybrid_review_cli.py \
-            tests/test_hybrid_verification.py \
-            tests/test_hybrid_vision.py \
-            tests/test_enrichment_categorizer.py \
-            tests/test_account_mapper.py \
-            tests/test_multi_currency_verification.py \
-            tests/test_export_ledger.py \
-            tests/test_scanner.py \
-            tests/test_api.py \
-            tests/test_docs_accuracy.py \
-            tests/integration/test_zip_security.py
+          poetry run pytest tests/ \
+            --ignore=tests/integration/test_malformed_data.py \
+            --ignore=tests/integration/test_security_boundaries.py \
+            --ignore=tests/integration/test_supply_chain_tools.py \
+            --ignore=tests/test_benchmark_suite.py
 
   integration-tests:
     name: Integration Tests
@@ -117,7 +91,7 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -148,7 +122,7 @@ jobs:
         python-version: ["3.11"]
     steps:
       - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405

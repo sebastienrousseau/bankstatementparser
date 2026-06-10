@@ -62,7 +62,7 @@ Every extracted row carries an immutable `transaction_hash`, an audit-trail `sou
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
 | **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
 | **Export** | CSV, JSON, Excel (`.xlsx`), and optional Polars DataFrames |
-| **100% coverage** | 718 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
+| **100% coverage** | 697 tests, 100% branch coverage, property-based fuzzing with Hypothesis |
 
 ## Requirements
 
@@ -92,6 +92,8 @@ pip install 'bankstatementparser[api]'
 ```
 
 The core install has zero AI dependencies. Every extra is opt-in and pure-Python — no `poppler`, no system libraries, no GPU required.
+
+> **Python version note.** The deterministic core (CAMT, PAIN.001, CSV, OFX, QFX, MT940) supports Python **3.10–3.14**. The optional `[hybrid]`, `[hybrid-plus]`, `[hybrid-vision]`, and `[enrichment]` extras pull in `litellm`, which currently requires **Python <3.14** upstream — on Python 3.14 the LLM extras will not install. Pin `Python 3.13` for the full hybrid pipeline; upgrade to 3.14 freely if you only need deterministic parsing.
 
 ### Local Development
 
@@ -310,6 +312,13 @@ curl http://localhost:8000/health
 
 Default bind is `127.0.0.1` (localhost-only). Use `--host 0.0.0.0` for container deployments.
 
+#### Security defaults
+
+* Uploads are streamed in chunks; the request is rejected with **413 Payload Too Large** once the cumulative size exceeds `BSP_API_MAX_UPLOAD_BYTES` (default **25 MB**).
+* The uploaded filename is reduced to its basename — caller-supplied path components are dropped — and the suffix must match one of the allowed input extensions (`.xml`, `.csv`, `.ofx`, `.qfx`, `.mt940`, `.sta`, `.pdf`, `.json`). Anything else returns **400 Bad Request**.
+* On parse failure the response carries a UUID `correlation_id`; the raw exception is logged server-side only. Status **422 Unprocessable Entity**.
+* **Authentication, authorization, and rate limiting are out of scope** for this microservice — wire them in your reverse proxy (nginx `auth_basic` + `limit_req`, a WAF, or an API gateway). The default `127.0.0.1` bind means a fresh `bankstatementparser-api` is never publicly reachable unless you explicitly opt in via `--host 0.0.0.0`.
+
 ## Deduplication
 
 Detect duplicate transactions across multiple sources:
@@ -459,7 +468,7 @@ bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 8 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          718 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          697 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ## Security
