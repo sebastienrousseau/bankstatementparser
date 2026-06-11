@@ -337,26 +337,28 @@ class TestPIIRedaction(unittest.TestCase):
                 ]
             )
 
+            # Close the handle before reopening/unlinking: Windows
+            # cannot delete or share a file that is still open.
             with tempfile.NamedTemporaryFile(
                 suffix=".xml", mode="w", delete=False
             ) as temp_file:
                 temp_file.write("<xml></xml>")  # Minimal valid XML
-                temp_file.flush()
+                temp_path = temp_file.name
 
-                try:
-                    parser = CamtParser(temp_file.name)
+            try:
+                parser = CamtParser(temp_path)
 
-                    # Test with redact_pii=True
-                    result_redacted = parser.parse(redact_pii=True)
+                # Test with redact_pii=True
+                result_redacted = parser.parse(redact_pii=True)
 
-                    # Verify get_transactions was called with redact_pii=True
-                    mock_get_transactions.assert_called_with(redact_pii=True)
+                # Verify get_transactions was called with redact_pii=True
+                mock_get_transactions.assert_called_with(redact_pii=True)
 
-                    # Verify the result is a DataFrame
-                    self.assertIsInstance(result_redacted, pd.DataFrame)
+                # Verify the result is a DataFrame
+                self.assertIsInstance(result_redacted, pd.DataFrame)
 
-                finally:
-                    os.unlink(temp_file.name)
+            finally:
+                os.unlink(temp_path)
 
     def test_parser_redact_pii_false_returns_full_data(self):
         """Test parser redact_pii=False (default) returns unredacted data."""
@@ -380,28 +382,28 @@ class TestPIIRedaction(unittest.TestCase):
                 suffix=".xml", mode="w", delete=False
             ) as temp_file:
                 temp_file.write("<xml></xml>")  # Minimal valid XML
-                temp_file.flush()
+                temp_path = temp_file.name
 
-                try:
-                    parser = CamtParser(temp_file.name)
+            try:
+                parser = CamtParser(temp_path)
 
-                    # Test with redact_pii=False (explicit)
-                    result_unredacted = parser.parse(redact_pii=False)
-                    mock_get_transactions.assert_called_with(redact_pii=False)
+                # Test with redact_pii=False (explicit)
+                result_unredacted = parser.parse(redact_pii=False)
+                mock_get_transactions.assert_called_with(redact_pii=False)
 
-                    # Test default behavior (should be False)
-                    result_default = parser.parse()
-                    mock_get_transactions.assert_called_with(redact_pii=False)
+                # Test default behavior (should be False)
+                result_default = parser.parse()
+                mock_get_transactions.assert_called_with(redact_pii=False)
 
-                    # Both calls should result in DataFrames
-                    self.assertIsInstance(result_unredacted, pd.DataFrame)
-                    self.assertIsInstance(result_default, pd.DataFrame)
+                # Both calls should result in DataFrames
+                self.assertIsInstance(result_unredacted, pd.DataFrame)
+                self.assertIsInstance(result_default, pd.DataFrame)
 
-                    # Verify mock was called twice
-                    self.assertEqual(mock_get_transactions.call_count, 2)
+                # Verify mock was called twice
+                self.assertEqual(mock_get_transactions.call_count, 2)
 
-                finally:
-                    os.unlink(temp_file.name)
+            finally:
+                os.unlink(temp_path)
 
     def test_pain001_parser_redact_pii_functionality(self):
         """Test Pain001Parser redact_pii parameter functionality."""
@@ -412,40 +414,36 @@ class TestPIIRedaction(unittest.TestCase):
             temp_file.write(
                 '<?xml version="1.0" encoding="UTF-8"?><Document></Document>'
             )  # Minimal valid XML
-            temp_file.flush()
+            temp_path = temp_file.name
 
-            try:
-                parser = Pain001Parser(temp_file.name)
+        try:
+            parser = Pain001Parser(temp_path)
 
-                # Use patch to avoid actual XML parsing but verify parameter acceptance
-                with patch.object(parser, "__init__", return_value=None):
-                    # Create a mock parser instance
-                    Mock(spec=Pain001Parser)
+            # Use patch to avoid actual XML parsing but verify parameter acceptance
+            with patch.object(parser, "__init__", return_value=None):
+                # Create a mock parser instance
+                Mock(spec=Pain001Parser)
 
-                    # Test that the parse method signature accepts redact_pii
-                    self.assertTrue(hasattr(Pain001Parser.parse, "__code__"))
-                    param_names = Pain001Parser.parse.__code__.co_varnames
-                    self.assertIn(
-                        "redact_pii",
-                        param_names,
-                        "Pain001Parser.parse should accept redact_pii parameter",
-                    )
+                # Test that the parse method signature accepts redact_pii
+                self.assertTrue(hasattr(Pain001Parser.parse, "__code__"))
+                param_names = Pain001Parser.parse.__code__.co_varnames
+                self.assertIn(
+                    "redact_pii",
+                    param_names,
+                    "Pain001Parser.parse should accept redact_pii parameter",
+                )
 
-                    # Test that get_summary method signature accepts redact_pii
-                    self.assertTrue(
-                        hasattr(Pain001Parser.get_summary, "__code__")
-                    )
-                    summary_params = (
-                        Pain001Parser.get_summary.__code__.co_varnames
-                    )
-                    self.assertIn(
-                        "redact_pii",
-                        summary_params,
-                        "Pain001Parser.get_summary should accept redact_pii parameter",
-                    )
+                # Test that get_summary method signature accepts redact_pii
+                self.assertTrue(hasattr(Pain001Parser.get_summary, "__code__"))
+                summary_params = Pain001Parser.get_summary.__code__.co_varnames
+                self.assertIn(
+                    "redact_pii",
+                    summary_params,
+                    "Pain001Parser.get_summary should accept redact_pii parameter",
+                )
 
-            finally:
-                os.unlink(temp_file.name)
+        finally:
+            os.unlink(temp_path)
 
     def test_cli_integration_camt_full_workflow(self):
         """Integration test: Full CLI workflow with CAMT file and PII redaction."""

@@ -168,32 +168,35 @@ class TestUnifiedParserInterface(unittest.TestCase):
             parsers.append(("PAIN001", self.pain001_parser))
 
         for parser_name, parser in parsers:
+            # Close the handle before exporting/unlinking: Windows
+            # cannot replace or delete a file that is still open.
             with tempfile.NamedTemporaryFile(
                 suffix=".csv", delete=False
             ) as tmp_file:
-                try:
-                    parser.export_csv(tmp_file.name)
+                tmp_path = tmp_file.name
+            try:
+                parser.export_csv(tmp_path)
 
-                    # Verify file was created
-                    self.assertTrue(os.path.exists(tmp_file.name))
+                # Verify file was created
+                self.assertTrue(os.path.exists(tmp_path))
 
-                    # Verify file has content
-                    with open(tmp_file.name) as f:
-                        content = f.read()
-                        self.assertGreater(
-                            len(content),
-                            0,
-                            f"Empty CSV export for {parser_name}",
-                        )
+                # Verify file has content
+                with open(tmp_path) as f:
+                    content = f.read()
+                    self.assertGreater(
+                        len(content),
+                        0,
+                        f"Empty CSV export for {parser_name}",
+                    )
 
-                    # Verify it's valid CSV (can be read back as DataFrame)
-                    df = pd.read_csv(tmp_file.name)
-                    self.assertIsInstance(df, pd.DataFrame)
+                # Verify it's valid CSV (can be read back as DataFrame)
+                df = pd.read_csv(tmp_path)
+                self.assertIsInstance(df, pd.DataFrame)
 
-                finally:
-                    # Clean up
-                    if os.path.exists(tmp_file.name):
-                        os.unlink(tmp_file.name)
+            finally:
+                # Clean up
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
 
     def test_export_json_functionality(self):
         """Test JSON export functionality across all parsers."""
@@ -207,40 +210,41 @@ class TestUnifiedParserInterface(unittest.TestCase):
             with tempfile.NamedTemporaryFile(
                 suffix=".json", delete=False
             ) as tmp_file:
-                try:
-                    parser.export_json(tmp_file.name)
+                tmp_path = tmp_file.name
+            try:
+                parser.export_json(tmp_path)
 
-                    # Verify file was created
-                    self.assertTrue(os.path.exists(tmp_file.name))
+                # Verify file was created
+                self.assertTrue(os.path.exists(tmp_path))
 
-                    # Verify file has content
-                    with open(tmp_file.name) as f:
-                        content = f.read()
-                        self.assertGreater(
-                            len(content),
-                            0,
-                            f"Empty JSON export for {parser_name}",
-                        )
+                # Verify file has content
+                with open(tmp_path) as f:
+                    content = f.read()
+                    self.assertGreater(
+                        len(content),
+                        0,
+                        f"Empty JSON export for {parser_name}",
+                    )
 
-                    # Verify it's valid JSON with expected structure
-                    with open(tmp_file.name) as f:
-                        data = json.load(f)
-                        self.assertIsInstance(data, dict)
-                        self.assertIn("summary", data)
-                        self.assertIn("transactions", data)
+                # Verify it's valid JSON with expected structure
+                with open(tmp_path) as f:
+                    data = json.load(f)
+                    self.assertIsInstance(data, dict)
+                    self.assertIn("summary", data)
+                    self.assertIn("transactions", data)
 
-                        # Verify summary structure
-                        summary = data["summary"]
-                        self.assertIsInstance(summary, dict)
+                    # Verify summary structure
+                    summary = data["summary"]
+                    self.assertIsInstance(summary, dict)
 
-                        # Verify transactions structure
-                        transactions = data["transactions"]
-                        self.assertIsInstance(transactions, list)
+                    # Verify transactions structure
+                    transactions = data["transactions"]
+                    self.assertIsInstance(transactions, list)
 
-                finally:
-                    # Clean up
-                    if os.path.exists(tmp_file.name):
-                        os.unlink(tmp_file.name)
+            finally:
+                # Clean up
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
 
     def test_atomic_file_operations(self):
         """Test that export operations use atomic file operations to prevent corruption."""
@@ -252,50 +256,48 @@ class TestUnifiedParserInterface(unittest.TestCase):
             suffix=".csv", delete=False
         ) as tmp_file:
             output_path = tmp_file.name
-            temp_path = f"{output_path}.tmp"
+        temp_path = f"{output_path}.tmp"
 
-            try:
-                # Mock an exception during the export to test cleanup
-                with patch(
-                    "pandas.DataFrame.to_csv",
-                    side_effect=Exception("Test error"),
-                ):
-                    with self.assertRaises(IOError):
-                        self.camt_parser.export_csv(output_path)
+        try:
+            # Mock an exception during the export to test cleanup
+            with patch(
+                "pandas.DataFrame.to_csv",
+                side_effect=Exception("Test error"),
+            ):
+                with self.assertRaises(IOError):
+                    self.camt_parser.export_csv(output_path)
 
-                    # Verify temp file was cleaned up
-                    self.assertFalse(os.path.exists(temp_path))
+                # Verify temp file was cleaned up
+                self.assertFalse(os.path.exists(temp_path))
 
-            finally:
-                # Clean up
-                if os.path.exists(output_path):
-                    os.unlink(output_path)
-                if os.path.exists(temp_path):
-                    os.unlink(temp_path)
+        finally:
+            # Clean up
+            if os.path.exists(output_path):
+                os.unlink(output_path)
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
 
         # Test JSON atomic operation
         with tempfile.NamedTemporaryFile(
             suffix=".json", delete=False
         ) as tmp_file:
             output_path = tmp_file.name
-            temp_path = f"{output_path}.tmp"
+        temp_path = f"{output_path}.tmp"
 
-            try:
-                # Mock an exception during JSON export
-                with (
-                    patch(
-                        "builtins.open", side_effect=Exception("Test error")
-                    ),
-                    self.assertRaises(IOError),
-                ):
-                    self.camt_parser.export_json(output_path)
+        try:
+            # Mock an exception during JSON export
+            with (
+                patch("builtins.open", side_effect=Exception("Test error")),
+                self.assertRaises(IOError),
+            ):
+                self.camt_parser.export_json(output_path)
 
-            finally:
-                # Clean up
-                if os.path.exists(output_path):
-                    os.unlink(output_path)
-                if os.path.exists(temp_path):
-                    os.unlink(temp_path)
+        finally:
+            # Clean up
+            if os.path.exists(output_path):
+                os.unlink(output_path)
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
 
     def test_string_representations(self):
         """Test __str__ and __repr__ methods work consistently."""
@@ -364,25 +366,21 @@ class TestUnifiedParserInterface(unittest.TestCase):
             mode="w", suffix=".xml", delete=False
         ) as tmp_file:
             tmp_file.write(malformed_xml)
-            tmp_file.flush()
+            tmp_path = tmp_file.name
 
-            try:
-                # Test CAMT parser with malformed input
-                with self.assertRaises(
-                    (ValidationError, ParseError, Exception)
-                ):
-                    parser = CamtParser(tmp_file.name)
-                    parser.parse()
+        try:
+            # Test CAMT parser with malformed input
+            with self.assertRaises((ValidationError, ParseError, Exception)):
+                parser = CamtParser(tmp_path)
+                parser.parse()
 
-                # Test PAIN001 parser with malformed input
-                with self.assertRaises(
-                    (ValidationError, ParseError, Exception)
-                ):
-                    parser = Pain001Parser(tmp_file.name)
-                    parser.parse()
+            # Test PAIN001 parser with malformed input
+            with self.assertRaises((ValidationError, ParseError, Exception)):
+                parser = Pain001Parser(tmp_path)
+                parser.parse()
 
-            finally:
-                os.unlink(tmp_file.name)
+        finally:
+            os.unlink(tmp_path)
 
     def test_large_file_handling(self):
         """Test parser behavior with larger input files."""
@@ -437,30 +435,29 @@ class TestUnifiedParserInterface(unittest.TestCase):
             mode="w", suffix=".xml", delete=False
         ) as tmp_file:
             tmp_file.write(large_xml_content)
-            tmp_file.flush()
+            tmp_path = tmp_file.name
 
+        try:
+            # Test CAMT parser with larger file
+            parser = CamtParser(tmp_path)
+            df = parser.parse()
+            self.assertIsInstance(df, pd.DataFrame)
+            self.assertGreater(len(df), 50)  # Should have many transactions
+
+            # Test export functionality with larger dataset
+            with tempfile.NamedTemporaryFile(
+                suffix=".csv", delete=False
+            ) as csv_file:
+                csv_path = csv_file.name
             try:
-                # Test CAMT parser with larger file
-                parser = CamtParser(tmp_file.name)
-                df = parser.parse()
-                self.assertIsInstance(df, pd.DataFrame)
-                self.assertGreater(
-                    len(df), 50
-                )  # Should have many transactions
-
-                # Test export functionality with larger dataset
-                with tempfile.NamedTemporaryFile(
-                    suffix=".csv", delete=False
-                ) as csv_file:
-                    try:
-                        parser.export_csv(csv_file.name)
-                        self.assertTrue(os.path.exists(csv_file.name))
-                    finally:
-                        if os.path.exists(csv_file.name):
-                            os.unlink(csv_file.name)
-
+                parser.export_csv(csv_path)
+                self.assertTrue(os.path.exists(csv_path))
             finally:
-                os.unlink(tmp_file.name)
+                if os.path.exists(csv_path):
+                    os.unlink(csv_path)
+
+        finally:
+            os.unlink(tmp_path)
 
     def test_edge_case_file_formats(self):
         """Test parser behavior with edge case file formats."""
@@ -471,31 +468,31 @@ class TestUnifiedParserInterface(unittest.TestCase):
             mode="w", suffix=".xml", delete=False
         ) as tmp_file:
             tmp_file.write(empty_xml)
-            tmp_file.flush()
+            tmp_path = tmp_file.name
+
+        try:
+            # Both parsers should handle empty/minimal XML gracefully
+            # Test that they can be created but may fail on parse()
+            try:
+                parser = CamtParser(tmp_path)
+                # parse() should fail or return empty results
+                df = parser.parse()
+                self.assertIsInstance(df, pd.DataFrame)
+            except (ValidationError, Exception):
+                # Either constructor or parse can fail - both acceptable
+                pass
 
             try:
-                # Both parsers should handle empty/minimal XML gracefully
-                # Test that they can be created but may fail on parse()
-                try:
-                    parser = CamtParser(tmp_file.name)
-                    # parse() should fail or return empty results
-                    df = parser.parse()
-                    self.assertIsInstance(df, pd.DataFrame)
-                except (ValidationError, Exception):
-                    # Either constructor or parse can fail - both acceptable
-                    pass
+                parser = Pain001Parser(tmp_path)
+                # parse() should fail or return empty results
+                df = parser.parse()
+                self.assertIsInstance(df, pd.DataFrame)
+            except (ValidationError, Exception):
+                # Either constructor or parse can fail - both acceptable
+                pass
 
-                try:
-                    parser = Pain001Parser(tmp_file.name)
-                    # parse() should fail or return empty results
-                    df = parser.parse()
-                    self.assertIsInstance(df, pd.DataFrame)
-                except (ValidationError, Exception):
-                    # Either constructor or parse can fail - both acceptable
-                    pass
-
-            finally:
-                os.unlink(tmp_file.name)
+        finally:
+            os.unlink(tmp_path)
 
         # Test XML with namespace but no data
         minimal_camt_xml = """<?xml version="1.0" encoding="UTF-8"?>
@@ -506,17 +503,17 @@ class TestUnifiedParserInterface(unittest.TestCase):
             mode="w", suffix=".xml", delete=False
         ) as tmp_file:
             tmp_file.write(minimal_camt_xml)
-            tmp_file.flush()
+            tmp_path = tmp_file.name
 
-            try:
-                # Should be able to create parser but parse() may return empty results
-                parser = CamtParser(tmp_file.name)
-                df = parser.parse()
-                self.assertIsInstance(df, pd.DataFrame)
-                # Empty DataFrame is acceptable for empty input
+        try:
+            # Should be able to create parser but parse() may return empty results
+            parser = CamtParser(tmp_path)
+            df = parser.parse()
+            self.assertIsInstance(df, pd.DataFrame)
+            # Empty DataFrame is acceptable for empty input
 
-            finally:
-                os.unlink(tmp_file.name)
+        finally:
+            os.unlink(tmp_path)
 
     def test_path_handling_consistency(self):
         """Test that parsers handle different path types consistently."""

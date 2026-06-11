@@ -118,23 +118,24 @@ class TestInputValidator(unittest.TestCase):
     def test_validate_input_file_path_not_a_file(self):
         """Test handling when path exists but is not a file."""
         with self.assertRaises(ValidationError) as cm:
-            self.validator.validate_input_file_path("/tmp")
+            self.validator.validate_input_file_path(self.temp_dir)
         self.assertIn("not a file", str(cm.exception))
 
     def test_validate_input_file_path_not_readable(self):
         """Test handling of unreadable files."""
-        # Create a file and remove read permissions
         test_file = os.path.join(self.temp_dir, "test.xml")
         with open(test_file, "w") as f:
             f.write("<?xml version='1.0'?><Document></Document>")
-        os.chmod(test_file, 0o000)
 
-        try:
+        # chmod(0o000) does not make files unreadable on Windows, so
+        # mock the access check to exercise the branch everywhere.
+        with patch(
+            "bankstatementparser.input_validator.os.access",
+            return_value=False,
+        ):
             with self.assertRaises(ValidationError) as cm:
                 self.validator.validate_input_file_path(test_file)
-            self.assertIn("not readable", str(cm.exception))
-        finally:
-            os.chmod(test_file, 0o644)  # Restore permissions for cleanup
+        self.assertIn("not readable", str(cm.exception))
 
     def test_validate_input_file_path_invalid_extension(self):
         """Test rejection of invalid file extensions."""
@@ -285,17 +286,16 @@ class TestInputValidator(unittest.TestCase):
 
     def test_validate_output_file_path_directory_not_writable(self):
         """Test handling when output directory is not writable."""
-        readonly_dir = os.path.join(self.temp_dir, "readonly")
-        os.makedirs(readonly_dir)
-        os.chmod(readonly_dir, 0o444)  # Read-only
-
-        try:
-            output_file = os.path.join(readonly_dir, "output.csv")
+        # chmod-based read-only directories are not portable to
+        # Windows, so mock the access check instead.
+        output_file = os.path.join(self.temp_dir, "output.csv")
+        with patch(
+            "bankstatementparser.input_validator.os.access",
+            return_value=False,
+        ):
             with self.assertRaises(ValidationError) as cm:
                 self.validator.validate_output_file_path(output_file)
-            self.assertIn("not writable", str(cm.exception))
-        finally:
-            os.chmod(readonly_dir, 0o755)  # Restore permissions
+        self.assertIn("not writable", str(cm.exception))
 
     def test_validate_output_file_path_invalid_extension(self):
         """Test rejection of invalid output file extensions."""

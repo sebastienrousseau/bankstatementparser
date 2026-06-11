@@ -206,15 +206,11 @@ class TestCamtParserCoverage(unittest.TestCase):
 
     def test_permission_error_in_init(self):
         """An unreadable file raises PermissionError/ValidationError."""
-        f = _write_xml(CAMT_XML)
-        try:
-            os.chmod(f, 0o000)
-            # Pass as Path to bypass input validator, hit open() directly
+        # chmod(0o000) is ineffective on Windows; mock open() instead.
+        # Pass as Path to bypass input validator, hit open() directly.
+        with patch("builtins.open", side_effect=PermissionError("denied")):
             with self.assertRaises((PermissionError, ValidationError)):
-                CamtParser(Path(f))
-        finally:
-            os.chmod(f, 0o644)
-            os.unlink(f)
+                CamtParser(Path(self.camt_file))
 
     def test_file_not_found_in_init(self):
         """A missing file raises FileNotFoundError."""
@@ -494,15 +490,11 @@ class TestPain001ParserCoverage(unittest.TestCase):
 
     def test_permission_error_in_init(self):
         """An unreadable file raises PermissionError/ValidationError."""
-        f = _write_xml(PAIN_XML)
-        try:
-            os.chmod(f, 0o000)
-            # Pass Path to bypass validator, hit open() directly
+        # chmod(0o000) is ineffective on Windows; mock open() instead.
+        # Pass Path to bypass validator, hit open() directly.
+        with patch("builtins.open", side_effect=PermissionError("denied")):
             with self.assertRaises((PermissionError, ValidationError)):
-                Pain001Parser(Path(f))
-        finally:
-            os.chmod(f, 0o644)
-            os.unlink(f)
+                Pain001Parser(Path(self.pain_file))
 
     def test_file_not_found_in_init(self):
         """A missing file raises FileNotFoundError."""

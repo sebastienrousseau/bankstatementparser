@@ -8,6 +8,7 @@ import os
 import tempfile
 import unittest
 from decimal import Decimal
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -633,7 +634,6 @@ class TestErrorConditions(unittest.TestCase):
 
     def test_file_permission_errors(self):
         """Test handling of file permission errors."""
-        # Create a file and remove read permissions
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".xml", delete=False
         ) as f:
@@ -641,17 +641,17 @@ class TestErrorConditions(unittest.TestCase):
             test_file = f.name
 
         try:
-            # Remove read permissions
-            os.chmod(test_file, 0o000)
-
-            with self.assertRaises(
-                (PermissionError, OSError, ValidationError)
+            # chmod(0o000) does not revoke read access on Windows, so
+            # mock the validator's access check instead.
+            with patch(
+                "bankstatementparser.input_validator.os.access",
+                return_value=False,
             ):
-                CamtParser(test_file)
-
+                with self.assertRaises(
+                    (PermissionError, OSError, ValidationError)
+                ):
+                    CamtParser(test_file)
         finally:
-            # Restore permissions and cleanup
-            os.chmod(test_file, 0o644)
             os.unlink(test_file)
 
     def test_concurrent_access(self):
