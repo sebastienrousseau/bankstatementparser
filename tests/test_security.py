@@ -305,11 +305,12 @@ class TestSecurityCamtParser(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             CamtParser("/nonexistent/path/file.xml")
 
-        # Test directory instead of file
+        # Test directory instead of file ("/tmp" does not exist on
+        # Windows, so use the platform temp dir)
         with self.assertRaises(
             (IsADirectoryError, PermissionError, Exception)
         ):
-            CamtParser("/tmp")
+            CamtParser(tempfile.gettempdir())
 
         # Test empty file
         with tempfile.NamedTemporaryFile(

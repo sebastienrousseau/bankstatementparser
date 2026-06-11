@@ -808,7 +808,11 @@ class TestBaseParserCoverage(unittest.TestCase):
     def test_export_csv_cleanup_on_error(self):
         """export_csv removes its temp file when parsing fails."""
         camt_file = _write_xml(CAMT_XML)
-        output_path = "/tmp/test_bsp_output.csv"
+        # "/tmp" does not exist on Windows; use the real temp dir so
+        # the touched .tmp file is created and the cleanup branch runs.
+        output_path = os.path.join(
+            tempfile.gettempdir(), "test_bsp_output.csv"
+        )
         try:
             parser = CamtParser(camt_file)
 
@@ -849,7 +853,9 @@ class TestBaseParserCoverage(unittest.TestCase):
     def test_export_json_cleanup_on_error(self):
         """export_json removes its temp file when parsing fails."""
         camt_file = _write_xml(CAMT_XML)
-        output_path = "/tmp/test_bsp_output.json"
+        output_path = os.path.join(
+            tempfile.gettempdir(), "test_bsp_output.json"
+        )
         try:
             parser = CamtParser(camt_file)
 
