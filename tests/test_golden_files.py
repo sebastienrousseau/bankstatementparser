@@ -152,3 +152,50 @@ class TestEuropeanDecimalCsv:
         assert summary["transaction_count"] == 3
         assert summary["total_amount"] == Decimal("2260.94")
         assert summary["currency"] == "EUR"
+
+    def test_french_headers_with_debit_credit_split(self) -> None:
+        parser = CsvStatementParser(GOLDEN / "csv_french_headers.csv")
+        df = parser.parse()
+
+        assert df["description"].tolist() == [
+            "Loyer Avril",
+            "Salaire",
+            "Café",
+        ]
+        # Débit/Crédit pair collapses to signed amounts
+        assert df["amount"].tolist() == [
+            Decimal("-1234.56"),
+            Decimal("3500.00"),
+            Decimal("-4.50"),
+        ]
+        assert df["currency"].tolist() == ["EUR", "EUR", "EUR"]
+        assert df["transaction_id"].tolist() == [
+            "FR-001",
+            "FR-002",
+            "FR-003",
+        ]
+        assert df["date"].tolist() == [
+            "2026-04-02",
+            "2026-04-05",
+            "2026-04-09",
+        ]
+
+    def test_spanish_headers_and_thousand_separators(self) -> None:
+        parser = CsvStatementParser(GOLDEN / "csv_spanish_headers.csv")
+        df = parser.parse()
+
+        assert df["description"].tolist() == [
+            "Alquiler Abril",
+            "Nómina",
+            "Café",
+        ]
+        assert df["amount"].tolist() == [
+            Decimal("-1234.56"),
+            Decimal("3500.00"),
+            Decimal("-4.50"),
+        ]
+
+        summary = parser.get_summary()
+        assert summary["transaction_count"] == 3
+        assert summary["account_id"] == "ES9121000418450200051332"
+        assert summary["currency"] == "EUR"

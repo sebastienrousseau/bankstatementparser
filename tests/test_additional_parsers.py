@@ -15,6 +15,7 @@ from bankstatementparser import (
 )
 from bankstatementparser.additional_parsers import (
     _amount_or_zero,
+    _normalized_name,
     _parse_amount,
 )
 from bankstatementparser.input_validator import (
@@ -236,3 +237,15 @@ class TestAdditionalParsers(unittest.TestCase):
 
     def test_amount_or_zero_blank_string_is_zero(self):
         self.assertEqual(_amount_or_zero("   ", context="test"), Decimal("0"))
+
+
+class TestNormalizedHeaderName(unittest.TestCase):
+    def test_accents_fold_to_ascii(self):
+        self.assertEqual(_normalized_name("Libellé"), "libelle")
+        self.assertEqual(_normalized_name("Date opération"), "dateoperation")
+        self.assertEqual(_normalized_name("Descripción"), "descripcion")
+        self.assertEqual(_normalized_name("Crédit"), "credit")
+
+    def test_separators_and_case_are_stripped(self):
+        self.assertEqual(_normalized_name("Booking Date"), "bookingdate")
+        self.assertEqual(_normalized_name("REF."), "ref")

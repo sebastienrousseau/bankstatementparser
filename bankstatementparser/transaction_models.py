@@ -178,6 +178,12 @@ class Transaction(BaseModel):
     # deterministic and text-LLM paths because no spatial source
     # exists in either case.
     source_bbox: Optional[BoundingBox] = None
+    # Zero-based page the row was traced back to. Vision rows derive
+    # it from ``source_bbox.page_index``; text-LLM rows from a
+    # per-page search of the extracted text. ``None`` when the source
+    # has no pages (deterministic parsers) or the row could not be
+    # located on any single page.
+    source_page: Optional[int] = Field(default=None, ge=0)
 
     @computed_field  # type: ignore[prop-decorator]
     @property

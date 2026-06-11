@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/sebastienrousseau/bankstatementparser/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/bankstatementparser/quality-gates.yml?style=for-the-badge&logo=github" alt="Build" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.1.0" alt="PyPI" /></a>
+  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.9" alt="PyPI" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge" alt="PyPI Downloads" /></a>
   <a href="https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main"><img src="https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge" alt="Codecov" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge" alt="License" /></a>
@@ -331,7 +331,7 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 781 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 818 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
@@ -645,7 +645,7 @@ reconciliation pipelines.
 ## Project Layout
 
 ```text
-bankstatementparser/            Source code (31 modules)
+bankstatementparser/            Source code (32 modules)
 bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
 bankstatementparser/export/     hledger + beancount journal export
@@ -653,7 +653,7 @@ bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 8 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          781 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          818 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---
@@ -700,14 +700,12 @@ bandit -r bankstatementparser examples scripts -q
 ## Versioning
 
 This project follows [Semantic Versioning](https://semver.org).
-While the version is `0.y.z`, breaking changes are released only
-in minor versions (`0.1.0` → `0.2.0`) and are always listed under
-a **Changed — BREAKING** heading in the
-[CHANGELOG](CHANGELOG.md) with migration notes. Patch releases
-(`0.1.0` → `0.1.1`) never break the public API. From `1.0.0`,
-breaking changes will require a major release. Deprecations emit
-`DeprecationWarning` for at least one minor release before
-removal.
+While the version is `0.y.z`, any release may contain breaking
+changes; they are always listed under a **Changed — BREAKING**
+heading in the [CHANGELOG](CHANGELOG.md) with migration notes.
+From `1.0.0`, breaking changes will require a major release.
+Deprecations emit `DeprecationWarning` for at least one minor
+release before removal.
 
 ---
 

@@ -1,0 +1,15 @@
+{
+  "name": "european_format",
+  "statement_text": "DEUTSCHE MUSTERBANK AG\nKonto: DE89370400440532013000\nWaehrung: EUR\nAnfangssaldo: 2.000,00\n\nBuchungstag  Verwendungszweck            Betrag\n2026-04-01   MIETE APRIL              -1.234,56\n2026-04-05   GEHALT ACME GMBH          3.500,00\n2026-04-09   KAFFEEHAUS                    -4,50\n\nEndsaldo: 4.260,94\n",
+  "expected": {
+    "account_id": "DE89370400440532013000",
+    "currency": "EUR",
+    "opening_balance": "2000.00",
+    "closing_balance": "4260.94",
+    "transactions": [
+      {"booking_date": "2026-04-01", "amount": "-1234.56", "description": "MIETE APRIL"},
+      {"booking_date": "2026-04-05", "amount": "3500.00", "description": "GEHALT ACME GMBH"},
+      {"booking_date": "2026-04-09", "amount": "-4.50", "description": "KAFFEEHAUS"}
+    ]
+  }
+}

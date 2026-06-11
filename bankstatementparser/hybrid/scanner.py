@@ -40,6 +40,11 @@ from typing import Optional, Union
 from ..transaction_deduplicator import Deduplicator
 from ..transaction_models import Transaction
 from .orchestrator import IngestResult, smart_ingest
+from .verification import (
+    ContinuityResult,
+    VerificationStatus,
+    verify_continuity,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +70,10 @@ class ScanResult:
     total_unique: int
     total_skipped: int
     failures: tuple[FileFailure, ...] = ()
+    # Cross-statement continuity check (closing of N == opening of
+    # N+1) across the scanned files in sorted order. ``None`` when
+    # fewer than two files were ingested.
+    continuity: Optional[ContinuityResult] = None
 
     @property
     def failure_count(self) -> int:
@@ -121,6 +130,7 @@ def scan_and_ingest(
 
     dedup = Deduplicator()
     all_results: list[IngestResult] = []
+    ingested_paths: list[str] = []
     unique: list[Transaction] = []
     skipped: list[str] = []
     failures: list[FileFailure] = []
@@ -134,6 +144,7 @@ def scan_and_ingest(
             failures.append(FileFailure(path=str(file_path), error=str(exc)))
             continue
         all_results.append(result)
+        ingested_paths.append(str(file_path))
         # Each file is its own dedup batch: genuine repeats within
         # one statement survive, while a file that re-exports
         # already-seen transactions is skipped.
@@ -150,6 +161,25 @@ def scan_and_ingest(
             len(files),
         )
 
+    continuity: Optional[ContinuityResult] = None
+    if len(all_results) >= 2:
+        continuity = verify_continuity(
+            [
+                (
+                    path,
+                    r.verification.opening_balance
+                    if r.verification is not None
+                    else None,
+                    r.verification.closing_balance
+                    if r.verification is not None
+                    else None,
+                )
+                for path, r in zip(ingested_paths, all_results, strict=True)
+            ]
+        )
+        if continuity.status is not VerificationStatus.VERIFIED:
+            logger.warning("Continuity check: %s", continuity.message)
+
     return ScanResult(
         results=tuple(all_results),
         unique_transactions=tuple(unique),
@@ -158,4 +188,5 @@ def scan_and_ingest(
         total_unique=len(unique),
         total_skipped=len(skipped),
         failures=tuple(failures),
+        continuity=continuity,
     )

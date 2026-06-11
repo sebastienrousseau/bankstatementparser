@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal, DecimalException
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -55,7 +55,7 @@ from pydantic import ValidationError
 from ..additional_parsers import create_parser, detect_statement_format
 from ..transaction_models import Transaction
 from .llm_extractor import LLMExtractionResult, LLMExtractor
-from .pdf_text import extract_text
+from .pdf_text import extract_text_pages
 from .verification import (
     BalanceVerification,
     VerificationStatus,
@@ -359,7 +359,8 @@ def _run_pdf_fallbacks(
     warnings: list[str],
 ) -> IngestResult:
     """Path B (text-LLM) → Path C (vision-LLM) routing for PDFs."""
-    text = extract_text(file_path)
+    pages = extract_text_pages(file_path)
+    text = "\n".join(pages)
     stripped_len = len(text.strip())
 
     if stripped_len < LOW_TEXT_DENSITY_THRESHOLD:
@@ -382,6 +383,10 @@ def _run_pdf_fallbacks(
 
     extractor = extractor or LLMExtractor()
     result = extractor.extract(text)
+    result = replace(
+        result,
+        transactions=_attach_text_pages(result.transactions, pages),
+    )
     return _build_ingest_result(
         source_method="llm",
         result=result,
@@ -389,6 +394,45 @@ def _run_pdf_fallbacks(
         closing_balance=closing_balance,
         warnings=warnings,
     )
+
+
+def _page_for_description(
+    description: Optional[str], pages_lower: list[str]
+) -> Optional[int]:
+    """Find the first page whose text contains the description."""
+    if not description:
+        return None
+    needle = description.strip().lower()
+    if not needle:
+        return None
+    for index, page in enumerate(pages_lower):
+        if needle in page:
+            return index
+    return None
+
+
+def _attach_text_pages(
+    transactions: list[Transaction], pages: list[str]
+) -> list[Transaction]:
+    """Trace text-LLM rows back to their source page.
+
+    The LLM receives one joined text blob, so per-row page provenance
+    has to be recovered afterwards with a case-insensitive search of
+    each page's text. Rows whose description cannot be located on any
+    single page keep ``source_page=None`` — an honest "untraceable"
+    signal rather than a guess.
+    """
+    pages_lower = [page.lower() for page in pages]
+    attached: list[Transaction] = []
+    for tx in transactions:
+        if tx.source_page is not None:
+            attached.append(tx)
+            continue
+        page = _page_for_description(tx.description, pages_lower)
+        attached.append(
+            tx if page is None else tx.model_copy(update={"source_page": page})
+        )
+    return attached
 
 
 def _run_vision(

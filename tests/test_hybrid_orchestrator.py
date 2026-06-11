@@ -186,7 +186,7 @@ def test_smart_ingest_falls_back_to_llm_when_parser_raises(
 
     monkeypatch.setattr(orchestrator, "create_parser", boom)
     monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "raw pdf text " * 10
+        orchestrator, "extract_text_pages", lambda _p: ["raw pdf text " * 10]
     )
 
     payload = {
@@ -217,7 +217,7 @@ def test_smart_ingest_warns_when_detection_raises(
 
     monkeypatch.setattr(orchestrator, "detect_statement_format", boom)
     monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "pdf text " * 20
+        orchestrator, "extract_text_pages", lambda _p: ["pdf text " * 20]
     )
 
     payload = {
@@ -245,7 +245,7 @@ def test_smart_ingest_uses_llm_for_pdf_directly(
         orchestrator, "detect_statement_format", lambda _p: "pdf"
     )
     monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "raw pdf text " * 10
+        orchestrator, "extract_text_pages", lambda _p: ["raw pdf text " * 10]
     )
 
     payload = {
@@ -285,7 +285,9 @@ def test_smart_ingest_explicit_balances_override_llm_balances(
     monkeypatch.setattr(
         orchestrator, "detect_statement_format", lambda _p: None
     )
-    monkeypatch.setattr(orchestrator, "extract_text", lambda _p: "text " * 30)
+    monkeypatch.setattr(
+        orchestrator, "extract_text_pages", lambda _p: ["text " * 30]
+    )
 
     payload = {
         "opening_balance": "0.00",
@@ -344,7 +346,9 @@ def test_smart_ingest_routes_scanned_pdf_to_vision(
         orchestrator, "detect_statement_format", lambda _p: None
     )
     # Low-density text: below LOW_TEXT_DENSITY_THRESHOLD
-    monkeypatch.setattr(orchestrator, "extract_text", lambda _p: "  \n  ")
+    monkeypatch.setattr(
+        orchestrator, "extract_text_pages", lambda _p: ["  \n  "]
+    )
 
     payload = {
         "opening_balance": "100.00",
@@ -416,7 +420,7 @@ def test_smart_ingest_vision_raises_when_model_unset(
     monkeypatch.setattr(
         orchestrator, "detect_statement_format", lambda _p: "pdf"
     )
-    monkeypatch.setattr(orchestrator, "extract_text", lambda _p: "")
+    monkeypatch.setattr(orchestrator, "extract_text_pages", lambda _p: [""])
     monkeypatch.delenv("BSP_HYBRID_VISION_MODEL", raising=False)
 
     with pytest.raises(VisionExtractorError, match="Vision model required"):
@@ -688,3 +692,56 @@ def test_ingest_result_from_json_skips_non_dict_audit_entries() -> None:
         {},
         {"action": "also ok"},
     )
+
+
+def test_smart_ingest_attaches_page_provenance_to_text_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "statement.pdf"
+    file_path.write_text("placeholder")
+
+    monkeypatch.setattr(
+        orchestrator, "detect_statement_format", lambda _p: None
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "extract_text_pages",
+        lambda _p: [
+            "Page one ledger: COFFEE SHOP 4.50 settled " * 3,
+            "Page two ledger: Salary Payment 2500.00 in " * 3,
+        ],
+    )
+
+    payload = {
+        "transactions": [
+            {"amount": "-4.50", "description": "Coffee Shop"},
+            {"amount": "2500.00", "description": "Salary Payment"},
+            {"amount": "1.00", "description": "Not In The Text"},
+            {"amount": "2.00", "description": "   "},
+            {"amount": "3.00", "description": None},
+            {
+                "amount": "5.00",
+                "description": "Coffee Shop",
+                "bbox": {
+                    "x0": 0.1,
+                    "y0": 0.2,
+                    "x1": 0.9,
+                    "y1": 0.3,
+                    "page_index": 1,
+                },
+            },
+        ],
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: {
+            "choices": [{"message": {"content": json.dumps(payload)}}]
+        }
+    )
+
+    result = smart_ingest(file_path, extractor=extractor)
+    assert result.source_method == "llm"
+    # Case-insensitive match on page 0; exact match on page 1; rows
+    # that cannot be located (absent, blank, or no description) stay
+    # None; a bbox-supplied page_index wins without a text search.
+    pages = [tx.source_page for tx in result.transactions]
+    assert pages == [0, 1, None, None, None, 1]

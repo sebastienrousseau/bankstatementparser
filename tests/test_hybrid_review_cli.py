@@ -366,6 +366,7 @@ def test_review_renders_bbox_and_raw_source_text(
         source_method="llm",
         confidence=0.9,
         source_bbox=bbox,
+        source_page=2,
         raw_source_text="raw context for review UI",
     )
     payload_path = _write_result(
@@ -378,6 +379,7 @@ def test_review_renders_bbox_and_raw_source_text(
     out = capsys.readouterr().out
     assert "source bbox" in out
     assert "page 0" in out
+    assert "source page: 2" in out
     assert "raw context for review UI" in out
 
 

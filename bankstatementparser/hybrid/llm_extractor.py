@@ -256,6 +256,7 @@ def _build_result(
                     description_str, source_text
                 ),
                 source_bbox=bbox,
+                source_page=bbox.page_index if bbox is not None else None,
             )
         )
 

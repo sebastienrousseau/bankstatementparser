@@ -5,11 +5,18 @@
 from __future__ import annotations
 
 import shutil
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
+from bankstatementparser.hybrid import scanner
+from bankstatementparser.hybrid.orchestrator import IngestResult
 from bankstatementparser.hybrid.scanner import scan_and_ingest
+from bankstatementparser.hybrid.verification import (
+    BalanceVerification,
+    VerificationStatus,
+)
 
 CAMT_FIXTURE = (
     Path(__file__).resolve().parents[1]
@@ -101,3 +108,84 @@ def test_scan_records_failures_with_count(tmp_path: Path) -> None:
     assert result.failure_count == 1
     assert result.failures[0].path.endswith("bad.xml")
     assert result.failures[0].error
+
+
+def _ingest_result_with_balances(
+    opening: Decimal, closing: Decimal
+) -> IngestResult:
+    return IngestResult(
+        source_method="deterministic",
+        source_format="camt",
+        transactions=(),
+        verification=BalanceVerification(
+            status=VerificationStatus.VERIFIED,
+            opening_balance=opening,
+            closing_balance=closing,
+            total_credits=Decimal("0"),
+            total_debits=Decimal("0"),
+            expected_delta=Decimal("0"),
+            actual_delta=Decimal("0"),
+            discrepancy=Decimal("0"),
+            message="ok",
+        ),
+    )
+
+
+def test_scan_continuity_verified_across_chained_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "01-jan.xml").write_text("jan")
+    (tmp_path / "02-feb.xml").write_text("feb")
+    balances = {
+        "01-jan.xml": (Decimal("100"), Decimal("250")),
+        "02-feb.xml": (Decimal("250"), Decimal("300")),
+    }
+
+    def fake_ingest(path: Path) -> IngestResult:
+        return _ingest_result_with_balances(*balances[Path(path).name])
+
+    monkeypatch.setattr(scanner, "smart_ingest", fake_ingest)
+    result = scan_and_ingest(tmp_path)
+    assert result.continuity is not None
+    assert result.continuity.status is VerificationStatus.VERIFIED
+    assert result.continuity.checked_links == 1
+
+
+def test_scan_continuity_flags_gap_between_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "01-jan.xml").write_text("jan")
+    (tmp_path / "02-feb.xml").write_text("feb")
+    balances = {
+        "01-jan.xml": (Decimal("100"), Decimal("250")),
+        "02-feb.xml": (Decimal("400"), Decimal("500")),
+    }
+
+    def fake_ingest(path: Path) -> IngestResult:
+        return _ingest_result_with_balances(*balances[Path(path).name])
+
+    monkeypatch.setattr(scanner, "smart_ingest", fake_ingest)
+    result = scan_and_ingest(tmp_path)
+    assert result.continuity is not None
+    assert result.continuity.status is VerificationStatus.DISCREPANCY
+    brk = result.continuity.breaks[0]
+    assert brk.previous_label.endswith("01-jan.xml")
+    assert brk.next_label.endswith("02-feb.xml")
+    assert brk.gap == Decimal("150")
+
+
+def test_scan_continuity_none_for_single_file(tmp_path: Path) -> None:
+    shutil.copy(CAMT_FIXTURE, tmp_path / "statement.xml")
+    result = scan_and_ingest(tmp_path)
+    assert result.continuity is None
+
+
+def test_scan_continuity_failed_without_balances(tmp_path: Path) -> None:
+    # Real fixtures ingested without balances: links exist but none
+    # can be checked, so the chain reports FAILED (cannot verify).
+    shutil.copy(CAMT_FIXTURE, tmp_path / "a.xml")
+    shutil.copy(CAMT_FIXTURE, tmp_path / "b.xml")
+    result = scan_and_ingest(tmp_path)
+    assert result.continuity is not None
+    assert result.continuity.status is VerificationStatus.FAILED
+    assert result.continuity.unchecked_links == 1

@@ -225,3 +225,43 @@ jobs:
         with:
           path: .benchmarks
           key: benchmark-baseline-${{ runner.os }}-py312-${{ github.run_id }}
+
+  llm-eval:
+    name: LLM Accuracy Eval (non-blocking)
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install dependencies
+        run: poetry install --with dev -E hybrid
+
+      - name: Harness self-check (mock mode, no model)
+        # Deterministic: loads every ground-truth case, runs the full
+        # extract -> score -> report path against perfect mock answers.
+        # A failure here means the harness itself broke.
+        run: poetry run python scripts/run_llm_eval.py --mock
+
+      - name: Run accuracy eval against configured model
+        # Gated on the BSP_EVAL_MODEL repository variable so forks and
+        # model-less runs skip silently. Non-blocking by design:
+        # accuracy drift surfaces as a failed-step annotation for
+        # humans, it never blocks a merge.
+        if: vars.BSP_EVAL_MODEL != ''
+        continue-on-error: true
+        env:
+          BSP_HYBRID_MODEL: ${{ vars.BSP_EVAL_MODEL }}
+          BSP_HYBRID_API_BASE: ${{ secrets.BSP_EVAL_API_BASE }}
+        run: poetry run python scripts/run_llm_eval.py

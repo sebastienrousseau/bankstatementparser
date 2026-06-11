@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Page provenance for text-LLM rows (`Transaction.source_page`).**
+  `extract_text_pages()` keeps per-page text instead of joining the
+  PDF into one blob, and `smart_ingest` attributes each extracted
+  row back to the page whose text contains its description. Vision
+  rows inherit the page from their bounding box. Untraceable rows
+  keep `source_page=None`; the ingest CSV gains a `source_page`
+  column and review mode prints it.
+- **Cross-statement continuity check (`verify_continuity()`).** The
+  closing balance of statement N must equal the opening balance of
+  N+1 — a missing month, duplicated export, or hallucinated balance
+  shows up as a `ContinuityBreak`. `scan_and_ingest` runs the check
+  across scanned files in sorted order and exposes the
+  `ScanResult.continuity` result.
+- **French and Spanish CSV header synonyms.** `Date opération`,
+  `Libellé`, `Montant`, `Solde`, `Devise`, `Fecha`, `Concepto`,
+  `Importe`, `Saldo`, `Divisa`, and friends now map onto the
+  deterministic CSV path. Header normalization folds accents
+  (NFKD), so `Débit`/`Crédit`/`Référence` resolve via the existing
+  English synonyms.
+- **LLM-extraction accuracy eval harness.** New pure scoring module
+  (`bankstatementparser.hybrid.evaluation`) compares an extraction
+  against ground-truth cases (`tests/test_data/eval/`) and produces
+  deterministic precision/recall/F1 plus per-field accuracies. The
+  runner (`scripts/run_llm_eval.py`) supports `--mock` for a
+  model-free harness self-check; CI runs the self-check as a
+  blocking step and the real-model eval as a non-blocking job gated
+  on the `BSP_EVAL_MODEL` repository variable.
 - **`--review-below THRESHOLD` for `--type review`.** Per-row
   extraction confidence is now acted on, not just displayed: rows
   with `confidence` below the threshold (0.0–1.0) are routed into
@@ -53,17 +80,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attribute 'lower'`) and the `--output` path wrote column names
   as the CSV body. Caught by the new examples regression suite.
 
-## [0.1.0] — 2026-06-10
+## [0.0.9] — 2026-06-10
 
 > "Audit pass" — addresses the three Critical findings and six quick
 > wins from the deep audit, drains all open Dependabot version-bump
 > PRs, resolves all open Dependabot security alerts, and removes the
-> remaining silent-failure paths from the public API. Released as
-> 0.1.0 (not 0.0.9) because the silent-failure fixes below are
-> breaking changes; from this release on the project follows
-> [SemVer](https://semver.org): breaking changes only in minor
-> releases while the version is 0.y.z, and only in major releases
-> from 1.0.0.
+> remaining silent-failure paths from the public API. The
+> silent-failure fixes below are breaking changes and are flagged
+> under **Changed — BREAKING** with migration notes; per
+> [SemVer](https://semver.org) anything may change while the version
+> is 0.y.z, and from 1.0.0 breaking changes will require a major
+> release.
 
 ### Changed — BREAKING
 
@@ -88,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *Migration:* add the `excel` extra if you export to `.xlsx`.
 - **lxml floor raised to `>=5.0`** (was `>=4.9.3`).
 
-### Fixed (0.1.0)
+### Fixed (0.0.9)
 
 - **CAMT streaming `AccountId` was always empty.** The account id
   was captured when `</Stmt>` closed — after every `<Ntry>` in the
@@ -710,8 +737,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.1.0
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.9...HEAD
+[0.0.9]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.9
 [0.0.8]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.8
 [0.0.7]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.7
 [0.0.6]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.6

@@ -1,0 +1,16 @@
+{
+  "name": "same_day_duplicates",
+  "statement_text": "FIRST NATIONAL BANK\nAccount: 12345678\nCurrency: EUR\nOpening balance: 500.00\n\n2026-05-03  COFFEE TO GO       -3.20\n2026-05-03  COFFEE TO GO       -3.20\n2026-05-04  BOOKSTORE         -24.90\n2026-05-10  REFUND BOOKSTORE   24.90\n\nClosing balance: 493.60\n",
+  "expected": {
+    "account_id": "12345678",
+    "currency": "EUR",
+    "opening_balance": "500.00",
+    "closing_balance": "493.60",
+    "transactions": [
+      {"booking_date": "2026-05-03", "amount": "-3.20", "description": "COFFEE TO GO"},
+      {"booking_date": "2026-05-03", "amount": "-3.20", "description": "COFFEE TO GO"},
+      {"booking_date": "2026-05-04", "amount": "-24.90", "description": "BOOKSTORE"},
+      {"booking_date": "2026-05-10", "amount": "24.90", "description": "REFUND BOOKSTORE"}
+    ]
+  }
+}

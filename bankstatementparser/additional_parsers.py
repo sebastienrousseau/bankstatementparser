@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -29,13 +30,23 @@ from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
 from .record_types import SummaryRecord, TransactionRecord
 
+# Synonyms are matched after _normalized_name(), which lowercases,
+# folds accents (Libellé -> libelle), and strips non-alphanumerics —
+# so every entry here is in that folded form. German (DE), French
+# (FR), and Spanish (ES) bank-export headers widen the deterministic
+# CSV path before anything falls through to the LLM.
 CSV_COLUMN_GROUPS = {
     "date": {
         "date",
         "bookingdate",
         "transactiondate",
         "valuedate",
-        "buchungstag",
+        "buchungstag",  # DE
+        "dateoperation",  # FR "Date opération"
+        "datevaleur",  # FR "Date valeur"
+        "fecha",  # ES
+        "fechaoperacion",  # ES "Fecha operación"
+        "fechavalor",  # ES "Fecha valor"
     },
     "description": {
         "description",
@@ -44,20 +55,78 @@ CSV_COLUMN_GROUPS = {
         "narrative",
         "payee",
         "name",
-        "verwendungszweck",
+        "verwendungszweck",  # DE
+        "libelle",  # FR "Libellé"
+        "concepto",  # ES
+        "descripcion",  # ES "Descripción"
     },
-    "amount": {"amount", "transactionamount", "betrag", "value", "sum"},
-    "debit": {"debit", "withdrawal", "outflow", "soll"},
-    "credit": {"credit", "deposit", "inflow", "haben"},
-    "balance": {"balance", "runningbalance"},
-    "currency": {"currency", "ccy"},
-    "account_id": {"account", "accountnumber", "iban"},
-    "transaction_id": {"id", "transactionid", "reference", "ref"},
+    "amount": {
+        "amount",
+        "transactionamount",
+        "betrag",  # DE
+        "value",
+        "sum",
+        "montant",  # FR
+        "importe",  # ES
+    },
+    "debit": {
+        "debit",  # EN; also FR "Débit" after accent folding
+        "withdrawal",
+        "outflow",
+        "soll",  # DE
+        "cargo",  # ES
+        "adeudo",  # ES
+        "debito",  # ES "Débito"
+    },
+    "credit": {
+        "credit",  # EN; also FR "Crédit" after accent folding
+        "deposit",
+        "inflow",
+        "haben",  # DE
+        "abono",  # ES
+        "ingreso",  # ES
+        "credito",  # ES "Crédito"
+    },
+    "balance": {
+        "balance",
+        "runningbalance",
+        "solde",  # FR
+        "saldo",  # ES (and DE)
+    },
+    "currency": {
+        "currency",
+        "ccy",
+        "devise",  # FR
+        "divisa",  # ES
+        "moneda",  # ES
+    },
+    "account_id": {
+        "account",
+        "accountnumber",
+        "iban",
+        "compte",  # FR
+        "cuenta",  # ES
+    },
+    "transaction_id": {
+        "id",
+        "transactionid",
+        "reference",  # EN; also FR "Référence" after accent folding
+        "ref",
+        "referencia",  # ES
+    },
 }
 
 
 def _normalized_name(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "", name.lower())
+    # NFKD + ASCII-encode folds accented characters to their base
+    # letter (é -> e) so French/Spanish headers match their
+    # unaccented synonym entries.
+    folded = (
+        unicodedata.normalize("NFKD", name)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
+    return re.sub(r"[^a-z0-9]+", "", folded.lower())
 
 
 def _read_validated_text(file_name: str | Path) -> tuple[Path, str]:

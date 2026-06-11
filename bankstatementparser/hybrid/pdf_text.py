@@ -58,20 +58,46 @@ def extract_text(
         PDFExtractionError: If the backend is missing or extraction
             fails.
     """
+    return "\n".join(extract_text_pages(path, engine=engine))
+
+
+def extract_text_pages(
+    path: PathLike,
+    *,
+    engine: Engine = "pypdf",
+) -> list[str]:
+    """Extract whitespace-normalized text from each page of a PDF.
+
+    Keeping the per-page split (instead of one joined blob) preserves
+    page provenance: the orchestrator uses it to trace each extracted
+    row back to the page it came from.
+
+    Args:
+        path: Path to the PDF file (treated as immutable).
+        engine: ``"pypdf"`` (default, requires ``[hybrid]``) or
+            ``"pdfplumber"`` (requires ``[hybrid-plus]``).
+
+    Returns:
+        One normalized text string per page, in page order.
+
+    Raises:
+        PDFExtractionError: If the backend is missing or extraction
+            fails.
+    """
     pdf_path = Path(path)
     if not pdf_path.is_file():
         raise PDFExtractionError(f"PDF not found: {pdf_path}")
 
     if engine == "pypdf":
-        return _extract_with_pypdf(pdf_path)
-    if engine == "pdfplumber":  # pragma: no cover - opt-in extra
-        return _extract_with_pdfplumber(pdf_path)
-    raise PDFExtractionError(  # pragma: no cover - guarded by Literal
-        f"Unknown PDF engine: {engine}"
-    )
+        pages = _extract_with_pypdf(pdf_path)
+    elif engine == "pdfplumber":  # pragma: no cover - opt-in extra
+        pages = _extract_with_pdfplumber(pdf_path)
+    else:  # pragma: no cover - guarded by Literal
+        raise PDFExtractionError(f"Unknown PDF engine: {engine}")
+    return [_strip_noise(page) for page in pages]
 
 
-def _extract_with_pypdf(pdf_path: Path) -> str:
+def _extract_with_pypdf(pdf_path: Path) -> list[str]:
     try:
         from pypdf import PdfReader
     except ImportError as exc:  # pragma: no cover - optional dep
@@ -82,18 +108,16 @@ def _extract_with_pypdf(pdf_path: Path) -> str:
 
     try:
         reader = PdfReader(str(pdf_path))
-        pages = [page.extract_text() or "" for page in reader.pages]
+        return [page.extract_text() or "" for page in reader.pages]
     except Exception as exc:  # pragma: no cover - defensive
         raise PDFExtractionError(
             f"Failed to read PDF {pdf_path}: {exc}"
         ) from exc
 
-    return _strip_noise("\n".join(pages))
-
 
 def _extract_with_pdfplumber(
     pdf_path: Path,
-) -> str:  # pragma: no cover - opt-in extra
+) -> list[str]:  # pragma: no cover - opt-in extra
     try:
         import pdfplumber
     except ImportError as exc:
@@ -104,10 +128,8 @@ def _extract_with_pdfplumber(
 
     try:
         with pdfplumber.open(str(pdf_path)) as pdf:
-            pages = [page.extract_text() or "" for page in pdf.pages]
+            return [page.extract_text() or "" for page in pdf.pages]
     except Exception as exc:
         raise PDFExtractionError(
             f"Failed to read PDF {pdf_path}: {exc}"
         ) from exc
-
-    return _strip_noise("\n".join(pages))

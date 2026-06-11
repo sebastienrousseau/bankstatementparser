@@ -23,10 +23,11 @@ the single most important integrity check in the hybrid pipeline.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
+from itertools import pairwise
 from typing import Optional
 
 from ..transaction_models import Transaction
@@ -237,6 +238,120 @@ def aggregate_verifications(
         actual_delta=credits - debits,
         discrepancy=None,
         message=f"Multi-currency statement — {detail}",
+    )
+
+
+@dataclass(frozen=True)
+class ContinuityBreak:
+    """A broken link between two consecutive statements."""
+
+    previous_label: str
+    next_label: str
+    previous_closing: Decimal
+    next_opening: Decimal
+    gap: Decimal
+
+
+@dataclass(frozen=True)
+class ContinuityResult:
+    """Result of running the cross-statement continuity check."""
+
+    status: VerificationStatus
+    breaks: tuple[ContinuityBreak, ...]
+    checked_links: int
+    unchecked_links: int
+    message: str
+
+
+def verify_continuity(
+    statements: Sequence[tuple[str, Optional[Decimal], Optional[Decimal]]],
+    *,
+    tolerance: Decimal = Decimal("0.01"),
+) -> ContinuityResult:
+    """Check that consecutive statements chain without a gap.
+
+    The closing balance of statement N must equal the opening balance
+    of statement N+1 — the natural extension of the Golden Rule for
+    anyone batch-processing a folder of monthly statements. A missing
+    month, a duplicated export, or an LLM that hallucinated a balance
+    all show up as a continuity break.
+
+    Args:
+        statements: ``(label, opening_balance, closing_balance)``
+            triples in statement order (oldest first). Labels are
+            free-form — typically file paths or period names — and
+            are echoed back in any reported break.
+        tolerance: Allowed absolute gap per link. Defaults to one
+            cent.
+
+    Returns:
+        A :class:`ContinuityResult`. ``status`` is ``DISCREPANCY``
+        if any link has a gap beyond tolerance, else ``FAILED`` if
+        any link could not be checked (missing balance on either
+        side, or fewer than two statements), else ``VERIFIED``.
+    """
+    if len(statements) < 2:
+        return ContinuityResult(
+            status=VerificationStatus.FAILED,
+            breaks=(),
+            checked_links=0,
+            unchecked_links=0,
+            message=("Cannot verify continuity: need at least two statements"),
+        )
+
+    breaks: list[ContinuityBreak] = []
+    checked = 0
+    unchecked = 0
+    for previous, current in pairwise(statements):
+        prev_label, _, prev_closing = previous
+        next_label, next_opening, _ = current
+        if prev_closing is None or next_opening is None:
+            unchecked += 1
+            continue
+        checked += 1
+        gap = next_opening - prev_closing
+        if abs(gap) > tolerance:
+            breaks.append(
+                ContinuityBreak(
+                    previous_label=prev_label,
+                    next_label=next_label,
+                    previous_closing=prev_closing,
+                    next_opening=next_opening,
+                    gap=gap,
+                )
+            )
+
+    if breaks:
+        detail = "; ".join(
+            f"{b.previous_label} closed at {b.previous_closing} but "
+            f"{b.next_label} opened at {b.next_opening} "
+            f"(gap {b.gap})"
+            for b in breaks
+        )
+        return ContinuityResult(
+            status=VerificationStatus.DISCREPANCY,
+            breaks=tuple(breaks),
+            checked_links=checked,
+            unchecked_links=unchecked,
+            message=f"Continuity broken: {detail}",
+        )
+    if unchecked:
+        return ContinuityResult(
+            status=VerificationStatus.FAILED,
+            breaks=(),
+            checked_links=checked,
+            unchecked_links=unchecked,
+            message=(
+                f"Continuity incomplete: {unchecked} of "
+                f"{checked + unchecked} links missing a balance"
+            ),
+        )
+    return ContinuityResult(
+        status=VerificationStatus.VERIFIED,
+        breaks=(),
+        checked_links=checked,
+        unchecked_links=unchecked,
+        message=f"Continuity verified across {checked + 1} statements",
     )
 
 

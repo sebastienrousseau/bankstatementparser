@@ -77,3 +77,33 @@ def test_extract_text_handles_none_page_text(
 
 def test_strip_noise_collapses_whitespace() -> None:
     assert pdf_text._strip_noise("a   b\t\tc") == "a b c"
+
+
+def test_extract_text_pages_returns_per_page_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pdf_path = tmp_path / "demo.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4 stub")
+
+    class _Page:
+        def __init__(self, text: str) -> None:
+            self._text = text
+
+        def extract_text(self) -> str:
+            return self._text
+
+    class _Reader:
+        def __init__(self, _path: str) -> None:
+            self.pages = [_Page("hello   world"), _Page("  line two ")]
+
+    fake_module = types.ModuleType("pypdf")
+    fake_module.PdfReader = _Reader  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "pypdf", fake_module)
+
+    pages = pdf_text.extract_text_pages(pdf_path)
+    assert pages == ["hello world", "line two"]
+
+
+def test_extract_text_pages_missing_file_raises(tmp_path: Path) -> None:
+    with pytest.raises(PDFExtractionError, match="not found"):
+        pdf_text.extract_text_pages(tmp_path / "nope.pdf")

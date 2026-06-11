@@ -399,6 +399,9 @@ class BankStatementCLI:
             {
                 "transaction_hash": tx.transaction_hash,
                 "source_method": tx.source_method,
+                "source_page": tx.source_page
+                if tx.source_page is not None
+                else "",
                 "booking_date": tx.booking_date.isoformat()
                 if tx.booking_date
                 else "",
@@ -657,6 +660,8 @@ class BankStatementCLI:
             print(f"  confidence:  {confidence:.2f}")
         if raw:
             print(f"  source text: {raw[:160]}")
+        if tx.source_page is not None:
+            print(f"  source page: {tx.source_page}")
         if bbox is not None:
             print(
                 "  source bbox: "
