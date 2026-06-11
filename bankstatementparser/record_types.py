@@ -22,6 +22,8 @@ from typing import TypedDict
 
 
 class BalanceRecord(TypedDict, total=False):
+    """A single account balance (opening, closing, or available)."""
+
     Amount: Decimal
     Currency: str | None
     Code: str | None
@@ -32,6 +34,12 @@ class BalanceRecord(TypedDict, total=False):
 
 
 class TransactionRecord(TypedDict, total=False):
+    """A single statement transaction.
+
+    CamelCase keys come from CAMT/Pain XML parsers; lowercase keys
+    come from the CSV/OFX/MT940 parsers.
+    """
+
     Amount: Decimal
     Currency: str | None
     DrCr: str | None
@@ -54,6 +62,8 @@ class TransactionRecord(TypedDict, total=False):
 
 
 class PaymentRecord(TypedDict, total=False):
+    """A single SEPA Pain.001 credit-transfer payment."""
+
     MsgId: str | None
     CreDtTm: str | None
     NbOfTxs: str | None
@@ -75,6 +85,8 @@ class PaymentRecord(TypedDict, total=False):
 
 
 class StatementStatsRecord(TypedDict, total=False):
+    """Per-statement aggregates (count and net amount)."""
+
     StatementId: str | None
     AccountId: str | None
     StatementCreated: str | None
@@ -83,6 +95,8 @@ class StatementStatsRecord(TypedDict, total=False):
 
 
 class SummaryRecord(TypedDict, total=False):
+    """High-level summary returned by ``get_summary()``."""
+
     account_id: str | None
     statement_date: str | None
     transaction_count: int
@@ -92,4 +106,3 @@ class SummaryRecord(TypedDict, total=False):
     currency: str | None
     message_id: str | None
     initiating_party: str | None
-    error: str

@@ -49,7 +49,9 @@ def _tx(
     )
 
 
-def _make_discrepancy_result(*, transactions: list[Transaction]) -> IngestResult:
+def _make_discrepancy_result(
+    *, transactions: list[Transaction]
+) -> IngestResult:
     verification = BalanceVerification(
         status=VerificationStatus.DISCREPANCY,
         opening_balance=Decimal("500.00"),
@@ -85,7 +87,7 @@ def _drive_inputs(monkeypatch: pytest.MonkeyPatch, answers: list[str]) -> None:
     """
     iterator: Iterator[str] = iter(answers)
 
-    def fake_input(prompt: str = "") -> str:  # noqa: ARG001
+    def fake_input(prompt: str = "") -> str:
         try:
             return next(iterator)
         except StopIteration as exc:
@@ -207,9 +209,7 @@ def test_review_edit_updates_description_and_amount(
     written = json.loads(payload_path.read_text())
     assert len(written["transactions"]) == 1
     assert written["transactions"][0]["description"] == "Salary ACME CORP"
-    assert Decimal(written["transactions"][0]["amount"]) == Decimal(
-        "2500.00"
-    )
+    assert Decimal(written["transactions"][0]["amount"]) == Decimal("2500.00")
     edit_entry = written["audit_trail"][0]
     assert edit_entry["action"] == "edit"
     assert edit_entry["before_hash"] == original_hash
@@ -231,9 +231,7 @@ def test_review_edit_keeps_defaults_when_operator_presses_enter(
 
     written = json.loads(payload_path.read_text())
     assert written["transactions"][0]["description"] == "Salary"
-    assert Decimal(written["transactions"][0]["amount"]) == Decimal(
-        "100.00"
-    )
+    assert Decimal(written["transactions"][0]["amount"]) == Decimal("100.00")
 
 
 def test_review_edit_falls_back_to_original_on_bad_amount(
@@ -252,9 +250,7 @@ def test_review_edit_falls_back_to_original_on_bad_amount(
     written = json.loads(payload_path.read_text())
     # Bad input -> original row preserved unchanged
     assert written["transactions"][0]["description"] == "Salary"
-    assert Decimal(written["transactions"][0]["amount"]) == Decimal(
-        "100.00"
-    )
+    assert Decimal(written["transactions"][0]["amount"]) == Decimal("100.00")
     assert "edit aborted" in capsys.readouterr().out
 
 

@@ -64,19 +64,21 @@ class OllamaDirectError(RuntimeError):
 def ollama_direct_completion(**kwargs: Any) -> dict[str, Any]:
     """Translate a LiteLLM-style call into a direct Ollama ``/api/chat`` call.
 
-    Accepted keyword arguments (the same shape ``litellm.completion``
-    consumes):
-
     Args:
-        model: ``ollama/<name>`` or just ``<name>``. The provider
-            prefix is stripped automatically.
-        messages: OpenAI-style messages list. May contain
-            multimodal content blocks (``{"type": "image_url",
-            "image_url": {"url": "data:image/png;base64,..."}}``).
-        temperature: Sampling temperature, defaults to ``0.0``.
-        api_base: Override for ``http://localhost:11434``. Reads
-            ``BSP_HYBRID_API_BASE`` if not provided.
-        timeout: HTTP timeout in seconds, defaults to ``300``.
+        **kwargs: The same keyword shape ``litellm.completion``
+            consumes:
+
+            - ``model``: ``ollama/<name>`` or just ``<name>``. The
+              provider prefix is stripped automatically.
+            - ``messages``: OpenAI-style messages list. May contain
+              multimodal content blocks (``{"type": "image_url",
+              "image_url": {"url": "data:image/png;base64,..."}}``).
+            - ``temperature``: Sampling temperature, defaults to
+              ``0.0``.
+            - ``api_base``: Override for ``http://localhost:11434``.
+              Reads ``BSP_HYBRID_API_BASE`` if not provided.
+            - ``timeout``: HTTP timeout in seconds, defaults to
+              ``300``.
 
     Returns:
         An OpenAI-style response dict with a single
@@ -103,9 +105,7 @@ def ollama_direct_completion(**kwargs: Any) -> dict[str, Any]:
     raw_messages = kwargs.get("messages")
     if not isinstance(raw_messages, list) or not raw_messages:
         raise OllamaDirectError("messages must be a non-empty list")
-    ollama_messages = [
-        _convert_message(msg) for msg in raw_messages
-    ]
+    ollama_messages = [_convert_message(msg) for msg in raw_messages]
 
     api_base = (
         kwargs.get("api_base")
@@ -131,22 +131,16 @@ def ollama_direct_completion(**kwargs: Any) -> dict[str, Any]:
         response.raise_for_status()
         data = response.json()
     except Exception as exc:
-        raise OllamaDirectError(
-            f"Direct Ollama call failed: {exc}"
-        ) from exc
+        raise OllamaDirectError(f"Direct Ollama call failed: {exc}") from exc
 
     content = data.get("message", {}).get("content")
     if not isinstance(content, str):
-        raise OllamaDirectError(
-            f"Unexpected Ollama response shape: {data!r}"
-        )
+        raise OllamaDirectError(f"Unexpected Ollama response shape: {data!r}")
 
     # Wrap in an OpenAI-style envelope so _extract_message_content
     # in llm_extractor.py works without modification.
     return {
-        "choices": [
-            {"message": {"role": "assistant", "content": content}}
-        ]
+        "choices": [{"message": {"role": "assistant", "content": content}}]
     }
 
 
@@ -200,9 +194,7 @@ def _strip_data_url(url: str) -> str:
     try:
         base64.b64decode(url, validate=True)
     except Exception as exc:
-        raise OllamaDirectError(
-            f"Invalid image_url payload: {exc}"
-        ) from exc
+        raise OllamaDirectError(f"Invalid image_url payload: {exc}") from exc
     return url
 
 

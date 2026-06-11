@@ -36,13 +36,8 @@ def _days_between(left: date | None, right: date | None) -> int | None:
     return abs((left - right).days)
 
 
-def _description_similarity(
-    left: Transaction, right: Transaction
-) -> float:
-    if (
-        not left.normalized_description
-        or not right.normalized_description
-    ):
+def _description_similarity(left: Transaction, right: Transaction) -> float:
+    if not left.normalized_description or not right.normalized_description:
         return 0.0
     return SequenceMatcher(
         None, left.normalized_description, right.normalized_description
@@ -95,6 +90,15 @@ class Deduplicator:
         value_date_window_days: int = 3,
         description_similarity_threshold: float = 0.9,
     ) -> None:
+        """Configure the fuzzy-match tier.
+
+        Args:
+            value_date_window_days: Maximum day gap between value
+                dates for two transactions to be suspected matches.
+            description_similarity_threshold: Minimum normalized
+                description similarity (0 to 1) for a suspected
+                match.
+        """
         self.value_date_window_days = value_date_window_days
         self.description_similarity_threshold = (
             description_similarity_threshold
@@ -223,11 +227,9 @@ class Deduplicator:
             if len(bucket) > 1
             for candidate in bucket
         }
-        suspected_groups, suspected_indices = (
-            self._find_suspected_matches(
-                candidates,
-                excluded_indices=exact_indices,
-            )
+        suspected_groups, suspected_indices = self._find_suspected_matches(
+            candidates,
+            excluded_indices=exact_indices,
         )
 
         unique_transactions = [
@@ -279,18 +281,15 @@ class Deduplicator:
         *,
         excluded_indices: set[int],
     ) -> tuple[list[MatchGroup], set[int]]:
-        probable_groups, probable_indices = (
-            self._find_probable_matches(candidates)
+        probable_groups, probable_indices = self._find_probable_matches(
+            candidates
         )
-        temporal_groups, temporal_indices = (
-            self._find_temporal_matches(
-                [
-                    candidate
-                    for candidate in candidates
-                    if candidate.index
-                    not in excluded_indices | probable_indices
-                ]
-            )
+        temporal_groups, temporal_indices = self._find_temporal_matches(
+            [
+                candidate
+                for candidate in candidates
+                if candidate.index not in excluded_indices | probable_indices
+            ]
         )
         return (
             probable_groups + temporal_groups,
@@ -302,9 +301,7 @@ class Deduplicator:
     ) -> tuple[list[MatchGroup], set[int]]:
         groups = []
         matched_indices: set[int] = set()
-        for bucket in self._candidate_groups_by_primary(
-            candidates
-        ).values():
+        for bucket in self._candidate_groups_by_primary(candidates).values():
             if len(bucket) < 2:
                 continue
             similarities = []
@@ -314,8 +311,7 @@ class Deduplicator:
                         left.transaction, right.transaction
                     )
                     if (
-                        similarity
-                        >= self.description_similarity_threshold
+                        similarity >= self.description_similarity_threshold
                         and left.transaction.normalized_description
                         != right.transaction.normalized_description
                     ):
@@ -324,9 +320,7 @@ class Deduplicator:
             if not similarities:
                 continue
 
-            matched_indices.update(
-                candidate.index for candidate in bucket
-            )
+            matched_indices.update(candidate.index for candidate in bucket)
             groups.append(
                 MatchGroup(
                     transactions=sorted(
@@ -349,8 +343,8 @@ class Deduplicator:
     def _find_temporal_matches(
         self, candidates: list[_Candidate]
     ) -> tuple[list[MatchGroup], set[int]]:
-        buckets: dict[tuple[str, str, str], list[_Candidate]] = (
-            defaultdict(list)
+        buckets: dict[tuple[str, str, str], list[_Candidate]] = defaultdict(
+            list
         )
         for candidate in candidates:
             transaction = candidate.transaction
@@ -369,12 +363,8 @@ class Deduplicator:
             component: list[_Candidate],
             similarities: list[float],
         ) -> None:
-            matched_indices.update(
-                candidate.index for candidate in component
-            )
-            groups.append(
-                self._temporal_group(component, similarities)
-            )
+            matched_indices.update(candidate.index for candidate in component)
+            groups.append(self._temporal_group(component, similarities))
 
         for bucket in buckets.values():
             if len(bucket) < 2:
@@ -423,13 +413,12 @@ class Deduplicator:
         component: list[_Candidate],
         similarities: list[float],
     ) -> MatchGroup:
-        max_delta = max(
+        max_delta = (
             _days_between(
                 component[0].transaction.value_date,
                 component[-1].transaction.value_date,
             )
-            or 0,
-            0,
+            or 0
         )
         max_similarity = max(similarities) if similarities else 0.0
         confidence = min(0.95, 0.75 + (max_similarity * 0.2))
@@ -440,9 +429,7 @@ class Deduplicator:
         return MatchGroup(
             transactions=[
                 candidate.transaction
-                for candidate in sorted(
-                    component, key=lambda item: item.index
-                )
+                for candidate in sorted(component, key=lambda item: item.index)
             ],
             reason=reason,
             confidence=confidence,

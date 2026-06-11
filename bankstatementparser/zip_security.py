@@ -1,6 +1,4 @@
-"""
-Secure helpers for reading XML bank statement files from ZIP archives.
-"""
+"""Secure helpers for reading XML statement files from ZIP archives."""
 
 from __future__ import annotations
 
@@ -31,16 +29,13 @@ def iter_secure_xml_entries(
     max_total_uncompressed_size: int = 50 * 1024 * 1024,
     max_compression_ratio: float = 100.0,
 ) -> Generator[ZipXMLSource, None, None]:
-    """
-    Yield validated XML members from a ZIP archive.
+    """Yield validated XML members from a ZIP archive.
 
     This helper is intentionally strict because ZIP archives may come from
     untrusted banks, middleware, or user uploads.
     """
     if max_entry_size <= 0:
-        raise ZipSecurityError(
-            "max_entry_size must be greater than zero"
-        )
+        raise ZipSecurityError("max_entry_size must be greater than zero")
     if max_total_uncompressed_size <= 0:
         raise ZipSecurityError(
             "max_total_uncompressed_size must be greater than zero"
@@ -75,10 +70,7 @@ def iter_secure_xml_entries(
                 )
 
                 total_uncompressed_size += member.file_size
-                if (
-                    total_uncompressed_size
-                    > max_total_uncompressed_size
-                ):
+                if total_uncompressed_size > max_total_uncompressed_size:
                     raise ZipSecurityError(
                         "ZIP archive exceeds the total allowed uncompressed XML size"
                     )
@@ -98,9 +90,7 @@ def iter_secure_xml_entries(
                     xml_bytes=xml_bytes,
                 )
     except BadZipFile as exc:
-        raise ZipSecurityError(
-            f"Invalid ZIP archive: {archive_path}"
-        ) from exc
+        raise ZipSecurityError(f"Invalid ZIP archive: {archive_path}") from exc
 
 
 def _validate_zip_member(
@@ -119,9 +109,7 @@ def _validate_zip_member(
         )
 
     if member.file_size <= 0:
-        raise ZipSecurityError(
-            f"ZIP entry is empty or invalid: {safe_name}"
-        )
+        raise ZipSecurityError(f"ZIP entry is empty or invalid: {safe_name}")
 
     if member.file_size > max_entry_size:
         raise ZipSecurityError(

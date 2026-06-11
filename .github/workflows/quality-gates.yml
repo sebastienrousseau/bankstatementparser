@@ -33,21 +33,37 @@ jobs:
           poetry-version: "2.3.2"
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev -E excel
 
       - name: Ruff
         run: poetry run ruff check bankstatementparser tests examples scripts
+
+      - name: Ruff format
+        run: poetry run ruff format --check bankstatementparser tests examples scripts
 
       - name: Mypy
         run: poetry run mypy bankstatementparser
 
   unit-tests:
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # Full version sweep on Linux; macOS and Windows run the
+      # version bounds (oldest + newest) to catch platform issues
+      # without tripling the matrix.
       matrix:
+        os: ["ubuntu-latest"]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: "macos-latest"
+            python-version: "3.10"
+          - os: "macos-latest"
+            python-version: "3.14"
+          - os: "windows-latest"
+            python-version: "3.10"
+          - os: "windows-latest"
+            python-version: "3.14"
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -64,7 +80,7 @@ jobs:
           poetry-version: "2.3.2"
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev -E excel
 
       - name: Run unit and package-quality suite
         # Collect everything under tests/ for unit coverage. Integration
@@ -105,7 +121,7 @@ jobs:
           poetry-version: "2.3.2"
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev -E excel
 
       - name: Run integration regression suite
         run: |
@@ -143,7 +159,7 @@ jobs:
           poetry-version: "2.3.2"
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev -E excel
 
       - name: Run cross-platform smoke suite
         shell: bash
@@ -153,3 +169,58 @@ jobs:
           tests/test_pain001_parser.py
           tests/test_cli.py
           tests/integration/test_supply_chain_tools.py
+
+  benchmarks:
+    name: Benchmark Regression (non-blocking)
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install dependencies
+        run: poetry install --with dev -E excel
+
+      - name: Restore benchmark baseline
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .benchmarks
+          key: benchmark-baseline-${{ runner.os }}-py312
+          restore-keys: |
+            benchmark-baseline-${{ runner.os }}-py312
+
+      - name: Run benchmarks and compare against baseline
+        # Non-blocking by design: shared-runner timing variance makes a
+        # hard gate too flaky. A >25% mean regression shows up as a
+        # failed step annotation for humans to investigate.
+        continue-on-error: true
+        run: |
+          if compgen -G ".benchmarks/*/*.json" > /dev/null; then
+            poetry run pytest --no-cov tests/test_benchmark_suite.py \
+              --benchmark-only --benchmark-autosave \
+              --benchmark-compare --benchmark-compare-fail=mean:25%
+          else
+            echo "No baseline found; recording first benchmark run."
+            poetry run pytest --no-cov tests/test_benchmark_suite.py \
+              --benchmark-only --benchmark-autosave
+          fi
+
+      - name: Save benchmark baseline
+        # Only main-branch pushes refresh the baseline, so PRs are
+        # compared against the last known-good main run.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .benchmarks
+          key: benchmark-baseline-${{ runner.os }}-py312-${{ github.run_id }}

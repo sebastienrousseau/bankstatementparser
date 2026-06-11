@@ -211,9 +211,7 @@ def _sanitize_for_prompt(value: str) -> str:
     # 1. Strip ASCII control characters (0x00-0x1F except newline)
     cleaned = re.sub(r"[\x00-\x09\x0b-\x1f]", "", value)
     # 2. Collapse markdown/instruction markers
-    cleaned = cleaned.replace("[SYSTEM", "[SYS_").replace(
-        "[INST", "[INS_"
-    )
+    cleaned = cleaned.replace("[SYSTEM", "[SYS_").replace("[INST", "[INS_")
     # 3. Strip backtick fences that could close a code block
     cleaned = cleaned.replace("```", "")
     return cleaned
@@ -268,6 +266,12 @@ class Categorizer:
     )
 
     def __post_init__(self) -> None:
+        """Validate configuration and resolve the model id.
+
+        Raises:
+            ValueError: If ``schema`` is empty or ``batch_size`` is
+                less than 1.
+        """
         if not self.schema:
             raise ValueError("schema must be a non-empty tuple")
         if self.batch_size < 1:
@@ -278,15 +282,11 @@ class Categorizer:
             or os.environ.get(ENV_FALLBACK_MODEL)
             or DEFAULT_ENRICHMENT_MODEL
         )
-        warn_if_data_leaves_machine(
-            self._resolved_model, self.api_base
-        )
+        warn_if_data_leaves_machine(self._resolved_model, self.api_base)
         # Cache once instead of rebuilding per chunk
         self._schema_lookup = {c.lower(): c for c in self.schema}
 
-    def categorize(
-        self, transaction: Transaction
-    ) -> EnrichedTransaction:
+    def categorize(self, transaction: Transaction) -> EnrichedTransaction:
         """Convenience wrapper for single-row categorization."""
         results = self.categorize_batch([transaction])
         return results[0]
@@ -373,9 +373,7 @@ class Categorizer:
 
 def _extract_message_content(response: Any) -> str:
     """Pull the assistant message content out of an OpenAI-style response."""
-    return extract_message_content(
-        response, error_cls=CategorizerError
-    )
+    return extract_message_content(response, error_cls=CategorizerError)
 
 
 def _parse_json_payload(raw: str) -> dict[str, Any]:
@@ -389,9 +387,7 @@ def _build_enriched(
 ) -> list[EnrichedTransaction]:
     raw_results = payload.get("results")
     if not isinstance(raw_results, list):
-        raise CategorizerError(
-            "Enrichment payload missing 'results' list"
-        )
+        raise CategorizerError("Enrichment payload missing 'results' list")
 
     by_index: dict[int, dict[str, Any]] = {}
     for entry in raw_results:
@@ -445,9 +441,7 @@ def _build_enriched(
             confidence = None
 
         rationale_raw = entry.get("rationale")
-        rationale = (
-            str(rationale_raw) if rationale_raw is not None else None
-        )
+        rationale = str(rationale_raw) if rationale_raw is not None else None
 
         out.append(
             EnrichedTransaction(

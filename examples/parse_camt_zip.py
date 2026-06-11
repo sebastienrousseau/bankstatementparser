@@ -11,7 +11,7 @@ To build a demo ZIP from the repository's real-format fixture:
     python examples/parse_camt_zip.py --build-demo-zip /tmp/camt-demo.zip
     python examples/parse_camt_zip.py /tmp/camt-demo.zip
 """
-# ruff: noqa: E402, I001
+# ruff: noqa: E402
 
 from __future__ import annotations
 

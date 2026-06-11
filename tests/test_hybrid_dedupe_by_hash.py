@@ -47,7 +47,7 @@ def test_dedupe_by_hash_reingestion_is_idempotent() -> None:
         _tx("10.00", "Coffee"),
         _tx("20.00", "Lunch"),
     ]
-    unique, skipped = dedup.dedupe_by_hash(txs, seen_hashes=seen)
+    unique, _skipped = dedup.dedupe_by_hash(txs, seen_hashes=seen)
     assert len(unique) == 3
 
     unique2, skipped2 = dedup.dedupe_by_hash(txs, seen_hashes=seen)
@@ -65,9 +65,7 @@ def test_dedupe_by_hash_respects_seen_state() -> None:
     assert seen  # state mutated in-place
 
     second_batch = [_tx("10.00", "Coffee"), _tx("5.00", "Tea")]
-    unique2, skipped2 = dedup.dedupe_by_hash(
-        second_batch, seen_hashes=seen
-    )
+    unique2, skipped2 = dedup.dedupe_by_hash(second_batch, seen_hashes=seen)
     assert len(unique2) == 1
     assert len(skipped2) == 1
 
@@ -123,9 +121,7 @@ def test_dedupe_by_hash_catches_amazon_repeats_across_batches() -> None:
     unique, _ = dedup.dedupe_by_hash([first], seen_hashes=seen)
     assert len(unique) == 1
 
-    unique2, skipped2 = dedup.dedupe_by_hash(
-        [second], seen_hashes=seen
-    )
+    unique2, skipped2 = dedup.dedupe_by_hash([second], seen_hashes=seen)
     assert unique2 == []
     assert len(skipped2) == 1
 

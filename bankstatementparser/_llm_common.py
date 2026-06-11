@@ -102,17 +102,13 @@ def extract_message_content(
         else:
             content = response.choices[0].message.content
     except (AttributeError, KeyError, IndexError, TypeError) as exc:
-        raise error_cls(
-            f"Unexpected LLM response shape: {exc}"
-        ) from exc
+        raise error_cls(f"Unexpected LLM response shape: {exc}") from exc
     if not isinstance(content, str) or not content.strip():
         raise error_cls("LLM returned empty content")
     return content
 
 
-_JSON_FENCE_RE = re.compile(
-    r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL
-)
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 
 
 def parse_json_payload(
@@ -133,22 +129,19 @@ def parse_json_payload(
         try:
             payload = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise error_cls(
-                f"LLM did not return valid JSON: {exc}"
-            ) from exc
+            raise error_cls(f"LLM did not return valid JSON: {exc}") from exc
     else:
         start = text.find("{")
         if start == -1:
-            raise error_cls(
-                "LLM did not return valid JSON: no object found"
-            )
+            raise error_cls("LLM did not return valid JSON: no object found")
         try:
             payload, _ = json.JSONDecoder().raw_decode(text[start:])
         except json.JSONDecodeError as exc:
-            raise error_cls(
-                f"LLM did not return valid JSON: {exc}"
-            ) from exc
-    if not isinstance(payload, dict):
+            raise error_cls(f"LLM did not return valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):  # pragma: no cover
+        # Unreachable today: both branches above decode starting at a
+        # "{", which can only yield a dict or raise. Kept as a guard
+        # in case the fence regex is ever widened to arrays.
         raise error_cls("LLM JSON payload must be an object")
     return payload
 
@@ -170,11 +163,7 @@ def parse_confidence(
     try:
         confidence = float(value)
     except (TypeError, ValueError) as exc:
-        raise error_cls(
-            f"Invalid confidence{context}: {value!r}"
-        ) from exc
+        raise error_cls(f"Invalid confidence{context}: {value!r}") from exc
     if not 0.0 <= confidence <= 1.0:
-        raise error_cls(
-            f"Confidence{context} out of range [0, 1]: {value!r}"
-        )
+        raise error_cls(f"Confidence{context} out of range [0, 1]: {value!r}")
     return confidence

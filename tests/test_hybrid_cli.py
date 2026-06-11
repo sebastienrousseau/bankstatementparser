@@ -68,9 +68,7 @@ def test_run_ingest_console_output(
 
     import bankstatementparser.hybrid as hybrid_pkg
 
-    monkeypatch.setattr(
-        hybrid_pkg, "smart_ingest", lambda _p: _make_result()
-    )
+    monkeypatch.setattr(hybrid_pkg, "smart_ingest", lambda _p: _make_result())
 
     instance.run_ingest(file_path)
 
@@ -92,9 +90,7 @@ def test_run_ingest_writes_csv(
     instance = cli.BankStatementCLI()
     import bankstatementparser.hybrid as hybrid_pkg
 
-    monkeypatch.setattr(
-        hybrid_pkg, "smart_ingest", lambda _p: _make_result()
-    )
+    monkeypatch.setattr(hybrid_pkg, "smart_ingest", lambda _p: _make_result())
 
     instance.run_ingest(file_path, output_path)
 
@@ -165,9 +161,7 @@ def test_cli_run_dispatches_to_ingest(
 
     import bankstatementparser.hybrid as hybrid_pkg
 
-    monkeypatch.setattr(
-        hybrid_pkg, "smart_ingest", lambda _p: _make_result()
-    )
+    monkeypatch.setattr(hybrid_pkg, "smart_ingest", lambda _p: _make_result())
     monkeypatch.setattr(
         sys,
         "argv",

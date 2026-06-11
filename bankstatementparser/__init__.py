@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-`bankstatementparser` package provides useful tools for finance and
-treasury specialists.
+"""Tools for finance and treasury specialists.
 
 This package includes modules for parsing bank statements in various
 formats, as well as other utilities commonly used in finance and treasury
@@ -56,28 +54,28 @@ from .zip_security import (
 __all__ = [
     "BankStatementParser",
     "BankStatementParserError",
+    "BoundingBox",
     "CamtParser",
     "CsvStatementParser",
-    "ExportError",
-    "OfxParser",
-    "QfxParser",
-    "Mt940Parser",
-    "detect_statement_format",
-    "create_parser",
-    "Pain001Parser",
-    "Pain001ParseError",
-    "ParserError",
-    "BoundingBox",
-    "Transaction",
-    "Deduplicator",
     "DeduplicationResult",
+    "Deduplicator",
     "ExactDuplicateGroup",
-    "MatchGroup",
+    "ExportError",
     "FileResult",
-    "parse_files_parallel",
     "InputValidator",
+    "MatchGroup",
+    "Mt940Parser",
+    "OfxParser",
+    "Pain001ParseError",
+    "Pain001Parser",
+    "ParserError",
+    "QfxParser",
+    "Transaction",
     "ValidationError",
     "ZipSecurityError",
     "ZipXMLSource",
+    "create_parser",
+    "detect_statement_format",
     "iter_secure_xml_entries",
+    "parse_files_parallel",
 ]

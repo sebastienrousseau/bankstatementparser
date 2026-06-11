@@ -48,11 +48,7 @@ def iso_decimal(text: Optional[str], *, context: str) -> Decimal:
     try:
         value = Decimal(text.strip())
     except InvalidOperation as exc:
-        raise ValueError(
-            f"Invalid amount {text!r} in {context}"
-        ) from exc
+        raise ValueError(f"Invalid amount {text!r} in {context}") from exc
     if not value.is_finite():
-        raise ValueError(
-            f"Non-finite amount {text!r} in {context}"
-        )
+        raise ValueError(f"Non-finite amount {text!r} in {context}")
     return value

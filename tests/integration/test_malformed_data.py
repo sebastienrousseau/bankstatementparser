@@ -6,6 +6,7 @@ Tests end-to-end behavior when processing various types of malformed
 or malicious input files to ensure proper error handling and security.
 """
 
+import contextlib
 import os
 import tempfile
 from pathlib import Path
@@ -94,9 +95,7 @@ class TestMalformedDataHandling:
 
     def test_binary_file_disguised_as_xml(self, temp_dir):
         """Test handling of binary files with XML extension."""
-        binary_content = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
-        )
+        binary_content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
         file_path = temp_dir / "fake.xml"
         file_path.write_bytes(binary_content)
 
@@ -117,12 +116,12 @@ class TestMalformedDataHandling:
             temp_dir, "deeply_nested.xml", nested_xml
         )
 
-        # Parser should handle this gracefully or fail with proper error
-        try:
+        # Parser should handle this gracefully or fail with proper
+        # error; any of these are acceptable failure modes.
+        with contextlib.suppress(
+            etree.XMLSyntaxError, RecursionError, MemoryError
+        ):
             CamtParser(str(file_path))
-        except (etree.XMLSyntaxError, RecursionError, MemoryError):
-            # Any of these are acceptable failure modes
-            pass
 
     def test_xml_with_invalid_characters(self, temp_dir):
         """Test handling of XML with invalid Unicode characters."""
@@ -180,20 +179,16 @@ class TestMalformedDataHandling:
         # Modify file after parser initialization
         file_path.write_text("corrupted content")
 
-        # Parser should still work with its loaded content
-        try:
+        # Parser should still work with its loaded content. If it
+        # fails, it's due to the original structure, not the
+        # modification.
+        with contextlib.suppress(Exception):
             parser.get_statement_stats()
-        except Exception:
-            # File was already loaded, so this should work
-            # If it fails, it's due to the original structure, not the modification
-            pass
 
     def test_permission_denied_file(self, temp_dir):
         """Test handling of files with restricted permissions."""
         if os.name != "posix":
-            pytest.skip(
-                "Permission test only relevant on POSIX systems"
-            )
+            pytest.skip("Permission test only relevant on POSIX systems")
 
         file_path = self.create_test_file(
             temp_dir,

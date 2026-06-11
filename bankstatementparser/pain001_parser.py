@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-pain001_parser.py
+"""SEPA Pain.001 credit-transfer parsing.
 
-Provides a class for parsing PAIN.001 format bank statement files.
+Provides a class for parsing PAIN.001 format payment initiation
+files.
 """
 
 import logging
@@ -45,9 +45,7 @@ PAIN_NAMESPACE_PATTERN = re.compile(
 
 
 class Pain001Parser(BankStatementParser):
-    """
-    Class to parse PAIN.001 format bank statement files.
-    """
+    """Class to parse PAIN.001 format bank statement files."""
 
     def __init__(self, file_name: str) -> None:
         """Initialize the parser with the file name.
@@ -64,15 +62,11 @@ class Pain001Parser(BankStatementParser):
         if isinstance(file_name, str):
             validator = InputValidator()
             try:
-                validated_path = validator.validate_input_file_path(
-                    file_name
-                )
+                validated_path = validator.validate_input_file_path(file_name)
                 file_name = str(validated_path)
                 logger.info(f"Input file validated: {file_name}")
             except ValidationError as e:
-                logger.error(
-                    f"File validation failed for {file_name}: {e}"
-                )
+                logger.error(f"File validation failed for {file_name}: {e}")
                 # Check if it's a file read error during validation and re-raise with expected message
                 if "Cannot read file for format validation" in str(e):
                     raise ValidationError(
@@ -80,9 +74,7 @@ class Pain001Parser(BankStatementParser):
                     ) from e
                 raise
             except FileNotFoundError as e:
-                logger.error(
-                    f"File validation failed for {file_name}: {e}"
-                )
+                logger.error(f"File validation failed for {file_name}: {e}")
                 raise
 
         self.file_name = file_name
@@ -97,9 +89,7 @@ class Pain001Parser(BankStatementParser):
                 f"PAIN.001 file not found: {file_name}"
             ) from exc
         except PermissionError as exc:
-            logger.error(
-                "Permission denied reading file: %s", file_name
-            )
+            logger.error("Permission denied reading file: %s", file_name)
             raise ValidationError(
                 f"Permission denied reading file: {file_name}"
             ) from exc
@@ -107,9 +97,7 @@ class Pain001Parser(BankStatementParser):
             logger.error(
                 "An error occurred while reading the file: %s", str(e)
             )
-            raise ValidationError(
-                f"Error reading file: {str(e)}"
-            ) from e
+            raise ValidationError(f"Error reading file: {e!s}") from e
 
         try:
             # Remove the namespace from the XML data for easier parsing
@@ -128,29 +116,17 @@ class Pain001Parser(BankStatementParser):
             logger.error("XML syntax error: %s", str(e))
             # Check if it's a basic XML structure error and use appropriate message
             error_msg = str(e)
-            if (
-                "Start tag expected" in error_msg
-                and "not found" in error_msg
-            ):
-                raise ValidationError(
-                    f"Error parsing XML: {error_msg}"
-                ) from e
+            if "Start tag expected" in error_msg and "not found" in error_msg:
+                raise ValidationError(f"Error parsing XML: {error_msg}") from e
             else:
                 raise ValidationError(
                     f"Invalid XML format: {error_msg}"
                 ) from e
         except etree.LxmlError as e:
-            logger.error(
-                "An error occurred while parsing the XML: %s", str(e)
-            )
+            logger.error("An error occurred while parsing the XML: %s", str(e))
             error_msg = str(e)
-            if (
-                "Start tag expected" in error_msg
-                and "not found" in error_msg
-            ):
-                raise ValidationError(
-                    f"Error parsing XML: {error_msg}"
-                ) from e
+            if "Start tag expected" in error_msg and "not found" in error_msg:
+                raise ValidationError(f"Error parsing XML: {error_msg}") from e
             else:
                 raise ValidationError(
                     f"Invalid XML format: {error_msg}"
@@ -165,8 +141,7 @@ class Pain001Parser(BankStatementParser):
         output_file: Optional[str] = None,
         redact_pii: bool = False,
     ) -> pd.DataFrame:
-        """
-        Parse the PAIN.001 XML file and return structured payment data.
+        """Parse the PAIN.001 XML file and return structured payment data.
 
         Extracts group header, payment information, and individual credit
         transfer transactions into a flat DataFrame.
@@ -211,9 +186,7 @@ class Pain001Parser(BankStatementParser):
                 )
 
             # Batch extract payment information records
-            payment_info_records = root.findall(
-                ".//CstmrCdtTrfInitn/PmtInf"
-            )
+            payment_info_records = root.findall(".//CstmrCdtTrfInitn/PmtInf")
             payments: list[dict[str, Optional[str]]] = []
 
             for pmt in payment_info_records:
@@ -233,24 +206,18 @@ class Pain001Parser(BankStatementParser):
                         # Extract debtor information
                         dbtr_name = child.find("Nm")
                         pmt_fields["DbtrNm"] = (
-                            dbtr_name.text
-                            if dbtr_name is not None
-                            else None
+                            dbtr_name.text if dbtr_name is not None else None
                         )
                         # Extract debtor account
                         dbtr_acct = child.find("DbtrAcct/Id/IBAN")
                         pmt_fields["DbtrIBAN"] = (
-                            dbtr_acct.text
-                            if dbtr_acct is not None
-                            else None
+                            dbtr_acct.text if dbtr_acct is not None else None
                         )
                     elif child.tag == "DbtrAgt":
                         # Extract debtor agent
                         dbtr_agt = child.find("FinInstnId/BIC")
                         pmt_fields["DbtrBIC"] = (
-                            dbtr_agt.text
-                            if dbtr_agt is not None
-                            else None
+                            dbtr_agt.text if dbtr_agt is not None else None
                         )
 
                 # Batch process all transactions for this payment
@@ -272,12 +239,8 @@ class Pain001Parser(BankStatementParser):
                         elif child.tag == "Amt":
                             instd_amt_elem = child.find("InstdAmt")
                             if instd_amt_elem is not None:
-                                payment["InstdAmt"] = (
-                                    instd_amt_elem.text
-                                )
-                                payment["Currency"] = (
-                                    instd_amt_elem.get("Ccy")
-                                )
+                                payment["InstdAmt"] = instd_amt_elem.text
+                                payment["Currency"] = instd_amt_elem.get("Ccy")
                         elif child.tag == "CdtrAgt":
                             cdtr_agt_elem = child.find("FinInstnId/BIC")
                             payment["CdtrBIC"] = (
@@ -321,22 +284,25 @@ class Pain001Parser(BankStatementParser):
             TypeError,
             etree.LxmlError,
         ) as e:
-            raise Pain001ParseError(
-                f"Error parsing PAIN.001 file: {e}"
-            ) from e
+            raise Pain001ParseError(f"Error parsing PAIN.001 file: {e}") from e
 
     def parse_streaming(
         self, redact_pii: bool = False
     ) -> Generator[PaymentRecord, None, None]:
-        """
-        Parse the PAIN.001 file using streaming XML parsing for large files.
-        Yields payment data incrementally to keep memory usage low.
+        """Parse the PAIN.001 file using streaming XML parsing.
+
+        Yields payment data incrementally to keep memory usage low on
+        large files.
 
         Parameters:
             redact_pii (bool): Whether to redact PII data (address fields).
 
         Yields:
             Dict[str, Any]: Individual payment transaction data.
+
+        Raises:
+            ValidationError: If the input path fails validation.
+            Pain001ParseError: If the XML cannot be parsed.
         """
         # Validate input file
         if isinstance(self.file_name, str):
@@ -346,9 +312,7 @@ class Pain001Parser(BankStatementParser):
                     self.file_name
                 )
                 file_path = str(validated_path)
-                logger.info(
-                    f"Input file validated for streaming: {file_path}"
-                )
+                logger.info(f"Input file validated for streaming: {file_path}")
             except (ValidationError, FileNotFoundError) as e:
                 logger.error(
                     f"File validation failed for streaming {self.file_name}: {e}"
@@ -374,9 +338,7 @@ class Pain001Parser(BankStatementParser):
                 f"PAIN.001 file not found: {file_path}"
             ) from exc
         except OSError as exc:
-            logger.error(
-                "Cannot stat file for streaming: %s", str(exc)
-            )
+            logger.error("Cannot stat file for streaming: %s", str(exc))
             raise ValidationError(
                 f"Error reading file {file_path}: {exc}"
             ) from exc
@@ -386,9 +348,7 @@ class Pain001Parser(BankStatementParser):
             if file_size <= _STREAMING_MEMORY_THRESHOLD:
                 # Small file — fast path via BytesIO
                 try:
-                    with open(
-                        file_path, encoding="utf-8"
-                    ) as f:
+                    with open(file_path, encoding="utf-8") as f:
                         data = f.read()
                 except FileNotFoundError as exc:
                     logger.error(
@@ -400,13 +360,11 @@ class Pain001Parser(BankStatementParser):
                     ) from exc
                 except PermissionError as exc:
                     logger.error(
-                        "Permission denied reading file "
-                        "for streaming: %s",
+                        "Permission denied reading file for streaming: %s",
                         file_path,
                     )
                     raise ValidationError(
-                        f"Permission denied reading file: "
-                        f"{file_path}"
+                        f"Permission denied reading file: {file_path}"
                     ) from exc
                 except OSError as e:
                     logger.error(
@@ -414,13 +372,10 @@ class Pain001Parser(BankStatementParser):
                         str(e),
                     )
                     raise ValidationError(
-                        f"Error reading file {file_path}: "
-                        f"{str(e)}"
+                        f"Error reading file {file_path}: {e!s}"
                     ) from e
 
-                data_bytes = self._normalize_xml_text(
-                    data
-                ).encode("utf-8")
+                data_bytes = self._normalize_xml_text(data).encode("utf-8")
                 source_stream: Union[BytesIO, str] = BytesIO(data_bytes)
             else:
                 # Large file — chunk-based namespace stripping to a
@@ -431,19 +386,14 @@ class Pain001Parser(BankStatementParser):
                     suffix=".xml", prefix="bsp_stream_"
                 )
                 try:
-                    with open(
-                        file_path, encoding="utf-8"
-                    ) as src, os.fdopen(
-                        fd, "w", encoding="utf-8"
-                    ) as dst:
+                    with (
+                        open(file_path, encoding="utf-8") as src,
+                        os.fdopen(fd, "w", encoding="utf-8") as dst,
+                    ):
                         for chunk in iter(
                             lambda: src.read(8 * 1024 * 1024), ""
                         ):
-                            dst.write(
-                                PAIN_NAMESPACE_PATTERN.sub(
-                                    "", chunk
-                                )
-                            )
+                            dst.write(PAIN_NAMESPACE_PATTERN.sub("", chunk))
                 except FileNotFoundError as exc:
                     logger.error(
                         "File %s not found for streaming!",
@@ -454,13 +404,11 @@ class Pain001Parser(BankStatementParser):
                     ) from exc
                 except PermissionError as exc:
                     logger.error(
-                        "Permission denied reading file "
-                        "for streaming: %s",
+                        "Permission denied reading file for streaming: %s",
                         file_path,
                     )
                     raise ValidationError(
-                        f"Permission denied reading file: "
-                        f"{file_path}"
+                        f"Permission denied reading file: {file_path}"
                     ) from exc
                 except OSError as e:
                     logger.error(
@@ -468,8 +416,7 @@ class Pain001Parser(BankStatementParser):
                         str(e),
                     )
                     raise ValidationError(
-                        f"Error reading file {file_path}: "
-                        f"{str(e)}"
+                        f"Error reading file {file_path}: {e!s}"
                     ) from e
 
                 source_stream = temp_file
@@ -497,9 +444,7 @@ class Pain001Parser(BankStatementParser):
                         elif child.tag == "InitgPty":
                             nm_elem = child.find("Nm")
                             header_fields["InitgPty"] = (
-                                nm_elem.text
-                                if nm_elem is not None
-                                else None
+                                nm_elem.text if nm_elem is not None else None
                             )
                     elem.clear()
 
@@ -515,71 +460,45 @@ class Pain001Parser(BankStatementParser):
                     "ChrgBr",
                 ):
                     parent = elem.getparent()
-                    if (
-                        parent is not None
-                        and parent.tag == "PmtInf"
-                    ):
-                        current_payment_info[elem.tag] = (
-                            elem.text
-                        )
+                    if parent is not None and parent.tag == "PmtInf":
+                        current_payment_info[elem.tag] = elem.text
 
                 elif event == "end" and elem.tag == "Dbtr":
                     parent = elem.getparent()
-                    if (
-                        parent is not None
-                        and parent.tag == "PmtInf"
-                    ):
+                    if parent is not None and parent.tag == "PmtInf":
                         dbtr_name = elem.find("Nm")
                         current_payment_info["DbtrNm"] = (
-                            dbtr_name.text
-                            if dbtr_name is not None
-                            else None
+                            dbtr_name.text if dbtr_name is not None else None
                         )
 
                 elif event == "end" and elem.tag == "DbtrAcct":
                     parent = elem.getparent()
-                    if (
-                        parent is not None
-                        and parent.tag == "PmtInf"
-                    ):
+                    if parent is not None and parent.tag == "PmtInf":
                         iban = elem.find("Id/IBAN")
                         current_payment_info["DbtrIBAN"] = (
-                            iban.text
-                            if iban is not None
-                            else None
+                            iban.text if iban is not None else None
                         )
 
                 elif event == "end" and elem.tag == "DbtrAgt":
                     parent = elem.getparent()
-                    if (
-                        parent is not None
-                        and parent.tag == "PmtInf"
-                    ):
+                    if parent is not None and parent.tag == "PmtInf":
                         bic = elem.find("FinInstnId/BIC")
                         current_payment_info["DbtrBIC"] = (
-                            bic.text
-                            if bic is not None
-                            else None
+                            bic.text if bic is not None else None
                         )
 
-                elif (
-                    event == "end"
-                    and elem.tag == "CdtTrfTxInf"
-                ):
+                elif event == "end" and elem.tag == "CdtTrfTxInf":
                     try:
-                        payment_data = (
-                            self._parse_streaming_payment(
-                                elem,
-                                current_payment_info,
-                                header_fields,
-                                redact_pii,
-                            )
+                        payment_data = self._parse_streaming_payment(
+                            elem,
+                            current_payment_info,
+                            header_fields,
+                            redact_pii,
                         )
                         yield payment_data
                     except Exception as e:
                         logger.error(
-                            "Error parsing payment "
-                            "transaction: %s",
+                            "Error parsing payment transaction: %s",
                             e,
                         )
                         raise
@@ -591,8 +510,12 @@ class Pain001Parser(BankStatementParser):
             if temp_file is not None:
                 try:
                     os.unlink(temp_file)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug(
+                        "Could not remove temp file %s: %s",
+                        temp_file,
+                        exc,
+                    )
 
     def _parse_streaming_payment(
         self,
@@ -601,8 +524,7 @@ class Pain001Parser(BankStatementParser):
         header_fields: dict[str, Optional[str]],
         redact_pii: bool = False,
     ) -> PaymentRecord:
-        """
-        Parse a single credit transfer transaction element for streaming mode.
+        """Parse a single credit transfer transaction element for streaming mode.
 
         Parameters:
             tx_elem (etree.Element): XML element representing a credit transfer transaction.
@@ -633,16 +555,12 @@ class Pain001Parser(BankStatementParser):
             elif child.tag == "CdtrAgt":
                 cdtr_agt_elem = child.find("FinInstnId/BIC")
                 payment["CdtrBIC"] = (
-                    cdtr_agt_elem.text
-                    if cdtr_agt_elem is not None
-                    else None
+                    cdtr_agt_elem.text if cdtr_agt_elem is not None else None
                 )
             elif child.tag == "Cdtr":
                 cdtr_name_elem = child.find("Nm")
                 payment["CdtrNm"] = (
-                    cdtr_name_elem.text
-                    if cdtr_name_elem is not None
-                    else None
+                    cdtr_name_elem.text if cdtr_name_elem is not None else None
                 )
             elif child.tag == "RmtInf":
                 ustrd_elem = child.find("Ustrd")
@@ -663,8 +581,7 @@ class Pain001Parser(BankStatementParser):
         return cast(PaymentRecord, payment)
 
     def get_summary(self, redact_pii: bool = False) -> SummaryRecord:
-        """
-        Get a summary of the parsed PAIN.001 statement data.
+        """Get a summary of the parsed PAIN.001 statement data.
 
         Returns:
             Dict[str, Any]: Summary information including message details,
@@ -699,9 +616,7 @@ class Pain001Parser(BankStatementParser):
                         )
 
             # Batch extract all payment information and calculate totals
-            payment_info_records = root.findall(
-                ".//CstmrCdtTrfInitn/PmtInf"
-            )
+            payment_info_records = root.findall(".//CstmrCdtTrfInitn/PmtInf")
             total_amount = Decimal("0")
             currency = "Unknown"
 
@@ -736,12 +651,6 @@ class Pain001Parser(BankStatementParser):
                 "initiating_party": header_data["InitgPty"],
             }
         except Exception as e:
-            # Return minimal summary if parsing fails
-            return {
-                "account_id": "Unknown",
-                "statement_date": "Unknown",
-                "transaction_count": 0,
-                "total_amount": Decimal("0"),
-                "currency": "Unknown",
-                "error": str(e),
-            }
+            raise Pain001ParseError(
+                f"cannot summarise {self.file_name}: {e}"
+            ) from e

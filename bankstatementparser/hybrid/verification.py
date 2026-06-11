@@ -98,9 +98,7 @@ def verify_balance(
             expected_delta=None,
             actual_delta=actual_delta,
             discrepancy=None,
-            message=(
-                "Cannot verify: missing opening or closing balance"
-            ),
+            message=("Cannot verify: missing opening or closing balance"),
         )
 
     expected_delta = closing_balance - opening_balance

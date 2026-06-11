@@ -1,0 +1,3 @@
+# cli
+
+::: bankstatementparser.cli

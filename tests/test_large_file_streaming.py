@@ -38,9 +38,8 @@ def _generate_camt_xml(n_transactions: int) -> str:
         '<?xml version="1.0" encoding="UTF-8"?>',
         "<Document><BkToCstmrStmt><Stmt>",
         "<Id>PERF_STMT</Id>",
-        "<Acct><Id><IBAN>GB29NWBK60161331926819"
-        "</IBAN></Id></Acct>",
-        "<Bal><Amt Ccy=\"EUR\">500000.00</Amt>"
+        "<Acct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></Acct>",
+        '<Bal><Amt Ccy="EUR">500000.00</Amt>'
         "<CdtDbtInd>CRDT</CdtDbtInd>"
         "<Tp><Cd>OPBD</Cd></Tp>"
         "<Dt><Dt>2025-01-01</Dt></Dt></Bal>",
@@ -49,7 +48,7 @@ def _generate_camt_xml(n_transactions: int) -> str:
         day = (i % 28) + 1
         parts.append(
             f"<Ntry>"
-            f"<Amt Ccy=\"EUR\">{100 + (i % 9999)}.{i % 100:02d}"
+            f'<Amt Ccy="EUR">{100 + (i % 9999)}.{i % 100:02d}'
             f"</Amt>"
             f"<CdtDbtInd>{'CRDT' if i % 3 else 'DBIT'}"
             f"</CdtDbtInd>"
@@ -65,7 +64,7 @@ def _generate_camt_xml(n_transactions: int) -> str:
             f"</Ntry>"
         )
     parts.append(
-        "<Bal><Amt Ccy=\"EUR\">600000.00</Amt>"
+        '<Bal><Amt Ccy="EUR">600000.00</Amt>'
         "<CdtDbtInd>CRDT</CdtDbtInd>"
         "<Tp><Cd>CLBD</Cd></Tp>"
         "<Dt><Dt>2025-01-31</Dt></Dt></Bal>"
@@ -78,8 +77,7 @@ def _generate_pain001_xml(n_transactions: int) -> str:
     """Generate a synthetic PAIN.001 XML with *n* transactions."""
     parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:'
-        'pain.001.001.03">',
+        '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03">',
         "<CstmrCdtTrfInitn>",
         "<GrpHdr>"
         "<MsgId>PERF-MSG-001</MsgId>"
@@ -106,7 +104,7 @@ def _generate_pain001_xml(n_transactions: int) -> str:
         parts.append(
             f"<CdtTrfTxInf>"
             f"<PmtId><EndToEndId>E2E-{i:08d}</EndToEndId></PmtId>"
-            f"<Amt><InstdAmt Ccy=\"EUR\">"
+            f'<Amt><InstdAmt Ccy="EUR">'
             f"{1000 + (i % 5000)}.{i % 100:02d}"
             f"</InstdAmt></Amt>"
             f"<CdtrAgt><FinInstnId>"
@@ -158,16 +156,14 @@ class TestCamtLargeFileStreaming(unittest.TestCase):
             self.assertLess(
                 growth,
                 40.0,
-                f"Memory grew {growth:.1f} MB on "
-                f"{file_mb:.1f} MB file",
+                f"Memory grew {growth:.1f} MB on {file_mb:.1f} MB file",
             )
 
             throughput = count / elapsed
             self.assertGreater(
                 throughput,
                 5_000,
-                f"Throughput {throughput:.0f} tx/s "
-                f"below 5,000 tx/s target",
+                f"Throughput {throughput:.0f} tx/s below 5,000 tx/s target",
             )
         finally:
             os.unlink(path)
@@ -195,16 +191,14 @@ class TestCamtLargeFileStreaming(unittest.TestCase):
             self.assertLess(
                 growth,
                 60.0,
-                f"Memory grew {growth:.1f} MB on "
-                f"{file_mb:.1f} MB file",
+                f"Memory grew {growth:.1f} MB on {file_mb:.1f} MB file",
             )
 
             throughput = count / elapsed
             self.assertGreater(
                 throughput,
                 5_000,
-                f"Throughput {throughput:.0f} tx/s "
-                f"below 5,000 tx/s target",
+                f"Throughput {throughput:.0f} tx/s below 5,000 tx/s target",
             )
         finally:
             os.unlink(path)
@@ -219,9 +213,7 @@ class TestPain001LargeFileStreaming(unittest.TestCase):
             Pain001Parser,
         )
 
-        path = _write_temp(
-            _generate_pain001_xml(10_000), ".xml"
-        )
+        path = _write_temp(_generate_pain001_xml(10_000), ".xml")
         try:
             parser = Pain001Parser(path)
 
@@ -245,8 +237,7 @@ class TestPain001LargeFileStreaming(unittest.TestCase):
             self.assertGreater(
                 throughput,
                 1_000,
-                f"Throughput {throughput:.0f} tx/s "
-                f"below 1,000 tx/s target",
+                f"Throughput {throughput:.0f} tx/s below 1,000 tx/s target",
             )
         finally:
             os.unlink(path)
@@ -257,9 +248,7 @@ class TestPain001LargeFileStreaming(unittest.TestCase):
             Pain001Parser,
         )
 
-        path = _write_temp(
-            _generate_pain001_xml(50_000), ".xml"
-        )
+        path = _write_temp(_generate_pain001_xml(50_000), ".xml")
         try:
             parser = Pain001Parser(path)
 
@@ -275,8 +264,7 @@ class TestPain001LargeFileStreaming(unittest.TestCase):
             self.assertGreater(
                 throughput,
                 1_000,
-                f"Throughput {throughput:.0f} tx/s "
-                f"below 1,000 tx/s target",
+                f"Throughput {throughput:.0f} tx/s below 1,000 tx/s target",
             )
         finally:
             os.unlink(path)
@@ -343,15 +331,9 @@ class TestPain001LargeFilePath(unittest.TestCase):
         path = _write_temp(xml, ".xml")
         try:
             parser = Pain001Parser(path)
-            with patch(
-                "os.path.getsize", return_value=999_999_999
-            ):
-                with patch(
-                    "os.unlink", side_effect=OSError("busy")
-                ):
-                    count = sum(
-                        1 for _ in parser.parse_streaming()
-                    )
+            with patch("os.path.getsize", return_value=999_999_999):
+                with patch("os.unlink", side_effect=OSError("busy")):
+                    count = sum(1 for _ in parser.parse_streaming())
             self.assertEqual(count, 10)
         finally:
             if os.path.exists(path):
@@ -377,9 +359,7 @@ class TestPain001LargeFileErrorPaths(unittest.TestCase):
             os.unlink(path)
             # Use Path to skip string-based InputValidator
             parser.file_name = Path(path)
-            with patch(
-                "os.path.getsize", return_value=999_999_999
-            ):
+            with patch("os.path.getsize", return_value=999_999_999):
                 with self.assertRaises(FileNotFoundError):
                     list(parser.parse_streaming())
         except FileNotFoundError:
@@ -402,9 +382,7 @@ class TestPain001LargeFileErrorPaths(unittest.TestCase):
         try:
             parser = Pain001Parser(path)
             parser.file_name = Path(path)
-            with patch(
-                "os.path.getsize", return_value=999_999_999
-            ):
+            with patch("os.path.getsize", return_value=999_999_999):
                 with patch(
                     "builtins.open",
                     side_effect=PermissionError("denied"),
@@ -432,9 +410,7 @@ class TestPain001LargeFileErrorPaths(unittest.TestCase):
         try:
             parser = Pain001Parser(path)
             parser.file_name = Path(path)
-            with patch(
-                "os.path.getsize", return_value=999_999_999
-            ):
+            with patch("os.path.getsize", return_value=999_999_999):
                 with patch(
                     "builtins.open",
                     side_effect=OSError("disk full"),
@@ -462,13 +438,15 @@ class TestPain001LargeFileErrorPaths(unittest.TestCase):
         try:
             parser = Pain001Parser(path)
             parser.file_name = Path(path)
-            with patch("os.path.getsize", return_value=100):
-                with patch(
+            with (
+                patch("os.path.getsize", return_value=100),
+                patch(
                     "builtins.open",
                     side_effect=PermissionError("denied"),
-                ):
-                    with self.assertRaises(ValidationError):
-                        list(parser.parse_streaming())
+                ),
+                self.assertRaises(ValidationError),
+            ):
+                list(parser.parse_streaming())
         finally:
             if os.path.exists(path):
                 os.unlink(path)
@@ -490,13 +468,15 @@ class TestPain001LargeFileErrorPaths(unittest.TestCase):
         try:
             parser = Pain001Parser(path)
             parser.file_name = Path(path)
-            with patch("os.path.getsize", return_value=100):
-                with patch(
+            with (
+                patch("os.path.getsize", return_value=100),
+                patch(
                     "builtins.open",
                     side_effect=OSError("read error"),
-                ):
-                    with self.assertRaises(ValidationError):
-                        list(parser.parse_streaming())
+                ),
+                self.assertRaises(ValidationError),
+            ):
+                list(parser.parse_streaming())
         finally:
             if os.path.exists(path):
                 os.unlink(path)
@@ -559,9 +539,7 @@ def _rss_mb() -> float:
     try:
         import psutil
 
-        return psutil.Process(os.getpid()).memory_info().rss / (
-            1024 * 1024
-        )
+        return psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
     except ImportError:
         return 0.0
 

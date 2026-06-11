@@ -44,9 +44,7 @@ def test_generate_sbom_script(tmp_path: Path) -> None:
 
     sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
     assert sbom["bomFormat"] == "CycloneDX"
-    assert (
-        sbom["metadata"]["component"]["name"] == "bankstatementparser"
-    )
+    assert sbom["metadata"]["component"]["name"] == "bankstatementparser"
     assert sbom["components"]
     assert report_path.read_text(encoding="utf-8").startswith(
         "# Dependency Report"
@@ -93,14 +91,10 @@ def test_commit_signature_script_rejects_unexpected_urls() -> None:
     except RuntimeError as exc:
         assert "unexpected GitHub API URL" in str(exc)
     else:  # pragma: no cover
-        raise AssertionError(
-            "Expected URL allowlist enforcement to fail"
-        )
+        raise AssertionError("Expected URL allowlist enforcement to fail")
 
 
-def test_commit_signature_script_uses_event_commits_for_initial_push() -> (
-    None
-):
+def test_commit_signature_script_uses_event_commits_for_initial_push() -> None:
     module = load_signature_module()
     calls: list[str] = []
 
@@ -108,9 +102,7 @@ def test_commit_signature_script_uses_event_commits_for_initial_push() -> (
         calls.append(url)
         return {
             "sha": url.rsplit("/", 1)[-1],
-            "commit": {
-                "verification": {"verified": True, "reason": "valid"}
-            },
+            "commit": {"verification": {"verified": True, "reason": "valid"}},
         }
 
     module.github_get_json = fake_github_get_json
@@ -144,9 +136,7 @@ def test_commit_signature_script_falls_back_to_after_sha_on_initial_push() -> (
         calls.append(url)
         return {
             "sha": url.rsplit("/", 1)[-1],
-            "commit": {
-                "verification": {"verified": True, "reason": "valid"}
-            },
+            "commit": {"verification": {"verified": True, "reason": "valid"}},
         }
 
     module.github_get_json = fake_github_get_json

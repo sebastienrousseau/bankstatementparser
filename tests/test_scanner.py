@@ -93,3 +93,11 @@ def test_scan_skips_failed_files(tmp_path: Path) -> None:
     # good.xml succeeds, bad.xml logged as warning
     assert result.file_count == 2
     assert len(result.results) >= 1
+
+
+def test_scan_records_failures_with_count(tmp_path: Path) -> None:
+    (tmp_path / "bad.xml").write_text("not valid xml")
+    result = scan_and_ingest(tmp_path)
+    assert result.failure_count == 1
+    assert result.failures[0].path.endswith("bad.xml")
+    assert result.failures[0].error

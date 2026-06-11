@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module provides a command line interface for parsing bank statement
-files in various formats. Currently, it supports CAMT (ISO 20022) format, with
-potential to extend support to other formats.
+"""Command line interface for parsing bank statement files.
+
+Currently supports CAMT (ISO 20022) format, with potential to extend
+support to other formats.
 """
 
 import argparse
@@ -40,8 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 def setup_logging(level: int = logging.INFO) -> None:
-    """
-    Configure logging for the CLI application.
+    """Configure logging for the CLI application.
 
     Args:
         level (int): Logging level (default: INFO)
@@ -62,8 +61,7 @@ class BankStatementCLI:
         self.validator = InputValidator()
 
     def _redact_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Redact sensitive PII columns in a DataFrame.
+        """Redact sensitive PII columns in a DataFrame.
 
         Args:
             df (pd.DataFrame): Original DataFrame containing potentially sensitive data.
@@ -88,8 +86,7 @@ class BankStatementCLI:
         return redacted_df
 
     def setup_arg_parser(self) -> argparse.ArgumentParser:
-        """
-        Set up the command line argument parser.
+        """Set up the command line argument parser.
 
         Returns:
             argparse.ArgumentParser: The configured argument parser.
@@ -106,7 +103,7 @@ class BankStatementCLI:
                 'Type of operation: "camt"/"pain001" for direct '
                 'parsing, "ingest" for the hybrid pipeline, or '
                 '"review" to walk through a saved IngestResult JSON '
-                'and resolve discrepancies.'
+                "and resolve discrepancies."
             ),
         )
         parser.add_argument(
@@ -153,13 +150,12 @@ class BankStatementCLI:
         show_pii: bool = False,
         streaming: bool = False,
     ) -> None:
-        """
-        Parse a CAMT format bank statement file and print or save the results.
+        """Parse a CAMT format bank statement file and print or save the results.
 
         Args:
             file_path (Path): Validated path to the CAMT file.
-            output_path (Path, optional): Validated path to save the parsed data.
-            If None, data is printed to console.
+            output_path (Path, optional): Validated path to save the
+                parsed data. If None, data is printed to console.
             show_pii (bool): Whether to display unredacted PII data.
             streaming (bool): Whether to use streaming parsing for large files.
         """
@@ -188,14 +184,12 @@ class BankStatementCLI:
         show_pii: bool = False,
         streaming: bool = False,
     ) -> None:
-        """
-        Parse a PAIN.001 format bank statement file and print or save the
-        results.
+        """Parse a PAIN.001 file and print or save the results.
 
         Args:
             file_path (Path): Validated path to the PAIN.001 file.
-            output_path (Path, optional): Validated path to save the parsed data.
-            If None, data is printed to console.
+            output_path (Path, optional): Validated path to save the
+                parsed data. If None, data is printed to console.
             show_pii (bool): Whether to display unredacted PII data.
             streaming (bool): Whether to use streaming parsing for large files.
         """
@@ -248,9 +242,7 @@ class BankStatementCLI:
                     safe_name = self.validator.get_safe_filename(
                         output_path.name
                     )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
+                    safe_output_path = str(output_path.parent / safe_name)
                     temp_output = f"{safe_output_path}.tmp"
 
                     with open(temp_output, "w", encoding="utf-8") as f:
@@ -267,9 +259,7 @@ class BankStatementCLI:
 
                             if not header_written:
                                 # Write header on first record
-                                record_df.to_csv(
-                                    f, index=False, mode="w"
-                                )
+                                record_df.to_csv(f, index=False, mode="w")
                                 header_written = True
                             else:
                                 # Write data without header
@@ -323,9 +313,7 @@ class BankStatementCLI:
                     safe_name = self.validator.get_safe_filename(
                         output_path.name
                     )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
+                    safe_output_path = str(output_path.parent / safe_name)
                     data_df.to_csv(safe_output_path, index=False)
                     print(f"Parsed data saved to {safe_output_path}")
                 else:
@@ -338,19 +326,17 @@ class BankStatementCLI:
 
         except FileNotFoundError as e:
             logger.error(f"File not found: {e}")
-            print(f"Error: Input file not found - {str(e)}")
+            print(f"Error: Input file not found - {e!s}")
             sys.exit(1)
         except ValidationError as e:
             logger.error(f"Validation error: {e}")
-            print(f"Error: Invalid input - {str(e)}")
+            print(f"Error: Invalid input - {e!s}")
             sys.exit(1)
         except Exception as e:
             logger.error(
                 f"Unexpected error during {format_label} parsing: {e}"
             )
-            print(
-                f"Error: Failed to parse {format_label} file - {str(e)}"
-            )
+            print(f"Error: Failed to parse {format_label} file - {e!s}")
             sys.exit(1)
 
     def run_ingest(
@@ -414,9 +400,7 @@ class BankStatementCLI:
         df = pd.DataFrame(rows)
 
         if output_path:
-            safe_name = self.validator.get_safe_filename(
-                output_path.name
-            )
+            safe_name = self.validator.get_safe_filename(output_path.name)
             safe_output_path = str(output_path.parent / safe_name)
             df.to_csv(safe_output_path, index=False)
             print(
@@ -432,9 +416,7 @@ class BankStatementCLI:
 
         if result.verification is not None:
             v = result.verification
-            print(
-                f"\nVerification: {v.status.value.upper()} - {v.message}"
-            )
+            print(f"\nVerification: {v.status.value.upper()} - {v.message}")
         for warning in result.warnings:
             print(f"Warning: {warning}")
 
@@ -498,9 +480,7 @@ class BankStatementCLI:
             )
             return
 
-        print(
-            f"Verification: {v.status.value.upper()} - {v.message}"
-        )
+        print(f"Verification: {v.status.value.upper()} - {v.message}")
         print(f"Loaded {len(result.transactions)} transactions.")
         print()
 
@@ -525,14 +505,10 @@ class BankStatementCLI:
                 break
             elif action == "a":
                 kept.append(tx)
-                audit.append(
-                    {"row_index": index, "action": "accept"}
-                )
+                audit.append({"row_index": index, "action": "accept"})
             elif action == "s":
                 kept.append(tx)
-                audit.append(
-                    {"row_index": index, "action": "skip"}
-                )
+                audit.append({"row_index": index, "action": "skip"})
             elif action == "d":
                 audit.append(
                     {
@@ -570,9 +546,7 @@ class BankStatementCLI:
         output_target = output_path or file_path
         safe_name = self.validator.get_safe_filename(output_target.name)
         safe_output = str(output_target.parent / safe_name)
-        Path(safe_output).write_text(
-            updated.to_json(), encoding="utf-8"
-        )
+        Path(safe_output).write_text(updated.to_json(), encoding="utf-8")
         print(f"\nReview complete. Wrote {len(kept)} rows -> {safe_output}")
         print(f"Audit trail entries: {len(audit)}")
 
@@ -630,9 +604,7 @@ class BankStatementCLI:
             value = raw_input.strip().lower()[:1]
             if value in valid:
                 return value
-            print(
-                "  Please enter one of: a, e, s, d, q"
-            )
+            print("  Please enter one of: a, e, s, d, q")
 
     def _edit_review_row(self, tx: Transaction) -> Transaction:
         """Prompt the operator for new description and amount.
@@ -651,13 +623,11 @@ class BankStatementCLI:
         current_amount = tx.amount
         try:
             new_desc = (
-                input(f"  new description [{current_desc}]: ")
-                or current_desc
+                input(f"  new description [{current_desc}]: ") or current_desc
             )
-            new_amount_raw = (
-                input(f"  new amount      [{current_amount}]: ")
-                or str(current_amount)
-            )
+            new_amount_raw = input(
+                f"  new amount      [{current_amount}]: "
+            ) or str(current_amount)
             new_amount = Decimal(new_amount_raw)
         except (EOFError, InvalidOperation):
             print("  edit aborted; keeping original row")
@@ -684,8 +654,7 @@ class BankStatementCLI:
         )
 
     def run(self) -> None:
-        """
-        Parse command line arguments and perform the requested action.
+        """Parse command line arguments and perform the requested action.
 
         Validates input/output paths, configures logging, and delegates
         to the appropriate parser (CAMT or PAIN.001) based on the --type
@@ -722,20 +691,18 @@ class BankStatementCLI:
         setup_logging(log_level)
 
         # Update validator max file size setting
-        max_size_bytes = (
-            args.max_size * 1024 * 1024
-        )  # Convert MB to bytes
+        max_size_bytes = args.max_size * 1024 * 1024  # Convert MB to bytes
         self.validator.max_file_size = max_size_bytes
 
         # Validate input file
         try:
-            validated_input_path = (
-                self.validator.validate_input_file_path(args.input)
+            validated_input_path = self.validator.validate_input_file_path(
+                args.input
             )
             logger.info(f"Input file validated: {validated_input_path}")
         except (ValidationError, FileNotFoundError) as e:
             logger.error(f"Input validation failed: {e}")
-            print(f"Error: {str(e)}")
+            print(f"Error: {e!s}")
             sys.exit(1)
             return  # Defensive programming: ensure we don't continue if sys.exit is mocked
 
@@ -744,16 +711,12 @@ class BankStatementCLI:
         if args.output:
             try:
                 validated_output_path = (
-                    self.validator.validate_output_file_path(
-                        args.output
-                    )
+                    self.validator.validate_output_file_path(args.output)
                 )
-                logger.info(
-                    f"Output file validated: {validated_output_path}"
-                )
+                logger.info(f"Output file validated: {validated_output_path}")
             except ValidationError as e:
                 logger.error(f"Output validation failed: {e}")
-                print(f"Error: {str(e)}")
+                print(f"Error: {e!s}")
                 sys.exit(1)
 
         # Parse based on type
@@ -801,7 +764,7 @@ class BankStatementCLI:
                 sys.exit(1)
         except Exception as e:
             logger.error(f"Parsing failed: {e}")
-            print(f"Error: Parsing failed - {str(e)}")
+            print(f"Error: Parsing failed - {e!s}")
             sys.exit(1)
 
 

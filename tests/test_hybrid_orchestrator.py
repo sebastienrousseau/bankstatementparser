@@ -170,9 +170,7 @@ def test_smart_ingest_warns_when_detection_raises(
     def boom(_path: str) -> str:
         raise RuntimeError("detector blew up")
 
-    monkeypatch.setattr(
-        orchestrator, "detect_statement_format", boom
-    )
+    monkeypatch.setattr(orchestrator, "detect_statement_format", boom)
     monkeypatch.setattr(
         orchestrator, "extract_text", lambda _p: "pdf text " * 20
     )
@@ -242,9 +240,7 @@ def test_smart_ingest_explicit_balances_override_llm_balances(
     monkeypatch.setattr(
         orchestrator, "detect_statement_format", lambda _p: None
     )
-    monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "text " * 30
-    )
+    monkeypatch.setattr(orchestrator, "extract_text", lambda _p: "text " * 30)
 
     payload = {
         "opening_balance": "0.00",
@@ -303,9 +299,7 @@ def test_smart_ingest_routes_scanned_pdf_to_vision(
         orchestrator, "detect_statement_format", lambda _p: None
     )
     # Low-density text: below LOW_TEXT_DENSITY_THRESHOLD
-    monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "  \n  "
-    )
+    monkeypatch.setattr(orchestrator, "extract_text", lambda _p: "  \n  ")
 
     payload = {
         "opening_balance": "100.00",
@@ -335,7 +329,7 @@ def test_smart_ingest_routes_scanned_pdf_to_vision(
     class _Bitmap:
         def to_pil(self) -> Any:
             class _P:
-                def save(self, buf: Any, format: str) -> None:  # noqa: A002
+                def save(self, buf: Any, format: str) -> None:
                     buf.write(b"PNG")
 
             return _P()
@@ -360,9 +354,7 @@ def test_smart_ingest_routes_scanned_pdf_to_vision(
     result = smart_ingest(file_path, vision_extractor=vision)
     assert result.source_method == "vision"
     assert result.source_format == "pdf"
-    assert any(
-        "LOW_TEXT_DENSITY" in w for w in result.warnings
-    )
+    assert any("LOW_TEXT_DENSITY" in w for w in result.warnings)
     assert result.verification is not None
     assert result.verification.status is VerificationStatus.VERIFIED
 
@@ -379,9 +371,7 @@ def test_smart_ingest_vision_raises_when_model_unset(
     monkeypatch.setattr(orchestrator, "extract_text", lambda _p: "")
     monkeypatch.delenv("BSP_HYBRID_VISION_MODEL", raising=False)
 
-    with pytest.raises(
-        VisionExtractorError, match="Vision model required"
-    ):
+    with pytest.raises(VisionExtractorError, match="Vision model required"):
         smart_ingest(file_path)
 
 
@@ -464,9 +454,7 @@ def _make_full_result() -> orchestrator.IngestResult:
         transactions=tuple(txs),
         verification=verification,
         warnings=("a warning",),
-        audit_trail=(
-            {"action": "review_started", "operator": "alice"},
-        ),
+        audit_trail=({"action": "review_started", "operator": "alice"},),
     )
 
 
@@ -512,9 +500,7 @@ def test_ingest_result_json_round_trip_with_no_verification() -> None:
     original = orchestrator.IngestResult(
         source_method="deterministic",
         source_format="camt",
-        transactions=[
-            Transaction(amount=Decimal("10.00"), description="x")
-        ],
+        transactions=[Transaction(amount=Decimal("10.00"), description="x")],
     )
     restored = orchestrator.IngestResult.from_json(original.to_json())
     assert restored.verification is None
@@ -559,7 +545,7 @@ def test_ingest_result_from_json_rejects_non_list_warnings() -> None:
     payload = json.dumps(
         {"schema_version": 1, "transactions": [], "warnings": "oops"}
     )
-    with pytest.raises(ValueError, match="warnings.*list"):
+    with pytest.raises(ValueError, match=r"warnings.*list"):
         orchestrator.IngestResult.from_json(payload)
 
 
@@ -571,7 +557,7 @@ def test_ingest_result_from_json_rejects_non_list_audit_trail() -> None:
             "audit_trail": "oops",
         }
     )
-    with pytest.raises(ValueError, match="audit_trail.*list"):
+    with pytest.raises(ValueError, match=r"audit_trail.*list"):
         orchestrator.IngestResult.from_json(payload)
 
 
@@ -583,7 +569,7 @@ def test_ingest_result_from_json_rejects_non_object_verification() -> None:
             "verification": "oops",
         }
     )
-    with pytest.raises(ValueError, match="verification.*object or null"):
+    with pytest.raises(ValueError, match=r"verification.*object or null"):
         orchestrator.IngestResult.from_json(payload)
 
 

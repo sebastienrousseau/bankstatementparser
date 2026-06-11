@@ -7,11 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.9] — 2026-06-10
+## [0.1.0] — 2026-06-10
 
 > "Audit pass" — addresses the three Critical findings and six quick
-> wins from the v0.0.9 deep audit, drains all open Dependabot
-> version-bump PRs, and resolves all open Dependabot security alerts.
+> wins from the deep audit, drains all open Dependabot version-bump
+> PRs, resolves all open Dependabot security alerts, and removes the
+> remaining silent-failure paths from the public API. Released as
+> 0.1.0 (not 0.0.9) because the silent-failure fixes below are
+> breaking changes; from this release on the project follows
+> [SemVer](https://semver.org): breaking changes only in minor
+> releases while the version is 0.y.z, and only in major releases
+> from 1.0.0.
+
+### Changed — BREAKING
+
+- **`Pain001Parser.get_summary()` raises instead of returning an
+  error dict.** Internal failures now raise `Pain001ParseError`
+  (previously a summary full of `"Unknown"` values with an `"error"`
+  key). The `error` key has been removed from `SummaryRecord`.
+  *Migration:* wrap calls in
+  `try: ... except Pain001ParseError:` instead of checking
+  `"error" in summary`.
+- **CAMT streaming no longer defaults transaction currency to
+  `""`.** When an entry's `<Amt>` has no `Ccy` attribute, the
+  statement-level account currency (`<Acct><Ccy>`) is used; if
+  neither is present, `ParserError` is raised.
+  *Migration:* files without any currency information now fail fast
+  — previously they produced rows with an empty `Currency` that
+  corrupted downstream aggregation.
+- **`openpyxl` is now an optional extra.** Excel export
+  (`CamtParser.camt_to_excel`) requires
+  `pip install 'bankstatementparser[excel]'`; calling it without
+  openpyxl raises `ImportError` with that hint.
+  *Migration:* add the `excel` extra if you export to `.xlsx`.
+- **lxml floor raised to `>=5.0`** (was `>=4.9.3`).
+
+### Fixed (0.1.0)
+
+- **CAMT streaming `AccountId` was always empty.** The account id
+  was captured when `</Stmt>` closed — after every `<Ntry>` in the
+  statement had already been yielded. It is now captured when
+  `</Acct>` closes, so streamed rows carry the correct account id,
+  matching the non-streaming path.
+- **`ValidationError` moved to `bankstatementparser.exceptions`**
+  alongside the rest of the hierarchy; it is still re-exported from
+  `bankstatementparser.input_validator`, so existing imports keep
+  working.
+- **Parallel parsing preserves the failure type.**
+  `FileResult.error` is now `"ExceptionType: message"` instead of
+  the bare message.
+- **Temp-file cleanup failures are logged** (`logger.debug`) in
+  PAIN.001 streaming instead of silently swallowed.
 
 ### Added
 
@@ -160,16 +206,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   delegate to a single shared implementation
   (`BankStatementCLI._parse_statement_file`); behaviour and the
   public method names are unchanged.
-- **Honest coverage gate** — the `--cov-fail-under=100` gate (which
-  forced tests written to satisfy line arrows rather than behaviour)
-  is replaced by a measured floor of 98% (current: 99.5%) plus
-  codecov `target: auto`, which fails any PR that regresses coverage
-  against its base commit. `tests/test_branch_coverage.py` was
-  rewritten as behaviour-framed `tests/test_parser_edge_behavior.py`,
-  and `tests/test_coverage_gaps.py` renamed to
+- **Honest coverage gate** — coverage is gated at 100%, reached
+  with behavioural tests rather than line-arrow chasing: every
+  remaining gap got a test that asserts observable behaviour, and
+  the one genuinely unreachable defensive branch carries an
+  explicit, justified `# pragma: no cover`. Codecov `target: auto`
+  additionally fails any PR that regresses coverage against its
+  base commit. `tests/test_branch_coverage.py` was rewritten as
+  behaviour-framed `tests/test_parser_edge_behavior.py`, and
+  `tests/test_coverage_gaps.py` renamed to
   `tests/test_error_paths.py` with behavioural docstrings replacing
-  line-number references. README/FAQ "100% coverage" claims replaced
-  with the real test count and gate description.
+  line-number references.
 
 ## [0.0.8] — 2026-04-11
 
@@ -617,8 +664,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.9...HEAD
-[0.0.9]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.9
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.1.0
 [0.0.8]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.8
 [0.0.7]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.7
 [0.0.6]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.6

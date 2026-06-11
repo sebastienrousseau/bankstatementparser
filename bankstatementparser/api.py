@@ -131,7 +131,7 @@ def _allowed_suffix(name: str) -> bool:
 def create_app(
     *,
     title: str = "Bank Statement Parser API",
-    version: str = "0.0.9",
+    version: str = "0.1.0",
     max_upload_bytes: Optional[int] = None,
 ) -> Any:
     """Create a FastAPI application wrapping :func:`smart_ingest`.
@@ -171,7 +171,7 @@ def create_app(
 
     @app.post("/ingest")  # type: ignore[untyped-decorator]
     async def ingest(  # pragma: no cover - async endpoint needs ASGI server
-        file: UploadFile = _file_field,  # noqa: B008
+        file: UploadFile = _file_field,
     ) -> JSONResponse:
         """Upload a bank statement and get structured JSON back.
 
@@ -208,9 +208,7 @@ def create_app(
         suffix = Path(safe_name).suffix
         # ``delete=False`` so we can close, hand the path to
         # ``smart_ingest``, then unlink in the ``finally`` block.
-        with tempfile.NamedTemporaryFile(
-            suffix=suffix, delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp_path = tmp.name
             total = 0
             try:
@@ -245,9 +243,7 @@ def create_app(
             # the client gets a correlation id, not the message —
             # preventing accidental disclosure of filesystem paths
             # or upstream service URLs.
-            logger.exception(
-                "Ingest failed [%s]: %s", correlation_id, exc
-            )
+            logger.exception("Ingest failed [%s]: %s", correlation_id, exc)
             return JSONResponse(
                 content={
                     "error": "ingest failed",
@@ -312,9 +308,7 @@ def main() -> None:
         default="127.0.0.1",
         help="Bind address (use 0.0.0.0 for container deployments)",
     )
-    parser.add_argument(
-        "--port", type=int, default=8000, help="Port"
-    )
+    parser.add_argument("--port", type=int, default=8000, help="Port")
     args = parser.parse_args()
 
     try:

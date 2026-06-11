@@ -326,7 +326,9 @@ class TestSecurityCamtParser(unittest.TestCase):
     def test_resource_exhaustion_protection(self):
         """Test protection against resource exhaustion attacks."""
         # Test extremely large tag names
-        large_tag_xml = f'<?xml version="1.0"?><{"A" * 10000}>content</{"A" * 10000}>'
+        large_tag_xml = (
+            f'<?xml version="1.0"?><{"A" * 10000}>content</{"A" * 10000}>'
+        )
 
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".xml", delete=False
@@ -344,12 +346,8 @@ class TestSecurityCamtParser(unittest.TestCase):
             os.unlink(large_tag_file)
 
         # Test excessive attribute count
-        many_attrs = " ".join(
-            [f'attr{i}="value{i}"' for i in range(1000)]
-        )
-        attr_xml = (
-            f'<?xml version="1.0"?><Document {many_attrs}></Document>'
-        )
+        many_attrs = " ".join([f'attr{i}="value{i}"' for i in range(1000)])
+        attr_xml = f'<?xml version="1.0"?><Document {many_attrs}></Document>'
 
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".xml", delete=False
@@ -373,9 +371,7 @@ class TestSecurityPain001Parser(unittest.TestCase):
 
     def test_malformed_xml_handling(self):
         """Test Pain001 parser with malformed XML."""
-        malformed_xml = (
-            "<CstmrCdtTrfInitn><GrpHdr><MsgId>invalid"  # Unclosed
-        )
+        malformed_xml = "<CstmrCdtTrfInitn><GrpHdr><MsgId>invalid"  # Unclosed
 
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".xml", delete=False
@@ -474,13 +470,9 @@ class TestSecurityBankStatementParsers(unittest.TestCase):
             # Verify no system data leaked
             self.assertIsNotNone(parser.payments)
             for payment in parser.payments:
-                if "debtor_name" in payment and payment["debtor_name"]:
-                    self.assertNotIn(
-                        "localhost", payment["debtor_name"]
-                    )
-                    self.assertNotIn(
-                        "127.0.0.1", payment["debtor_name"]
-                    )
+                if payment.get("debtor_name"):
+                    self.assertNotIn("localhost", payment["debtor_name"])
+                    self.assertNotIn("127.0.0.1", payment["debtor_name"])
         finally:
             os.unlink(xxe_file)
 
@@ -488,9 +480,7 @@ class TestSecurityBankStatementParsers(unittest.TestCase):
         """Test edge cases for input validation."""
         # Extremely large XML
         large_xml = (
-            '<?xml version="1.0"?><Document>'
-            + "A" * 1000000
-            + "</Document>"
+            '<?xml version="1.0"?><Document>' + "A" * 1000000 + "</Document>"
         )
 
         with tempfile.NamedTemporaryFile(
@@ -537,9 +527,7 @@ class TestSecurityBankStatementParsers(unittest.TestCase):
                 f.write(valid_xml)
 
             # Create a malicious file
-            with open(
-                os.path.join(test_dir, "malicious.xml"), "w"
-            ) as f:
+            with open(os.path.join(test_dir, "malicious.xml"), "w") as f:
                 f.write(
                     '<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><Document>&xxe;</Document>'
                 )
@@ -547,8 +535,8 @@ class TestSecurityBankStatementParsers(unittest.TestCase):
             # Should handle mixed valid/invalid files
             (
                 files_df,
-                statements_df,
-                transactions_df,
+                _statements_df,
+                _transactions_df,
             ) = process_camt053_folder(test_dir)
             self.assertGreaterEqual(len(files_df), 2)
 
@@ -572,9 +560,7 @@ class TestSecurityMitigations(unittest.TestCase):
         import sys
 
         # Create moderately large XML
-        xml_content = (
-            '<?xml version="1.0"?>\n<Document>\n<BkToCstmrStmt>\n'
-        )
+        xml_content = '<?xml version="1.0"?>\n<Document>\n<BkToCstmrStmt>\n'
         for i in range(100):
             xml_content += f"""<Stmt>
 <Id>STMT_{i}</Id>
@@ -613,16 +599,12 @@ class TestSecurityMitigations(unittest.TestCase):
     def test_exception_information_disclosure(self):
         """Test that exceptions don't leak sensitive information."""
         # Test with file that might reveal system info
-        with self.assertRaises(
-            (FileNotFoundError, ValidationError)
-        ) as cm:
+        with self.assertRaises((FileNotFoundError, ValidationError)) as cm:
             CamtParser("/etc/passwd")
 
         # Exception should not contain sensitive paths or should block access
         error_msg = str(cm.exception).lower()
-        self.assertTrue(
-            "not found" in error_msg or "blocked" in error_msg
-        )
+        self.assertTrue("not found" in error_msg or "blocked" in error_msg)
 
         # Test with parsing error
         invalid_xml = (

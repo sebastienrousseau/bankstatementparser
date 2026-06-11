@@ -13,6 +13,7 @@ import pandas as pd
 from bankstatementparser.base_parser import BankStatementParser
 from bankstatementparser.camt_parser import CamtParser
 from bankstatementparser.cli import BankStatementCLI
+from bankstatementparser.exceptions import Pain001ParseError
 from bankstatementparser.input_validator import (
     InputValidator,
     ValidationError,
@@ -51,9 +52,7 @@ class TestBaseParserCoverage(unittest.TestCase):
         output = Path(tempfile.gettempdir()) / "broken-export.csv"
         temp_output = Path(f"{output}.tmp")
 
-        with patch.object(
-            parser, "parse", side_effect=RuntimeError("x")
-        ):
+        with patch.object(parser, "parse", side_effect=RuntimeError("x")):
             with self.assertRaises(OSError):
                 parser.export_csv(output)
 
@@ -64,11 +63,11 @@ class TestBaseParserCoverage(unittest.TestCase):
         output = Path(tempfile.gettempdir()) / "broken-export.json"
         temp_output = Path(f"{output}.tmp")
 
-        with patch.object(
-            parser, "get_summary", side_effect=RuntimeError("x")
+        with (
+            patch.object(parser, "get_summary", side_effect=RuntimeError("x")),
+            self.assertRaises(OSError),
         ):
-            with self.assertRaises(OSError):
-                parser.export_json(output)
+            parser.export_json(output)
 
         self.assertFalse(temp_output.exists())
 
@@ -102,9 +101,7 @@ class TestInputValidatorCoverage(unittest.TestCase):
                 self.validator.validate_input_file_path(str(link_path))
 
     def test_sanitize_source_name_none_and_invalid_type(self):
-        self.assertEqual(
-            self.validator.sanitize_source_name(None), "<memory>"
-        )
+        self.assertEqual(self.validator.sanitize_source_name(None), "<memory>")
         with self.assertRaises(ValidationError):
             self.validator.sanitize_source_name(123)
 
@@ -126,9 +123,7 @@ class TestInputValidatorCoverage(unittest.TestCase):
                 self.validator._validate_file_size(Path("x.xml"))
 
     def test_validate_input_format_binary_control_chars(self):
-        with tempfile.NamedTemporaryFile(
-            suffix=".xml", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
             f.write(b"Hello\x00World")
             path = f.name
         try:
@@ -159,14 +154,10 @@ class TestInputValidatorCoverage(unittest.TestCase):
 
     def test_check_dangerous_patterns_unicode_control(self):
         with self.assertRaises(ValidationError):
-            self.validator._check_dangerous_patterns(
-                "unsafe\u202epath.xml"
-            )
+            self.validator._check_dangerous_patterns("unsafe\u202epath.xml")
 
     def test_validate_input_format_binary_signature(self):
-        with tempfile.NamedTemporaryFile(
-            suffix=".xml", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
             f.write(b"%PDF-1.7")
             path = f.name
         try:
@@ -240,17 +231,17 @@ class TestCamtParserCoverageExtra(unittest.TestCase):
         register and the equivalent PAIN.001 streaming behaviour.
         """
         parser = CamtParser(str(self.camt_file))
-        with patch.object(
-            parser,
-            "_parse_streaming_transaction",
-            side_effect=RuntimeError("broken"),
+        with (
+            patch.object(
+                parser,
+                "_parse_streaming_transaction",
+                side_effect=RuntimeError("broken"),
+            ),
+            patch("bankstatementparser.camt_parser.logger.error") as err,
         ):
-            with patch(
-                "bankstatementparser.camt_parser.logger.error"
-            ) as err:
-                with self.assertRaises(RuntimeError):
-                    list(parser.parse_streaming())
-                err.assert_called()
+            with self.assertRaises(RuntimeError):
+                list(parser.parse_streaming())
+            err.assert_called()
 
     def test_streaming_transaction_valdt_dttm_fallback_and_missing_booking(
         self,
@@ -278,37 +269,43 @@ class TestPain001CoverageExtra(unittest.TestCase):
         )
 
     def test_init_rewraps_format_validation_read_error(self):
-        with patch.object(
-            InputValidator,
-            "validate_input_file_path",
-            side_effect=ValidationError(
-                "Cannot read file for format validation: denied"
+        with (
+            patch.object(
+                InputValidator,
+                "validate_input_file_path",
+                side_effect=ValidationError(
+                    "Cannot read file for format validation: denied"
+                ),
             ),
+            self.assertRaises(ValidationError) as ctx,
         ):
-            with self.assertRaises(ValidationError) as ctx:
-                Pain001Parser("foo.xml")
+            Pain001Parser("foo.xml")
         self.assertIn("Error reading file: denied", str(ctx.exception))
 
     def test_init_open_generic_error(self):
-        with patch.object(
-            InputValidator,
-            "validate_input_file_path",
-            return_value=Path("foo.xml"),
+        with (
+            patch.object(
+                InputValidator,
+                "validate_input_file_path",
+                return_value=Path("foo.xml"),
+            ),
+            patch("builtins.open", side_effect=OSError("disk")),
         ):
-            with patch("builtins.open", side_effect=OSError("disk")):
-                with self.assertRaises(ValidationError):
-                    Pain001Parser("foo.xml")
+            with self.assertRaises(ValidationError):
+                Pain001Parser("foo.xml")
 
     def test_parse_streaming_validation_error(self):
         parser = Pain001Parser(str(self.pain_file))
         parser.file_name = "bad.xml"
-        with patch.object(
-            InputValidator,
-            "validate_input_file_path",
-            side_effect=ValidationError("bad"),
+        with (
+            patch.object(
+                InputValidator,
+                "validate_input_file_path",
+                side_effect=ValidationError("bad"),
+            ),
+            self.assertRaises(ValidationError),
         ):
-            with self.assertRaises(ValidationError):
-                list(parser.parse_streaming())
+            list(parser.parse_streaming())
 
     def test_parse_streaming_generic_open_error(self):
         parser = Pain001Parser(str(self.pain_file))
@@ -319,25 +316,26 @@ class TestPain001CoverageExtra(unittest.TestCase):
 
     def test_parse_streaming_error_propagates(self):
         parser = Pain001Parser(str(self.pain_file))
-        with patch.object(
-            parser,
-            "_parse_streaming_payment",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch.object(
+                parser,
+                "_parse_streaming_payment",
+                side_effect=RuntimeError("boom"),
+            ),
+            patch("os.unlink", side_effect=OSError("cleanup")),
         ):
-            with patch("os.unlink", side_effect=OSError("cleanup")):
-                with self.assertRaises(RuntimeError):
-                    list(parser.parse_streaming())
+            with self.assertRaises(RuntimeError):
+                list(parser.parse_streaming())
 
-    def test_parse_streaming_redaction_and_summary_error_fallback(self):
+    def test_parse_streaming_redaction_and_summary_error_raises(self):
         parser = Pain001Parser(str(self.pain_file))
         first_payment = next(parser.parse_streaming(redact_pii=True))
         self.assertEqual(first_payment["InitgPty"], "***REDACTED***")
 
         parser.tree = MagicMock()
         parser.tree.getroottree.side_effect = RuntimeError("boom")
-        summary = parser.get_summary()
-        self.assertEqual(summary["account_id"], "Unknown")
-        self.assertIn("error", summary)
+        with self.assertRaises(Pain001ParseError):
+            parser.get_summary()
 
 
 class TestCLICoverageExtra(unittest.TestCase):
@@ -349,9 +347,7 @@ class TestCLICoverageExtra(unittest.TestCase):
         parser.parse_streaming.return_value = (
             {"AccountId": "1", "Name": "x"} for _ in range(101)
         )
-        with patch(
-            "bankstatementparser.cli.CamtParser", return_value=parser
-        ):
+        with patch("bankstatementparser.cli.CamtParser", return_value=parser):
             with patch("builtins.print") as mock_print:
                 self.cli.parse_camt(
                     Path("x.xml"), None, show_pii=True, streaming=True
@@ -361,9 +357,7 @@ class TestCLICoverageExtra(unittest.TestCase):
             for call in mock_print.call_args_list
             if call.args
         )
-        self.assertIn(
-            "WARNING: Displaying unredacted PII data", printed
-        )
+        self.assertIn("WARNING: Displaying unredacted PII data", printed)
         self.assertIn("showing first 100 transactions", printed)
 
     def test_parse_pain_streaming_console_limit_and_show_pii(self):
@@ -371,37 +365,38 @@ class TestCLICoverageExtra(unittest.TestCase):
         parser.parse_streaming.return_value = (
             {"AccountId": "1", "Name": "x"} for _ in range(101)
         )
-        with patch(
-            "bankstatementparser.cli.Pain001Parser", return_value=parser
+        with (
+            patch(
+                "bankstatementparser.cli.Pain001Parser", return_value=parser
+            ),
+            patch("builtins.print") as mock_print,
         ):
-            with patch("builtins.print") as mock_print:
-                self.cli.parse_pain(
-                    Path("x.xml"), None, show_pii=True, streaming=True
-                )
+            self.cli.parse_pain(
+                Path("x.xml"), None, show_pii=True, streaming=True
+            )
         printed = "\n".join(
             str(call.args[0])
             for call in mock_print.call_args_list
             if call.args
         )
-        self.assertIn(
-            "WARNING: Displaying unredacted PII data", printed
-        )
+        self.assertIn("WARNING: Displaying unredacted PII data", printed)
         self.assertIn("showing first 100 payments", printed)
 
     def test_parse_pain_non_stream_output_and_show_pii(self):
         parser = MagicMock()
         parser.parse.return_value = pd.DataFrame([{"Name": "Alice"}])
-        with patch(
-            "bankstatementparser.cli.Pain001Parser", return_value=parser
+        with (
+            patch(
+                "bankstatementparser.cli.Pain001Parser", return_value=parser
+            ),
+            patch("builtins.print") as mock_print,
         ):
-            with patch("builtins.print") as mock_print:
-                self.cli.parse_pain(
-                    Path("x.xml"), None, show_pii=True, streaming=False
-                )
+            self.cli.parse_pain(
+                Path("x.xml"), None, show_pii=True, streaming=False
+            )
         self.assertTrue(
             any(
-                "WARNING: Displaying unredacted PII data"
-                in str(c.args[0])
+                "WARNING: Displaying unredacted PII data" in str(c.args[0])
                 for c in mock_print.call_args_list
                 if c.args
             )
@@ -410,14 +405,14 @@ class TestCLICoverageExtra(unittest.TestCase):
     def test_run_argparse_failure_and_missing_required_and_parse_failure(
         self,
     ):
-        with patch.object(
-            self.cli.parser, "parse_args", side_effect=SystemExit(2)
+        with (
+            patch.object(
+                self.cli.parser, "parse_args", side_effect=SystemExit(2)
+            ),
+            patch("builtins.print") as mock_print,
+            patch("sys.exit") as mock_exit,
         ):
-            with (
-                patch("builtins.print") as mock_print,
-                patch("sys.exit") as mock_exit,
-            ):
-                self.cli.run()
+            self.cli.run()
         self.assertTrue(
             any(
                 "Missing required arguments" in str(c.args[0])
@@ -435,9 +430,7 @@ class TestCLICoverageExtra(unittest.TestCase):
         args.verbose = False
         args.show_pii = False
         args.streaming = False
-        with patch.object(
-            self.cli.parser, "parse_args", return_value=args
-        ):
+        with patch.object(self.cli.parser, "parse_args", return_value=args):
             with (
                 patch("builtins.print") as mock_print,
                 patch("sys.exit") as mock_exit,
@@ -454,9 +447,7 @@ class TestCLICoverageExtra(unittest.TestCase):
 
         args.input = "x.xml"
         args.type = "unsupported-type"
-        with patch.object(
-            self.cli.parser, "parse_args", return_value=args
-        ):
+        with patch.object(self.cli.parser, "parse_args", return_value=args):
             with patch.object(
                 self.cli.validator,
                 "validate_input_file_path",
@@ -477,9 +468,7 @@ class TestCLICoverageExtra(unittest.TestCase):
         self.assertEqual(mock_exit.call_args_list[-1].args[0], 1)
 
         args.type = "camt"
-        with patch.object(
-            self.cli.parser, "parse_args", return_value=args
-        ):
+        with patch.object(self.cli.parser, "parse_args", return_value=args):
             with patch.object(
                 self.cli.validator,
                 "validate_input_file_path",

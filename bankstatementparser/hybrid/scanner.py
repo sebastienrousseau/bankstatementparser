@@ -102,8 +102,13 @@ def scan_and_ingest(
 
     if extensions is None:
         extensions = {
-            ".xml", ".csv", ".ofx", ".qfx",
-            ".mt940", ".sta", ".pdf",
+            ".xml",
+            ".csv",
+            ".ofx",
+            ".qfx",
+            ".mt940",
+            ".sta",
+            ".pdf",
         }
     if seen_hashes is None:
         seen_hashes = set()
@@ -126,9 +131,7 @@ def scan_and_ingest(
             result = smart_ingest(file_path)
         except Exception as exc:
             logger.warning("Failed to ingest %s: %s", file_path, exc)
-            failures.append(
-                FileFailure(path=str(file_path), error=str(exc))
-            )
+            failures.append(FileFailure(path=str(file_path), error=str(exc)))
             continue
         all_results.append(result)
         # Each file is its own dedup batch: genuine repeats within

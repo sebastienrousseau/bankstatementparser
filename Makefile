@@ -14,12 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: install install-all install-hooks dist release test test-slow lint typecheck security verify clean
+.PHONY: install install-all install-hooks dist release test test-slow lint format-check typecheck security verify clean
 
 # ----- Local development -----------------------------------------------------
 
 install:
-	poetry install --with dev
+	poetry install --with dev -E excel
 
 # Wire the pre-commit hook so `make verify` runs before every commit.
 # One-time setup per clone — idempotent, safe to re-run.
@@ -29,7 +29,7 @@ install-hooks:
 
 # Install with all hybrid extras (litellm, pypdf, pdfplumber, pypdfium2).
 install-all:
-	poetry install --with dev -E hybrid-vision -E hybrid-plus -E polars
+	poetry install --with dev -E excel -E hybrid-vision -E hybrid-plus -E polars
 
 # ----- Pre-PR validation gates ----------------------------------------------
 
@@ -45,6 +45,9 @@ test-slow:
 lint:
 	poetry run ruff check bankstatementparser tests examples scripts
 
+format-check:
+	poetry run ruff format --check bankstatementparser tests examples scripts
+
 typecheck:
 	poetry run mypy bankstatementparser
 
@@ -52,7 +55,7 @@ security:
 	poetry run bandit -r bankstatementparser examples scripts -c pyproject.toml
 
 # Run every gate the GitHub Actions pipeline runs, in the same order.
-verify: lint typecheck test security
+verify: lint format-check typecheck test security
 
 # ----- Build & release ------------------------------------------------------
 

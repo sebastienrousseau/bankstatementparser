@@ -97,9 +97,7 @@ def normalize_description(value: str | None) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
-def _first_value(
-    record: Mapping[str, object], *keys: str
-) -> object | None:
+def _first_value(record: Mapping[str, object], *keys: str) -> object | None:
     for key in keys:
         if key in record and record[key] not in (None, ""):
             return record[key]
@@ -210,7 +208,7 @@ class Transaction(BaseModel):
                 self.transaction_id or self.reference or "",
             ]
         )
-        return hashlib.md5(  # noqa: S324
+        return hashlib.md5(
             material.encode("utf-8"),
             usedforsecurity=False,
         ).hexdigest()
@@ -268,12 +266,8 @@ class Transaction(BaseModel):
         currency = _first_value(record, "Currency", "currency")
 
         return cls(
-            account_id=str(account_id)
-            if account_id is not None
-            else None,
-            currency=str(currency).upper()
-            if currency is not None
-            else None,
+            account_id=str(account_id) if account_id is not None else None,
+            currency=str(currency).upper() if currency is not None else None,
             amount=amount,
             booking_date=_parse_date(
                 _first_value(record, "BookgDt", "booking_date", "date")
@@ -281,9 +275,7 @@ class Transaction(BaseModel):
             value_date=_parse_date(
                 _first_value(record, "ValDt", "value_date", "date")
             ),
-            description=str(description)
-            if description is not None
-            else None,
+            description=str(description) if description is not None else None,
             normalized_description=normalize_description(
                 str(description) if description is not None else None
             ),

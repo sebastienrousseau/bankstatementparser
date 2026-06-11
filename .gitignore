@@ -84,3 +84,6 @@ example-output/
 *.pot              # Translations
 *.db-shm           # Database
 *.db-wal           # Database
+
+# MkDocs build output
+site/

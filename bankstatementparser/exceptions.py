@@ -28,6 +28,10 @@ class ExportError(OSError, BankStatementParserError):
     """Raised when an export operation cannot complete safely."""
 
 
+class ValidationError(BankStatementParserError):
+    """Raised when an input file fails safety or format validation."""
+
+
 class ParserError(BankStatementParserError):
     """Raised when parser logic cannot produce a valid result."""
 

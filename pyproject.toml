@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.9"
+version = "0.1.0"
 description = "BankStatementParser is your essential tool for easy bank statement management. Designed with finance and treasury experts in mind, it offers a simple way to handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from your financial data and spend less time on processing. It's the smart, hassle-free way to stay on top of your transactions."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache Software License"
@@ -13,8 +13,8 @@ poetry-plugin-export = ">=1.8"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-lxml = ">=4.9.3"
-openpyxl = "^3.1.5"
+lxml = ">=5.0"
+openpyxl = {version = "^3.1.5", optional = true}
 pandas = "^2.3.3"
 defusedxml = "^0.7.1"
 pydantic = "^2.11.0"
@@ -35,7 +35,15 @@ mypy = "^1.5.0"
 bandit = "^1.7.0"
 hypothesis = ">=6.82,<7"
 
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+mkdocs-material = "^9.5"
+mkdocstrings = {version = ">=0.27", extras = ["python"]}
+
 [tool.poetry.extras]
+excel = ["openpyxl"]
 polars = ["polars"]
 hybrid = ["litellm", "pypdf"]
 hybrid-plus = ["litellm", "pypdf", "pdfplumber"]
@@ -66,7 +74,7 @@ known_first_party = "bankstatementparser"
 
 [tool.ruff]
 target-version = "py310"
-line-length = 72
+line-length = 79
 src = ["bankstatementparser", "tests", "examples", "scripts"]
 
 [tool.ruff.lint]
@@ -78,7 +86,16 @@ select = [
     "B",      # flake8-bugbear
     "C4",     # flake8-comprehensions
     "UP",     # pyupgrade
+    "SIM",    # flake8-simplify
+    "RUF",    # Ruff-specific rules
+    "S",      # flake8-bandit
+    "PIE",    # flake8-pie
+    "D",      # pydocstyle — enforced on the package only (see
+              # per-file-ignores); google convention below
 ]
+# The multiplication sign is used deliberately in docstrings for
+# image dimensions (336×336) and render scales (1×, 2×).
+allowed-confusables = ["×"]
 ignore = [
     "E501",
     # UP007 + UP045 — Optional[X] / Union[X, Y] are kept verbatim
@@ -89,8 +106,21 @@ ignore = [
     "UP045",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately use assert, hardcoded temp paths, and pickle-free
+# mock data; S-rules target production code. SIM117: nested
+# `with patch(...)` blocks are the established unittest idiom here.
+# D (docstring completeness) is a public-API contract — enforced on
+# the package, not on tests/examples/scripts.
+"tests/**" = ["S", "SIM117", "D"]
+"examples/**" = ["S", "D"]
+"scripts/**" = ["S", "D"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["bankstatementparser"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.mypy]
 python_version = "3.10"
@@ -100,7 +130,7 @@ warn_unused_ignores = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["lxml.*", "pandas.*"]
+module = ["lxml.*", "pandas.*", "openpyxl", "openpyxl.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -124,8 +154,9 @@ module = ["tests.*", "setup"]
 ignore_errors = true
 
 [tool.pytest.ini_options]
-# Honest floor below the measured 99.5% — codecov target:auto catches regressions
-addopts = "--cov=bankstatementparser --cov-report=term-missing --cov-report=xml --cov-fail-under=98 -m \"not slow\""
+# Full coverage is enforced; genuinely unreachable defensive code
+# carries an explicit, justified "# pragma: no cover".
+addopts = "--cov=bankstatementparser --cov-report=term-missing --cov-report=xml --cov-fail-under=100 -m \"not slow\""
 testpaths = ["tests"]
 markers = [
     "slow: marks tests as slow-running performance or regression checks",

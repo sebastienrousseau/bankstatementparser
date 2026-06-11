@@ -25,6 +25,7 @@ from bankstatementparser.bank_statement_parsers import (
     process_camt053_folder,
 )
 from bankstatementparser.camt_parser import CamtParser
+from bankstatementparser.exceptions import ParserError
 from bankstatementparser.pain001_parser import Pain001Parser
 
 
@@ -536,7 +537,7 @@ class TestBankStatementParsersEdgeCases(unittest.TestCase):
             with open(camt_file, "w", encoding="utf-8") as f:
                 f.write(CAMT_NO_TRANSACTIONS)
 
-            files_df, stmts_df, txns_df = process_camt053_folder(tmpdir)
+            files_df, _stmts_df, _txns_df = process_camt053_folder(tmpdir)
             # Only the XML file is processed, not the subdirectory
             self.assertEqual(len(files_df), 1)
             self.assertEqual(files_df.iloc[0]["FileName"], "test.xml")
@@ -626,6 +627,75 @@ class TestPain001SummaryTxNoAmt(unittest.TestCase):
             self.assertEqual(summary["currency"], "EUR")
         finally:
             os.unlink(f)
+
+
+# CAMT.053 where the first entry's <Amt> omits Ccy but the statement
+# declares an account-level currency; the second entry overrides it.
+CAMT_STMT_CCY_FALLBACK = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <Stmt>
+      <Id>STMT001</Id>
+      <Acct>
+        <Id><IBAN>DE89370400440532013000</IBAN></Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Ntry>
+        <Amt>100.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2024-01-15</Dt></BookgDt>
+        <ValDt><Dt>2024-01-15</Dt></ValDt>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="USD">50.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <BookgDt><Dt>2024-01-16</Dt></BookgDt>
+        <ValDt><Dt>2024-01-16</Dt></ValDt>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>"""
+
+# CAMT.053 with no currency on the entry and none on the account.
+CAMT_NO_CCY_ANYWHERE = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <Stmt>
+      <Id>STMT001</Id>
+      <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>
+      <Ntry>
+        <Amt>100.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2024-01-15</Dt></BookgDt>
+        <ValDt><Dt>2024-01-15</Dt></ValDt>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>"""
+
+
+class TestCamtStreamingCurrencyFallback(unittest.TestCase):
+    """Streaming entries inherit the statement currency, never ''."""
+
+    def test_entry_without_ccy_uses_statement_currency(self):
+        parser = CamtParser.from_string(CAMT_STMT_CCY_FALLBACK)
+        rows = list(parser.parse_streaming())
+        self.assertEqual([r["Currency"] for r in rows], ["EUR", "USD"])
+
+    def test_streaming_rows_carry_statement_account_id(self):
+        parser = CamtParser.from_string(CAMT_STMT_CCY_FALLBACK)
+        rows = list(parser.parse_streaming())
+        self.assertEqual(
+            {r["AccountId"] for r in rows},
+            {"DE89370400440532013000"},
+        )
+
+    def test_no_currency_anywhere_raises(self):
+        parser = CamtParser.from_string(CAMT_NO_CCY_ANYWHERE)
+        with self.assertRaises(ParserError):
+            list(parser.parse_streaming())
 
 
 if __name__ == "__main__":

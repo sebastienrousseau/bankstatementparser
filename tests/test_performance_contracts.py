@@ -103,9 +103,7 @@ def _gen_pain(n: int) -> str:
             f"<RmtInf><Ustrd>INV-{i}</Ustrd></RmtInf>"
             f"</CdtTrfTxInf>"
         )
-    parts.append(
-        "</PmtInf></CstmrCdtTrfInitn></Document>"
-    )
+    parts.append("</PmtInf></CstmrCdtTrfInitn></Document>")
     return "".join(parts)
 
 
@@ -192,8 +190,7 @@ class TestLatencyContract(unittest.TestCase):
             self.assertLess(
                 ttfr_ms,
                 50.0,
-                f"CAMT TTFR {ttfr_ms:.1f}ms exceeds "
-                f"50ms contract",
+                f"CAMT TTFR {ttfr_ms:.1f}ms exceeds 50ms contract",
             )
         finally:
             os.unlink(path)
@@ -210,8 +207,7 @@ class TestLatencyContract(unittest.TestCase):
             self.assertLess(
                 ttfr_ms,
                 50.0,
-                f"PAIN.001 TTFR {ttfr_ms:.1f}ms exceeds "
-                f"50ms contract",
+                f"PAIN.001 TTFR {ttfr_ms:.1f}ms exceeds 50ms contract",
             )
         finally:
             os.unlink(path)
@@ -229,8 +225,7 @@ class TestLatencyContract(unittest.TestCase):
             self.assertLess(
                 per_tx_ms,
                 50.0,
-                f"CAMT per-tx {per_tx_ms:.2f}ms exceeds "
-                f"50ms contract",
+                f"CAMT per-tx {per_tx_ms:.2f}ms exceeds 50ms contract",
             )
         finally:
             os.unlink(path)
@@ -247,9 +242,7 @@ class TestParallelParsing(unittest.TestCase):
 
         paths = [_write(_gen_camt(100)) for _ in range(4)]
         try:
-            results = parse_files_parallel(
-                paths, format_name="camt"
-            )
+            results = parse_files_parallel(paths, format_name="camt")
             for r in results:
                 self.assertEqual(r.status, "SUCCESS")
                 self.assertEqual(len(r.transactions), 100)
@@ -266,9 +259,7 @@ class TestParallelParsing(unittest.TestCase):
         good = _write(_gen_camt(10))
         bad = "/nonexistent/file.xml"
         try:
-            results = parse_files_parallel(
-                [good, bad], format_name="camt"
-            )
+            results = parse_files_parallel([good, bad], format_name="camt")
             self.assertEqual(results[0].status, "SUCCESS")
             self.assertEqual(results[1].status, "FAILED")
             self.assertIn("not found", results[1].error.lower())
@@ -283,9 +274,7 @@ class TestParallelParsing(unittest.TestCase):
 
         path = _write(_gen_camt(100))
         try:
-            results = parse_files_parallel(
-                [path], format_name="camt"
-            )
+            results = parse_files_parallel([path], format_name="camt")
             self.assertEqual(len(results), 1)
             self.assertEqual(results[0].status, "SUCCESS")
         finally:
@@ -318,9 +307,7 @@ class TestParallelParsing(unittest.TestCase):
 
         paths = [_write(_gen_camt(50)) for _ in range(6)]
         try:
-            results = parse_files_parallel(
-                paths, format_name="camt"
-            )
+            results = parse_files_parallel(paths, format_name="camt")
             for i, r in enumerate(results):
                 self.assertEqual(r.path, paths[i])
                 self.assertEqual(r.status, "SUCCESS")

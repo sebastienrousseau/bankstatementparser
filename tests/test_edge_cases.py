@@ -171,9 +171,7 @@ class TestCamtParserEdgeCases(unittest.TestCase):
             self.assertEqual(
                 transactions.iloc[1]["Amount"], -100.00
             )  # DBIT is negative
-            self.assertEqual(
-                transactions.iloc[2]["Amount"], Decimal("0.01")
-            )
+            self.assertEqual(transactions.iloc[2]["Amount"], Decimal("0.01"))
         finally:
             os.unlink(test_file)
 
@@ -266,15 +264,11 @@ class TestCamtParserEdgeCases(unittest.TestCase):
             self.assertIn(
                 "goods & services", transactions.iloc[0]["Reference"]
             )
-            self.assertIn(
-                "<order #123>", transactions.iloc[0]["Reference"]
-            )
+            self.assertIn("<order #123>", transactions.iloc[0]["Reference"])
             self.assertEqual(
                 transactions.iloc[0]["Debtor"], 'John "Doe" & Co.'
             )
-            self.assertEqual(
-                transactions.iloc[0]["Creditor"], "Jane <Smith>"
-            )
+            self.assertEqual(transactions.iloc[0]["Creditor"], "Jane <Smith>")
         finally:
             os.unlink(test_file)
 
@@ -361,9 +355,7 @@ class TestCamtParserEdgeCases(unittest.TestCase):
             transactions = parser.get_transactions()
 
             self.assertEqual(len(transactions), 2)
-            self.assertEqual(
-                transactions.iloc[0]["ValDt"], "2023-01-01"
-            )
+            self.assertEqual(transactions.iloc[0]["ValDt"], "2023-01-01")
             self.assertEqual(
                 transactions.iloc[1]["ValDt"], "2023-01-02T14:30:00"
             )
@@ -404,9 +396,7 @@ class TestCamtParserEdgeCases(unittest.TestCase):
                 self.assertGreater(os.path.getsize(excel_file), 0)
 
                 # Verify Excel file can be read back
-                balances_df = pd.read_excel(
-                    excel_file, sheet_name="Balances"
-                )
+                balances_df = pd.read_excel(excel_file, sheet_name="Balances")
                 transactions_df = pd.read_excel(
                     excel_file, sheet_name="Transactions"
                 )
@@ -548,9 +538,7 @@ class TestBankStatementParsersEdgeCases(unittest.TestCase):
 
             statement = parser.statements[0]
             self.assertEqual(statement["StatementId"], "STMT001")
-            self.assertEqual(
-                statement["AccountId"], "GB29NWBK60161331926819"
-            )
+            self.assertEqual(statement["AccountId"], "GB29NWBK60161331926819")
 
         finally:
             os.unlink(test_file)

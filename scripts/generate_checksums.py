@@ -48,12 +48,8 @@ def main() -> int:
     for file_path in iter_files(args.directory):
         if file_path == output_path:
             continue
-        output_lines.append(
-            f"{file_checksum(file_path)}  {file_path.name}"
-        )
-    output_path.write_text(
-        "\n".join(output_lines) + "\n", encoding="utf-8"
-    )
+        output_lines.append(f"{file_checksum(file_path)}  {file_path.name}")
+    output_path.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
     print(f"Wrote {len(output_lines)} checksums to {output_path}")
     return 0
 

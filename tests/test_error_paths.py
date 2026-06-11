@@ -10,6 +10,7 @@ input_validator.py.
 import json
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,6 +29,7 @@ from bankstatementparser.bank_statement_parsers import (
 from bankstatementparser.base_parser import BankStatementParser
 from bankstatementparser.camt_parser import CamtParser
 from bankstatementparser.cli import BankStatementCLI
+from bankstatementparser.exceptions import Pain001ParseError
 from bankstatementparser.input_validator import (
     InputValidator,
     ValidationError,
@@ -174,12 +176,17 @@ PAIN_XML = """\
 
 def _write_xml(xml_content, suffix=".xml"):
     """Helper: write XML content to a temp file and return the path."""
-    f = tempfile.NamedTemporaryFile(
-        mode="w", suffix=suffix, delete=False, encoding="utf-8"
-    )
-    f.write(xml_content)
-    f.close()
-    return f.name
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(xml_content)
+    return path
+
+
+def _mktemp(suffix):
+    """Helper: create an empty temp file and return its path."""
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    return path
 
 
 # ── CamtParser coverage tests ────────────────────────────────────────
@@ -298,9 +305,7 @@ class TestCamtParserCoverage(unittest.TestCase):
             if "DebtorAddress" in tx:
                 self.assertEqual(tx["DebtorAddress"], "***REDACTED***")
             if "CreditorAddress" in tx:
-                self.assertEqual(
-                    tx["CreditorAddress"], "***REDACTED***"
-                )
+                self.assertEqual(tx["CreditorAddress"], "***REDACTED***")
 
     def test_streaming_malformed_transaction_propagates(self):
         """R-007: streaming must fail-fast on per-row parse errors.
@@ -314,13 +319,15 @@ class TestCamtParserCoverage(unittest.TestCase):
         cannot silently miss dropped rows.
         """
         parser = CamtParser(self.camt_file)
-        with patch.object(
-            parser,
-            "_parse_streaming_transaction",
-            side_effect=ValueError("Malformed transaction"),
+        with (
+            patch.object(
+                parser,
+                "_parse_streaming_transaction",
+                side_effect=ValueError("Malformed transaction"),
+            ),
+            self.assertRaises(ValueError),
         ):
-            with self.assertRaises(ValueError):
-                list(parser.parse_streaming())
+            list(parser.parse_streaming())
 
     def test_streaming_file_not_found(self):
         """Streaming should use the normalized in-memory XML buffer."""
@@ -332,9 +339,7 @@ class TestCamtParserCoverage(unittest.TestCase):
     def test_streaming_permission_error(self):
         """Streaming should not reopen the original file."""
         parser = CamtParser(self.camt_file)
-        with patch(
-            "builtins.open", side_effect=PermissionError("no access")
-        ):
+        with patch("builtins.open", side_effect=PermissionError("no access")):
             transactions = list(parser.parse_streaming())
             self.assertGreater(len(transactions), 0)
 
@@ -372,19 +377,15 @@ class TestCamtParserCoverage(unittest.TestCase):
     def test_entity_error_recovery_parsing(self):
         """Undeclared entities are rejected unless allow_recovery=True."""
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-        xml += "<Document>\n<BkToCstmrStmt>\n<GrpHdr><MsgId>M1</MsgId></GrpHdr>\n"
+        xml += (
+            "<Document>\n<BkToCstmrStmt>\n<GrpHdr><MsgId>M1</MsgId></GrpHdr>\n"
+        )
         xml += "<Stmt><Id>S1</Id><CreDtTm>2024-01-01</CreDtTm>"
-        xml += (
-            "<Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>"
-        )
-        xml += (
-            '<Ntry><Amt Ccy="EUR">10</Amt><CdtDbtInd>CRDT</CdtDbtInd>'
-        )
+        xml += "<Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>"
+        xml += '<Ntry><Amt Ccy="EUR">10</Amt><CdtDbtInd>CRDT</CdtDbtInd>'
         xml += "<Sts>BOOK</Sts><BookgDt><Dt>2024-01-01</Dt></BookgDt>"
         xml += "<ValDt><Dt>2024-01-01</Dt></ValDt>"
-        xml += (
-            "<NtryDtls><TxDtls><Refs><EndToEndId>R1</EndToEndId></Refs>"
-        )
+        xml += "<NtryDtls><TxDtls><Refs><EndToEndId>R1</EndToEndId></Refs>"
         xml += "<RltdPties><Dbtr><Nm>D</Nm></Dbtr></RltdPties>"
         xml += "</TxDtls></NtryDtls></Ntry>"
         xml += "</Stmt>\n</BkToCstmrStmt>\n</Document>"
@@ -401,6 +402,11 @@ class TestCamtParserCoverage(unittest.TestCase):
         finally:
             os.unlink(f)
 
+    def test_recovery_mode_non_entity_syntax_error_still_raises(self):
+        """Recovery only retries entity errors; other syntax errors raise."""
+        with self.assertRaises(etree.XMLSyntaxError):
+            CamtParser.from_string("<Document><bad", allow_recovery=True)
+
     def test_general_xml_parse_exception(self):
         """Non-XMLSyntaxError parse exceptions propagate unchanged."""
         f = _write_xml(CAMT_XML)
@@ -409,12 +415,14 @@ class TestCamtParserCoverage(unittest.TestCase):
             parser._original_file_name = f
             parser._file_path = f
             # Mock etree.fromstring to raise a non-XMLSyntaxError
-            with patch(
-                "bankstatementparser.camt_parser.etree.fromstring",
-                side_effect=RuntimeError("unexpected"),
+            with (
+                patch(
+                    "bankstatementparser.camt_parser.etree.fromstring",
+                    side_effect=RuntimeError("unexpected"),
+                ),
+                self.assertRaises(RuntimeError),
             ):
-                with self.assertRaises(RuntimeError):
-                    CamtParser(f)
+                CamtParser(f)
         finally:
             os.unlink(f)
 
@@ -434,13 +442,9 @@ class TestCamtParserCoverage(unittest.TestCase):
 
         elem = et.fromstring("<Root><Child>hello</Child></Root>")
         # Existing element
-        self.assertEqual(
-            parser._get_element_text(elem, "./Child"), "hello"
-        )
+        self.assertEqual(parser._get_element_text(elem, "./Child"), "hello")
         # Non-existing element
-        self.assertEqual(
-            parser._get_element_text(elem, "./Missing"), ""
-        )
+        self.assertEqual(parser._get_element_text(elem, "./Missing"), "")
 
     def test_streaming_valdt_datetime_fallback(self):
         """ValDt falls back to DtTm when Dt is absent."""
@@ -518,14 +522,16 @@ class TestPain001ParserCoverage(unittest.TestCase):
         f = _write_xml('<?xml version="1.0"?><Empty/>')
         try:
             # Pass Path to bypass validator
-            with patch(
-                "bankstatementparser.pain001_parser.etree.fromstring",
-                side_effect=ValueError(
-                    "Start tag expected, '<' not found"
+            with (
+                patch(
+                    "bankstatementparser.pain001_parser.etree.fromstring",
+                    side_effect=ValueError(
+                        "Start tag expected, '<' not found"
+                    ),
                 ),
+                self.assertRaises(ValidationError),
             ):
-                with self.assertRaises(ValidationError):
-                    Pain001Parser(Path(f))
+                Pain001Parser(Path(f))
         finally:
             os.unlink(f)
 
@@ -577,9 +583,7 @@ class TestPain001ParserCoverage(unittest.TestCase):
         """Streaming wraps PermissionError as ValidationError."""
         parser = Pain001Parser(self.pain_file)
         parser.file_name = 42  # Not a string, skip validation
-        with patch(
-            "builtins.open", side_effect=PermissionError("no access")
-        ):
+        with patch("builtins.open", side_effect=PermissionError("no access")):
             with self.assertRaises(ValidationError):
                 list(parser.parse_streaming())
 
@@ -598,11 +602,13 @@ class TestPain001ParserCoverage(unittest.TestCase):
         def side_effect(elem, pmt_info, header, redact_pii=False):
             raise ValueError("Malformed payment")
 
-        with patch.object(
-            parser, "_parse_streaming_payment", side_effect=side_effect
+        with (
+            patch.object(
+                parser, "_parse_streaming_payment", side_effect=side_effect
+            ),
+            self.assertRaises(ValueError),
         ):
-            with self.assertRaises(ValueError):
-                list(parser.parse_streaming())
+            list(parser.parse_streaming())
 
     def test_streaming_cleanup_failure(self):
         """A failing temp-file cleanup does not break streaming."""
@@ -618,13 +624,13 @@ class TestPain001ParserCoverage(unittest.TestCase):
         self.assertIn("transaction_count", summary)
         self.assertEqual(summary["transaction_count"], 1)
 
-    def test_get_summary_exception_fallback(self):
-        """get_summary degrades to 'Unknown' fields on internal errors."""
+    def test_get_summary_internal_error_raises(self):
+        """get_summary raises Pain001ParseError on internal errors."""
         parser = Pain001Parser(self.pain_file)
         # Corrupt the tree to trigger exception
         parser.tree = None
-        summary = parser.get_summary()
-        self.assertEqual(summary["account_id"], "Unknown")
+        with self.assertRaises(Pain001ParseError):
+            parser.get_summary()
 
     def test_streaming_pmtinf_child_extraction(self):
         """Streaming extracts Dbtr/DbtrAgt data across multiple PmtInf blocks.
@@ -715,9 +721,7 @@ class TestBankStatementParsersCoverage(unittest.TestCase):
             parser = BankPain001Parser(f, redact_pii=True)
             for payment in parser.payments:
                 if payment.get("Address"):
-                    self.assertEqual(
-                        payment["Address"], "***REDACTED***"
-                    )
+                    self.assertEqual(payment["Address"], "***REDACTED***")
         finally:
             os.unlink(f)
 
@@ -755,9 +759,7 @@ class TestBankStatementParsersCoverage(unittest.TestCase):
         ):
             with self.assertRaises(FileParserError) as ctx:
                 Camt053Parser(self.camt_file)
-            self.assertIn(
-                "Not a valid CAMT.053 file", str(ctx.exception)
-            )
+            self.assertIn("Not a valid CAMT.053 file", str(ctx.exception))
 
     def test_camt053_file_not_found(self):
         """Wrapper raises FileNotFoundError for a missing path."""
@@ -779,8 +781,8 @@ class TestBankStatementParsersCoverage(unittest.TestCase):
 
             (
                 files_df,
-                statements_df,
-                transactions_df,
+                _statements_df,
+                _transactions_df,
             ) = process_camt053_folder(folder)
             # Should have 2 files processed
             self.assertEqual(len(files_df), 2)
@@ -801,18 +803,15 @@ class TestBaseParserCoverage(unittest.TestCase):
     def test_export_csv_success(self):
         """export_csv writes the output file."""
         camt_file = _write_xml(CAMT_XML)
-        output_csv = tempfile.NamedTemporaryFile(
-            suffix=".csv", delete=False
-        )
-        output_csv.close()
+        output_csv = _mktemp(".csv")
         try:
             parser = CamtParser(camt_file)
-            parser.export_csv(output_csv.name)
-            self.assertTrue(os.path.exists(output_csv.name))
+            parser.export_csv(output_csv)
+            self.assertTrue(os.path.exists(output_csv))
         finally:
             os.unlink(camt_file)
-            if os.path.exists(output_csv.name):
-                os.unlink(output_csv.name)
+            if os.path.exists(output_csv):
+                os.unlink(output_csv)
 
     def test_export_csv_cleanup_on_error(self):
         """export_csv removes its temp file when parsing fails."""
@@ -827,9 +826,7 @@ class TestBaseParserCoverage(unittest.TestCase):
                 Path(f"{output_path}.tmp").touch()
                 raise RuntimeError("parse error")
 
-            with patch.object(
-                parser, "parse", side_effect=failing_parse
-            ):
+            with patch.object(parser, "parse", side_effect=failing_parse):
                 with self.assertRaises(IOError):
                     parser.export_csv(output_path)
             # Temp file should be cleaned up
@@ -843,22 +840,19 @@ class TestBaseParserCoverage(unittest.TestCase):
     def test_export_json_success(self):
         """export_json writes summary and transactions."""
         camt_file = _write_xml(CAMT_XML)
-        output_json = tempfile.NamedTemporaryFile(
-            suffix=".json", delete=False
-        )
-        output_json.close()
+        output_json = _mktemp(".json")
         try:
             parser = CamtParser(camt_file)
-            parser.export_json(output_json.name)
-            self.assertTrue(os.path.exists(output_json.name))
-            with open(output_json.name) as f:
+            parser.export_json(output_json)
+            self.assertTrue(os.path.exists(output_json))
+            with open(output_json) as f:
                 data = json.load(f)
             self.assertIn("summary", data)
             self.assertIn("transactions", data)
         finally:
             os.unlink(camt_file)
-            if os.path.exists(output_json.name):
-                os.unlink(output_json.name)
+            if os.path.exists(output_json):
+                os.unlink(output_json)
 
     def test_export_json_cleanup_on_error(self):
         """export_json removes its temp file when parsing fails."""
@@ -871,9 +865,7 @@ class TestBaseParserCoverage(unittest.TestCase):
                 Path(f"{output_path}.tmp").touch()
                 raise RuntimeError("parse error")
 
-            with patch.object(
-                parser, "parse", side_effect=failing_parse
-            ):
+            with patch.object(parser, "parse", side_effect=failing_parse):
                 with self.assertRaises(IOError):
                     parser.export_json(output_path)
             self.assertFalse(os.path.exists(f"{output_path}.tmp"))
@@ -954,9 +946,7 @@ class TestInputValidatorCoverage(unittest.TestCase):
         f = _write_xml(CAMT_XML)
         try:
             path = Path(f)
-            with patch.object(
-                Path, "stat", side_effect=OSError("stat error")
-            ):
+            with patch.object(Path, "stat", side_effect=OSError("stat error")):
                 with self.assertRaises(ValidationError):
                     validator._validate_file_size(path)
         finally:
@@ -966,27 +956,27 @@ class TestInputValidatorCoverage(unittest.TestCase):
         """Undecodable file content surfaces as ValidationError."""
         validator = InputValidator()
         # Create a file with binary content that has .xml extension
-        f = tempfile.NamedTemporaryFile(
-            mode="wb", suffix=".xml", delete=False
-        )
+        fd, binary_path = tempfile.mkstemp(suffix=".xml")
         # Write valid XML header followed by invalid UTF-8
-        f.write(
-            b'<?xml version="1.0"?>\n<Document>\xff\xfe\x80\x81</Document>'
-        )
-        f.close()
+        with os.fdopen(fd, "wb") as f:
+            f.write(
+                b'<?xml version="1.0"?>\n<Document>\xff\xfe\x80\x81</Document>'
+            )
         try:
-            path = Path(f.name)
+            path = Path(binary_path)
             # This should handle the UnicodeDecodeError in the outer handler
-            with patch(
-                "builtins.open",
-                side_effect=UnicodeDecodeError(
-                    "utf-8", b"", 0, 1, "invalid"
+            with (
+                patch(
+                    "builtins.open",
+                    side_effect=UnicodeDecodeError(
+                        "utf-8", b"", 0, 1, "invalid"
+                    ),
                 ),
+                self.assertRaises(ValidationError),
             ):
-                with self.assertRaises(ValidationError):
-                    validator._validate_input_format(path)
+                validator._validate_input_format(path)
         finally:
-            os.unlink(f.name)
+            os.unlink(binary_path)
 
 
 # ── CLI coverage tests ────────────────────────────────────────────────
@@ -1007,11 +997,8 @@ class TestCLICoverage(unittest.TestCase):
     def test_parse_camt_streaming_with_output(self):
         """parse_camt streaming writes a CSV output file."""
         cli = BankStatementCLI()
-        output_file = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".csv", delete=False
-        )
-        output_file.close()
-        output_path = Path(output_file.name)
+        output_file = _mktemp(".csv")
+        output_path = Path(output_file)
         try:
             cli.parse_camt(
                 Path(self.camt_file),
@@ -1020,26 +1007,17 @@ class TestCLICoverage(unittest.TestCase):
                 streaming=True,
             )
             self.assertTrue(
-                os.path.exists(output_file.name)
+                os.path.exists(output_file)
                 or os.path.exists(
                     str(
                         output_path.parent
-                        / cli.validator.get_safe_filename(
-                            output_path.name
-                        )
+                        / cli.validator.get_safe_filename(output_path.name)
                     )
                 )
             )
         finally:
-            # Clean up any output files
-            for f in os.listdir(output_path.parent):
-                full = os.path.join(str(output_path.parent), f)
-                if full.startswith(
-                    str(output_path.parent)
-                ) and f.endswith(".csv"):
-                    pass  # Don't delete other csv files
-            if os.path.exists(output_file.name):
-                os.unlink(output_file.name)
+            if os.path.exists(output_file):
+                os.unlink(output_file)
 
     def test_parse_camt_streaming_console_limit(self):
         """Streaming console output is capped at 100 rows."""
@@ -1084,9 +1062,7 @@ class TestCLICoverage(unittest.TestCase):
         """show_pii=True prints an unredacted-PII warning."""
         cli = BankStatementCLI()
         with patch("builtins.print") as mock_print:
-            cli.parse_camt(
-                Path(self.camt_file), show_pii=True, streaming=True
-            )
+            cli.parse_camt(Path(self.camt_file), show_pii=True, streaming=True)
             calls = [str(c) for c in mock_print.call_args_list]
             self.assertTrue(any("WARNING" in c for c in calls))
 
@@ -1099,11 +1075,8 @@ class TestCLICoverage(unittest.TestCase):
             "pain.001.001.03.xml",
         )
         cli = BankStatementCLI()
-        output_file = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".csv", delete=False
-        )
-        output_file.close()
-        output_path = Path(output_file.name)
+        output_file = _mktemp(".csv")
+        output_path = Path(output_file)
         try:
             cli.parse_pain(
                 Path(pain_file),
@@ -1113,11 +1086,9 @@ class TestCLICoverage(unittest.TestCase):
             )
         finally:
             # Clean up
-            safe_name = cli.validator.get_safe_filename(
-                output_path.name
-            )
+            safe_name = cli.validator.get_safe_filename(output_path.name)
             safe_path = str(output_path.parent / safe_name)
-            for f in [output_file.name, safe_path, f"{safe_path}.tmp"]:
+            for f in [output_file, safe_path, f"{safe_path}.tmp"]:
                 if os.path.exists(f):
                     os.unlink(f)
 
@@ -1131,20 +1102,15 @@ class TestCLICoverage(unittest.TestCase):
         """parse_pain streaming with show_pii=True warns about unredacted output."""
         cli = BankStatementCLI()
         with patch("builtins.print") as mock_print:
-            cli.parse_pain(
-                Path(self.pain_file), show_pii=True, streaming=True
-            )
+            cli.parse_pain(Path(self.pain_file), show_pii=True, streaming=True)
             calls = [str(c) for c in mock_print.call_args_list]
             self.assertTrue(any("WARNING" in c for c in calls))
 
     def test_parse_pain_nonstreaming_output(self):
         """parse_pain non-streaming writes results to the output CSV."""
         cli = BankStatementCLI()
-        output_file = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".csv", delete=False
-        )
-        output_file.close()
-        output_path = Path(output_file.name)
+        output_file = _mktemp(".csv")
+        output_path = Path(output_file)
         try:
             cli.parse_pain(
                 Path(self.pain_file),
@@ -1152,8 +1118,8 @@ class TestCLICoverage(unittest.TestCase):
                 show_pii=False,
             )
         finally:
-            if os.path.exists(output_file.name):
-                os.unlink(output_file.name)
+            if os.path.exists(output_file):
+                os.unlink(output_file)
 
     def test_parse_pain_nonstreaming_show_pii(self):
         """parse_pain non-streaming with show_pii=True warns about unredacted output."""
@@ -1179,89 +1145,95 @@ class TestCLICoverage(unittest.TestCase):
     def test_run_streaming_camt(self):
         """run() passes --streaming through to parse_camt."""
         cli = BankStatementCLI()
-        with patch(
-            "sys.argv",
-            [
-                "prog",
-                "--type",
-                "camt",
-                "--input",
-                self.camt_file,
-                "--streaming",
-            ],
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "prog",
+                    "--type",
+                    "camt",
+                    "--input",
+                    self.camt_file,
+                    "--streaming",
+                ],
+            ),
+            patch.object(cli, "parse_camt") as mock_parse,
+            patch.object(
+                cli.validator,
+                "validate_input_file_path",
+                return_value=Path(self.camt_file),
+            ),
         ):
-            with patch.object(cli, "parse_camt") as mock_parse:
-                with patch.object(
-                    cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path(self.camt_file),
-                ):
-                    cli.run()
-                    mock_parse.assert_called_once()
-                    # Verify streaming=True was passed
-                    call_args = mock_parse.call_args
-                    self.assertTrue(
-                        call_args[0][3]
-                        if len(call_args[0]) > 3
-                        else call_args[1].get("streaming")
-                    )
+            cli.run()
+            mock_parse.assert_called_once()
+            # Verify streaming=True was passed
+            call_args = mock_parse.call_args
+            self.assertTrue(
+                call_args[0][3]
+                if len(call_args[0]) > 3
+                else call_args[1].get("streaming")
+            )
 
     def test_run_streaming_pain001(self):
         """run() passes --streaming through to parse_pain."""
         cli = BankStatementCLI()
-        with patch(
-            "sys.argv",
-            [
-                "prog",
-                "--type",
-                "pain001",
-                "--input",
-                self.pain_file,
-                "--streaming",
-            ],
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "prog",
+                    "--type",
+                    "pain001",
+                    "--input",
+                    self.pain_file,
+                    "--streaming",
+                ],
+            ),
+            patch.object(cli, "parse_pain") as mock_parse,
+            patch.object(
+                cli.validator,
+                "validate_input_file_path",
+                return_value=Path(self.pain_file),
+            ),
         ):
-            with patch.object(cli, "parse_pain") as mock_parse:
-                with patch.object(
-                    cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path(self.pain_file),
-                ):
-                    cli.run()
-                    mock_parse.assert_called_once()
+            cli.run()
+            mock_parse.assert_called_once()
 
     def test_run_non_streaming_pain001(self):
         """run() dispatches pain001 input to parse_pain."""
         cli = BankStatementCLI()
-        with patch(
-            "sys.argv",
-            ["prog", "--type", "pain001", "--input", self.pain_file],
+        with (
+            patch(
+                "sys.argv",
+                ["prog", "--type", "pain001", "--input", self.pain_file],
+            ),
+            patch.object(cli, "parse_pain") as mock_parse,
+            patch.object(
+                cli.validator,
+                "validate_input_file_path",
+                return_value=Path(self.pain_file),
+            ),
         ):
-            with patch.object(cli, "parse_pain") as mock_parse:
-                with patch.object(
-                    cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path(self.pain_file),
-                ):
-                    cli.run()
-                    mock_parse.assert_called_once()
+            cli.run()
+            mock_parse.assert_called_once()
 
     def test_run_outer_exception(self):
         """run() exits non-zero when a parser raises unexpectedly."""
         cli = BankStatementCLI()
-        with patch(
-            "sys.argv",
-            ["prog", "--type", "camt", "--input", self.camt_file],
+        with (
+            patch(
+                "sys.argv",
+                ["prog", "--type", "camt", "--input", self.camt_file],
+            ),
+            patch.object(cli, "parse_camt", side_effect=RuntimeError("fail")),
+            patch.object(
+                cli.validator,
+                "validate_input_file_path",
+                return_value=Path(self.camt_file),
+            ),
+            self.assertRaises(SystemExit),
         ):
-            with patch.object(
-                cli, "parse_camt", side_effect=RuntimeError("fail")
-            ):
-                with patch.object(
-                    cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path(self.camt_file),
-                ):
-                    with self.assertRaises(SystemExit):
-                        cli.run()
+            cli.run()
 
     def test_main_block(self):
         """BankStatementCLI constructs cleanly (the __main__ entry pattern)."""
@@ -1273,9 +1245,7 @@ class TestCLICoverage(unittest.TestCase):
     def test_run_missing_required_args_safety_check(self):
         """run() exits if required args are somehow missing post-parse."""
         cli = BankStatementCLI()
-        with patch(
-            "sys.argv", ["prog", "--type", "camt", "--input", "dummy"]
-        ):
+        with patch("sys.argv", ["prog", "--type", "camt", "--input", "dummy"]):
             with patch.object(cli.parser, "parse_args") as mock_parse:
                 mock_args = MagicMock()
                 mock_args.input = None
@@ -1297,27 +1267,31 @@ class TestCLICoverage(unittest.TestCase):
     def test_run_unsupported_type(self):
         """run() exits non-zero for an unsupported statement type."""
         cli = BankStatementCLI()
-        with patch(
-            "sys.argv",
-            ["prog", "--type", "camt", "--input", self.camt_file],
+        with (
+            patch(
+                "sys.argv",
+                ["prog", "--type", "camt", "--input", self.camt_file],
+            ),
+            patch.object(cli.parser, "parse_args") as mock_parse,
         ):
-            with patch.object(cli.parser, "parse_args") as mock_parse:
-                mock_args = MagicMock()
-                mock_args.input = self.camt_file
-                mock_args.type = "unsupported"
-                mock_args.output = None
-                mock_args.verbose = False
-                mock_args.max_size = 100
-                mock_args.show_pii = False
-                mock_args.streaming = False
-                mock_parse.return_value = mock_args
-                with patch.object(
+            mock_args = MagicMock()
+            mock_args.input = self.camt_file
+            mock_args.type = "unsupported"
+            mock_args.output = None
+            mock_args.verbose = False
+            mock_args.max_size = 100
+            mock_args.show_pii = False
+            mock_args.streaming = False
+            mock_parse.return_value = mock_args
+            with (
+                patch.object(
                     cli.validator,
                     "validate_input_file_path",
                     return_value=Path(self.camt_file),
-                ):
-                    with self.assertRaises(SystemExit):
-                        cli.run()
+                ),
+                self.assertRaises(SystemExit),
+            ):
+                cli.run()
 
 
 # ── CLI output path tests for parse_pain ──────────────────────────────
@@ -1375,6 +1349,21 @@ class TestCLIOutputPaths(unittest.TestCase):
                 cli.parse_pain(Path(f), streaming=True)
                 calls = [str(c) for c in mock_print.call_args_list]
                 self.assertTrue(any("100" in c for c in calls))
+        finally:
+            os.unlink(f)
+
+
+class TestCamtToExcelMissingOpenpyxl(unittest.TestCase):
+    """camt_to_excel needs the optional [excel] extra."""
+
+    def test_missing_openpyxl_raises_with_install_hint(self):
+        f = _write_xml(CAMT_XML)
+        try:
+            parser = CamtParser(f)
+            with patch.dict(sys.modules, {"openpyxl": None}):
+                with self.assertRaises(ImportError) as ctx:
+                    parser.camt_to_excel("unused.xlsx")
+            self.assertIn("bankstatementparser[excel]", str(ctx.exception))
         finally:
             os.unlink(f)
 

@@ -64,9 +64,12 @@ def main() -> int:
     print()
 
     pairs = [
-        ("AMZN MKTPLACE 2026-04-01 #A1B2C3", "AMZN MKTPLACE 2026-04-02 #Z9Y8X7"),
-        ("CARD PAYMENT 12:49 COFFEE SHOP",  "CARD PAYMENT 14:01 COFFEE SHOP"),
-        ("UBER EATS 03/04",                  "UBER EATS 05/04"),
+        (
+            "AMZN MKTPLACE 2026-04-01 #A1B2C3",
+            "AMZN MKTPLACE 2026-04-02 #Z9Y8X7",
+        ),
+        ("CARD PAYMENT 12:49 COFFEE SHOP", "CARD PAYMENT 14:01 COFFEE SHOP"),
+        ("UBER EATS 03/04", "UBER EATS 05/04"),
     ]
 
     for left, right in pairs:
@@ -102,9 +105,9 @@ def main() -> int:
 
     print("Batch 1 (today's statement):")
     batch_1 = [
-        _tx("-3.85",  "2026-04-08", "CARD PAYMENT 08:15 COFFEE SHOP"),
+        _tx("-3.85", "2026-04-08", "CARD PAYMENT 08:15 COFFEE SHOP"),
         _tx("-29.99", "2026-04-08", "AMZN MKTPLACE 2026-04-08 #A1B2C3"),
-        _tx("-7.40",  "2026-04-08", "CONTACTLESS TFL TRAVEL"),
+        _tx("-7.40", "2026-04-08", "CONTACTLESS TFL TRAVEL"),
         # Operator accidentally included the same row twice in the
         # upload — the LLM produced two slightly different references.
         _tx("-29.99", "2026-04-08", "AMZN MKTPLACE 2026-04-08 #Z9Y8X7"),
@@ -117,7 +120,7 @@ def main() -> int:
 
     print("Batch 2 (re-upload of the same statement):")
     batch_2 = [
-        _tx("-3.85",  "2026-04-08", "CARD PAYMENT 08:15 COFFEE SHOP"),
+        _tx("-3.85", "2026-04-08", "CARD PAYMENT 08:15 COFFEE SHOP"),
         _tx("-29.99", "2026-04-08", "AMZN MKTPLACE 2026-04-08 #Q1Q2Q3"),
         _tx("-12.50", "2026-04-09", "DELIVEROO 14:22"),  # truly new row
     ]

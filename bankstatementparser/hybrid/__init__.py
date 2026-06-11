@@ -65,6 +65,6 @@ __all__ = [
     "ollama_direct_completion",
     "scan_and_ingest",
     "smart_ingest",
-    "verify_balance_multi_currency",
     "verify_balance",
+    "verify_balance_multi_currency",
 ]
