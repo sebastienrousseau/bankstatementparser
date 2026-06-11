@@ -90,6 +90,7 @@ jobs:
         # coverage gate. ``test_zip_security.py`` lives under integration/
         # but exercises ``bankstatementparser.zip_security`` directly, so
         # it stays in the coverage run.
+        shell: bash
         run: |
           poetry run pytest tests/ \
             --ignore=tests/integration/test_malformed_data.py \
