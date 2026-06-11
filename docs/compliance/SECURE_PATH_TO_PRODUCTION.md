@@ -17,7 +17,7 @@ flowchart TD
     B -->|Gate: ≥1 approved review| C["3. Pinned CI Workflows"]
     C -->|Gate: All action SHAs match lock file| D["4. Static Analysis"]
     D -->|Gate: Ruff 0, mypy 0, Bandit 0, CodeQL 0, Gitleaks 0| E["5. Dynamic Verification"]
-    E -->|Gate: 100% branch coverage, 0 failures, 0 skipped| F["6. SBOM Generation"]
+    E -->|Gate: coverage gate met, 0 failures, 0 skipped| F["6. SBOM Generation"]
     F -->|Gate: CycloneDX JSON matches poetry.lock| G["7. Build Artifacts"]
     G -->|Gate: wheel + sdist produced| H["8. Integrity & Attestation"]
     H -->|Gate: SHA-256 checksums + GitHub provenance attestation| I["9. Release Approval"]
@@ -36,7 +36,7 @@ flowchart TD
 | 2 | **Pull Request** | Reviewer | At least one approved review; no dismissed reviews | GitHub branch protection |
 | 3 | **Pinned CI Workflows** | CI | All GitHub Actions referenced by commit SHA, not tag | Manual audit + Dependabot |
 | 4 | **Static Analysis** | CI | 0 errors from Ruff, mypy, Bandit, CodeQL, Gitleaks | `quality-gates.yml`, `security.yml` |
-| 5 | **Dynamic Verification** | CI | 100% branch coverage, 0 test failures, 0 skipped across Python 3.9–3.14 and 3 OS platforms | `quality-gates.yml` |
+| 5 | **Dynamic Verification** | CI | Coverage gate met (no regression vs. base), 0 test failures, 0 skipped across Python 3.10–3.14 and 3 OS platforms | `quality-gates.yml` |
 | 6 | **SBOM Generation** | CI | CycloneDX 1.5 JSON produced, component list matches `poetry.lock` | `scripts/generate_sbom.py` |
 | 7 | **Build Artifacts** | CI | `poetry build` produces `.whl` and `.tar.gz` without error | `release-integrity.yml` |
 | 8 | **Integrity & Attestation** | CI | SHA-256 checksums generated; GitHub build provenance attestation linked | `scripts/generate_checksums.py`, `attest-build-provenance` action |

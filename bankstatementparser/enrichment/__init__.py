@@ -55,9 +55,9 @@ from .categorizer import (
 )
 
 __all__ = [
+    "DEFAULT_CATEGORY_SCHEMA",
     "AccountMapper",
     "AccountRule",
-    "DEFAULT_CATEGORY_SCHEMA",
     "Categorizer",
     "CategorizerError",
     "EnrichedTransaction",

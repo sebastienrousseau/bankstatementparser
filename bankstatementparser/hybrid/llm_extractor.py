@@ -28,24 +28,28 @@ Examples:
 
 from __future__ import annotations
 
-import json
 import os
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
 
+from .._llm_common import (
+    DEFAULT_MODEL,
+    ENV_API_BASE,
+    ENV_MODEL,
+    extract_message_content,
+    parse_confidence,
+    parse_json_payload,
+    warn_if_data_leaves_machine,
+)
 from ..transaction_models import (
     BoundingBox,
+    SourceMethod,
     Transaction,
     normalize_description,
 )
 from .prompts import build_messages
-
-DEFAULT_MODEL = "ollama/llama3"
-ENV_MODEL = "BSP_HYBRID_MODEL"
-ENV_API_BASE = "BSP_HYBRID_API_BASE"
 
 CompletionFn = Callable[..., Any]
 
@@ -92,9 +96,11 @@ class LLMExtractor:
         api_base: Optional[str] = None,
         completion_fn: Optional[CompletionFn] = None,
     ) -> None:
+        """Resolve model/endpoint settings; see class docstring."""
         self.model = model or os.environ.get(ENV_MODEL, DEFAULT_MODEL)
         self.api_base = api_base or os.environ.get(ENV_API_BASE)
         self._completion_fn = completion_fn
+        warn_if_data_leaves_machine(self.model, self.api_base)
 
     def extract(self, statement_text: str) -> LLMExtractionResult:
         """Run the LLM and parse the structured response."""
@@ -114,9 +120,7 @@ class LLMExtractor:
                 kwargs["api_base"] = self.api_base
             response = completion(**kwargs)
         except Exception as exc:
-            raise LLMExtractorError(
-                f"LLM completion failed: {exc}"
-            ) from exc
+            raise LLMExtractorError(f"LLM completion failed: {exc}") from exc
 
         raw = _extract_message_content(response)
         payload = _parse_json_payload(raw)
@@ -149,49 +153,12 @@ class LLMExtractor:
 
 def _extract_message_content(response: Any) -> str:
     """Pull the assistant message content out of an OpenAI-style response."""
-    try:
-        if isinstance(response, dict):
-            choice = response["choices"][0]
-            message = choice["message"]
-            content = message["content"]
-        else:
-            content = response.choices[0].message.content
-    except (AttributeError, KeyError, IndexError, TypeError) as exc:
-        raise LLMExtractorError(
-            f"Unexpected LLM response shape: {exc}"
-        ) from exc
-    if not isinstance(content, str) or not content.strip():
-        raise LLMExtractorError("LLM returned empty content")
-    return content
-
-
-_JSON_FENCE_RE = re.compile(
-    r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL
-)
+    return extract_message_content(response, error_cls=LLMExtractorError)
 
 
 def _parse_json_payload(raw: str) -> dict[str, Any]:
     """Tolerantly parse a JSON object from a model response."""
-    text = raw.strip()
-    fence = _JSON_FENCE_RE.search(text)
-    if fence:
-        text = fence.group(1)
-    else:
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            text = text[start : end + 1]
-    try:
-        payload = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise LLMExtractorError(
-            f"LLM did not return valid JSON: {exc}"
-        ) from exc
-    if not isinstance(payload, dict):
-        raise LLMExtractorError(
-            "LLM JSON payload must be an object"
-        )
-    return payload
+    return parse_json_payload(raw, error_cls=LLMExtractorError)
 
 
 def _to_decimal(value: Any) -> Optional[Decimal]:
@@ -230,13 +197,15 @@ def _slice_source_context(
 
 
 def _build_result(
-    payload: dict[str, Any], raw: str, *, source_text: str = ""
+    payload: dict[str, Any],
+    raw: str,
+    *,
+    source_text: str = "",
+    source_method: SourceMethod = "llm",
 ) -> LLMExtractionResult:
     raw_txs = payload.get("transactions") or []
     if not isinstance(raw_txs, list):
-        raise LLMExtractorError(
-            "LLM 'transactions' field must be a list"
-        )
+        raise LLMExtractorError("LLM 'transactions' field must be a list")
 
     account_id = payload.get("account_id")
     currency = payload.get("currency")
@@ -255,47 +224,39 @@ def _build_result(
                 f"Transaction at index {index} missing amount"
             )
         description = item.get("description")
-        confidence = item.get("confidence")
-        if confidence is not None:
-            try:
-                confidence = float(confidence)
-            except (TypeError, ValueError) as exc:
-                raise LLMExtractorError(
-                    f"Invalid confidence at index {index}"
-                ) from exc
-
-        description_str = (
-            str(description) if description is not None else None
+        confidence = parse_confidence(
+            item.get("confidence"),
+            context=f" at index {index}",
+            error_cls=LLMExtractorError,
         )
+
+        description_str = str(description) if description is not None else None
         bbox = _parse_bbox(item.get("bbox"), index)
         transactions.append(
             Transaction(
-                account_id=str(account_id)
-                if account_id is not None
-                else None,
+                account_id=str(account_id) if account_id is not None else None,
                 currency=str(currency).upper()
                 if currency is not None
                 else None,
                 amount=amount,
                 booking_date=_safe_date(item.get("booking_date")),
-                value_date=_safe_date(item.get("booking_date")),
+                value_date=_safe_date(item.get("value_date")),
                 description=description_str,
-                normalized_description=normalize_description(
-                    description_str
-                ),
+                normalized_description=normalize_description(description_str),
                 reference=(
                     str(item.get("reference"))
                     if item.get("reference") is not None
                     else None
                 ),
-                source="llm",
+                source=source_method,
                 source_index=index,
-                source_method="llm",
+                source_method=source_method,
                 confidence=confidence,
                 raw_source_text=_slice_source_context(
                     description_str, source_text
                 ),
                 source_bbox=bbox,
+                source_page=bbox.page_index if bbox is not None else None,
             )
         )
 

@@ -46,20 +46,20 @@ def _row(amount: str, day: str, desc: str) -> Transaction:
 
 # Same statement, three integrity scenarios.
 HAPPY_PATH: list[Transaction] = [
-    _row("2500.00",  "2026-04-01", "Salary"),
+    _row("2500.00", "2026-04-01", "Salary"),
     _row("-1200.00", "2026-04-01", "Rent"),
-    _row("-89.50",   "2026-04-04", "British Gas"),
-    _row("-29.99",   "2026-04-05", "Amazon"),
-    _row("-3.85",    "2026-04-08", "Coffee"),
+    _row("-89.50", "2026-04-04", "British Gas"),
+    _row("-29.99", "2026-04-05", "Amazon"),
+    _row("-3.85", "2026-04-08", "Coffee"),
 ]
 
 # A row dropped in transcription — debits are 89.50 short.
 DROPPED_ROW: list[Transaction] = [
-    _row("2500.00",  "2026-04-01", "Salary"),
+    _row("2500.00", "2026-04-01", "Salary"),
     _row("-1200.00", "2026-04-01", "Rent"),
     # MISSING: British Gas 89.50
-    _row("-29.99",   "2026-04-05", "Amazon"),
-    _row("-3.85",    "2026-04-08", "Coffee"),
+    _row("-29.99", "2026-04-05", "Amazon"),
+    _row("-3.85", "2026-04-08", "Coffee"),
 ]
 
 

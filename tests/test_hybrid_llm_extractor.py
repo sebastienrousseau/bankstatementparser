@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from decimal import Decimal
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -24,11 +24,7 @@ from bankstatementparser.hybrid.prompts import build_messages
 
 
 def _fake_response(payload: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "choices": [
-            {"message": {"content": json.dumps(payload)}}
-        ]
-    }
+    return {"choices": [{"message": {"content": json.dumps(payload)}}]}
 
 
 VALID_PAYLOAD: dict[str, Any] = {
@@ -105,7 +101,7 @@ def test_extract_handles_object_style_response() -> None:
         message = _Msg()
 
     class _Resp:
-        choices = [_Choice()]
+        choices: ClassVar[list[Any]] = [_Choice()]
 
     extractor = LLMExtractor(completion_fn=lambda **_: _Resp())
     result = extractor.extract("statement")
@@ -151,9 +147,7 @@ def test_extract_completion_failure_wrapped() -> None:
 
 
 def test_extract_invalid_response_shape_raises() -> None:
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: {"unexpected": True}
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: {"unexpected": True})
     with pytest.raises(LLMExtractorError, match="response shape"):
         extractor.extract("statement")
 
@@ -190,31 +184,23 @@ def test_extract_non_object_payload_raises() -> None:
 
 def test_extract_transactions_must_be_list() -> None:
     bad = {"transactions": {"not": "a list"}}
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(bad)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(bad))
     with pytest.raises(LLMExtractorError, match="must be a list"):
         extractor.extract("statement")
 
 
 def test_extract_transaction_item_not_object_raises() -> None:
     bad = {"transactions": ["not an object"]}
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(bad)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(bad))
     with pytest.raises(LLMExtractorError, match="not an object"):
         extractor.extract("statement")
 
 
 def test_extract_transaction_missing_amount_raises() -> None:
     bad = {
-        "transactions": [
-            {"booking_date": "2026-04-01", "description": "x"}
-        ]
+        "transactions": [{"booking_date": "2026-04-01", "description": "x"}]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(bad)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(bad))
     with pytest.raises(LLMExtractorError, match="missing amount"):
         extractor.extract("statement")
 
@@ -229,9 +215,7 @@ def test_extract_invalid_amount_raises() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(bad)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(bad))
     with pytest.raises(LLMExtractorError, match="numeric"):
         extractor.extract("statement")
 
@@ -247,9 +231,7 @@ def test_extract_invalid_confidence_raises() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(bad)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(bad))
     with pytest.raises(LLMExtractorError, match="confidence"):
         extractor.extract("statement")
 
@@ -264,9 +246,7 @@ def test_extract_invalid_date_raises() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(bad)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(bad))
     with pytest.raises(LLMExtractorError, match="booking_date"):
         extractor.extract("statement")
 
@@ -276,9 +256,7 @@ def test_extract_invalid_balance_raises() -> None:
         "opening_balance": "abc",
         "transactions": [],
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(bad)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(bad))
     with pytest.raises(LLMExtractorError, match="numeric"):
         extractor.extract("statement")
 
@@ -312,9 +290,7 @@ def test_extract_populates_raw_source_text_when_description_found() -> None:
         "02/04/2026  SALARY                  100.00  595.00"
     )
 
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     result = extractor.extract(source)
     tx = result.transactions[0]
     assert tx.raw_source_text is not None
@@ -331,9 +307,7 @@ def test_extract_raw_source_text_none_when_no_match() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     result = extractor.extract("totally unrelated text")
     assert result.transactions[0].raw_source_text is None
 
@@ -360,6 +334,71 @@ def test_safe_date_handles_date_and_none() -> None:
     assert _safe_date("2026-04-01") == today
 
 
+# ---------------------------------------------------------------------------
+# value_date handling — regression for the v0.0.8 bug where value_date was
+# silently populated from booking_date even when the LLM never supplied one.
+# ---------------------------------------------------------------------------
+
+
+def test_extract_value_date_is_none_when_not_supplied() -> None:
+    """LLM payload without ``value_date`` must produce ``value_date is None``.
+
+    Earlier code copied ``booking_date`` into ``value_date`` whenever the
+    LLM omitted it, which silently corrupted downstream temporal-dedup
+    and value-date reconciliation. The honest answer is ``None``.
+    """
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "description": "Coffee",
+                "amount": -3.85,
+            }
+        ]
+    }
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
+    result = extractor.extract("statement")
+    tx = result.transactions[0]
+    assert tx.booking_date is not None
+    assert tx.value_date is None
+
+
+def test_extract_value_date_uses_supplied_value_when_distinct() -> None:
+    from datetime import date
+
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "value_date": "2026-04-03",
+                "description": "Outgoing wire",
+                "amount": -250.0,
+            }
+        ]
+    }
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
+    result = extractor.extract("statement")
+    tx = result.transactions[0]
+    assert tx.booking_date == date(2026, 4, 1)
+    assert tx.value_date == date(2026, 4, 3)
+
+
+def test_extract_value_date_null_is_treated_as_none() -> None:
+    payload = {
+        "transactions": [
+            {
+                "booking_date": "2026-04-01",
+                "value_date": None,
+                "description": "Card payment",
+                "amount": -10.0,
+            }
+        ]
+    }
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
+    result = extractor.extract("statement")
+    assert result.transactions[0].value_date is None
+
+
 def test_extract_accepts_null_booking_date() -> None:
     payload = {
         "transactions": [
@@ -370,9 +409,7 @@ def test_extract_accepts_null_booking_date() -> None:
             }
         ],
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     result = extractor.extract("statement")
     assert result.transactions[0].booking_date is None
 
@@ -406,9 +443,7 @@ def test_extract_populates_source_bbox_when_provided() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     result = extractor.extract("statement")
     bbox = result.transactions[0].source_bbox
     assert bbox is not None
@@ -434,9 +469,7 @@ def test_extract_accepts_explicit_page_index_in_bbox() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     result = extractor.extract("statement")
     assert result.transactions[0].source_bbox is not None
     assert result.transactions[0].source_bbox.page_index == 2
@@ -452,9 +485,7 @@ def test_extract_leaves_source_bbox_none_when_omitted() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     result = extractor.extract("statement")
     assert result.transactions[0].source_bbox is None
 
@@ -470,9 +501,7 @@ def test_extract_leaves_source_bbox_none_when_explicitly_null() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     result = extractor.extract("statement")
     assert result.transactions[0].source_bbox is None
 
@@ -488,9 +517,7 @@ def test_extract_rejects_non_object_bbox() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     with pytest.raises(LLMExtractorError, match="non-object bbox"):
         extractor.extract("statement")
 
@@ -506,9 +533,7 @@ def test_extract_rejects_bbox_missing_required_keys() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     with pytest.raises(LLMExtractorError, match="invalid bbox"):
         extractor.extract("statement")
 
@@ -524,9 +549,7 @@ def test_extract_rejects_inverted_bbox_x() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     with pytest.raises(LLMExtractorError, match="invalid bbox"):
         extractor.extract("statement")
 
@@ -542,9 +565,7 @@ def test_extract_rejects_inverted_bbox_y() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     with pytest.raises(LLMExtractorError, match="invalid bbox"):
         extractor.extract("statement")
 
@@ -560,8 +581,6 @@ def test_extract_rejects_bbox_out_of_range() -> None:
             }
         ]
     }
-    extractor = LLMExtractor(
-        completion_fn=lambda **_: _fake_response(payload)
-    )
+    extractor = LLMExtractor(completion_fn=lambda **_: _fake_response(payload))
     with pytest.raises(LLMExtractorError, match="invalid bbox"):
         extractor.extract("statement")

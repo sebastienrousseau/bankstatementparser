@@ -16,9 +16,11 @@
 """Bulk directory scanner for the hybrid pipeline.
 
 Scans an organized folder tree, runs :func:`smart_ingest` on every
-matching file, and deduplicates across the entire batch via
-:meth:`Deduplicator.dedupe_by_hash`. Designed for the common
-treasury pattern of ``statements/2026/04/*.pdf``.
+matching file, and deduplicates file-by-file via
+:meth:`Deduplicator.dedupe_by_hash` (each file is one batch, so
+repeats within a statement survive while overlapping exports are
+skipped). Designed for the common treasury pattern of
+``statements/2026/04/*.pdf``.
 
 Usage::
 
@@ -38,10 +40,23 @@ from typing import Optional, Union
 from ..transaction_deduplicator import Deduplicator
 from ..transaction_models import Transaction
 from .orchestrator import IngestResult, smart_ingest
+from .verification import (
+    ContinuityResult,
+    VerificationStatus,
+    verify_continuity,
+)
 
 logger = logging.getLogger(__name__)
 
 PathLike = Union[str, Path]
+
+
+@dataclass(frozen=True)
+class FileFailure:
+    """A file that could not be ingested during a scan."""
+
+    path: str
+    error: str
 
 
 @dataclass(frozen=True)
@@ -54,6 +69,16 @@ class ScanResult:
     file_count: int
     total_unique: int
     total_skipped: int
+    failures: tuple[FileFailure, ...] = ()
+    # Cross-statement continuity check (closing of N == opening of
+    # N+1) across the scanned files in sorted order. ``None`` when
+    # fewer than two files were ingested.
+    continuity: Optional[ContinuityResult] = None
+
+    @property
+    def failure_count(self) -> int:
+        """Number of files that failed to ingest."""
+        return len(self.failures)
 
 
 def scan_and_ingest(
@@ -86,8 +111,13 @@ def scan_and_ingest(
 
     if extensions is None:
         extensions = {
-            ".xml", ".csv", ".ofx", ".qfx",
-            ".mt940", ".sta", ".pdf",
+            ".xml",
+            ".csv",
+            ".ofx",
+            ".qfx",
+            ".mt940",
+            ".sta",
+            ".pdf",
         }
     if seen_hashes is None:
         seen_hashes = set()
@@ -98,22 +128,57 @@ def scan_and_ingest(
         if p.is_file() and p.suffix.lower() in extensions
     )
 
+    dedup = Deduplicator()
     all_results: list[IngestResult] = []
-    all_transactions: list[Transaction] = []
+    ingested_paths: list[str] = []
+    unique: list[Transaction] = []
+    skipped: list[str] = []
+    failures: list[FileFailure] = []
 
     for file_path in files:
         logger.info("Ingesting %s", file_path)
         try:
             result = smart_ingest(file_path)
-            all_results.append(result)
-            all_transactions.extend(result.transactions)
         except Exception as exc:
             logger.warning("Failed to ingest %s: %s", file_path, exc)
+            failures.append(FileFailure(path=str(file_path), error=str(exc)))
+            continue
+        all_results.append(result)
+        ingested_paths.append(str(file_path))
+        # Each file is its own dedup batch: genuine repeats within
+        # one statement survive, while a file that re-exports
+        # already-seen transactions is skipped.
+        file_unique, file_skipped = dedup.dedupe_by_hash(
+            result.transactions, seen_hashes=seen_hashes
+        )
+        unique.extend(file_unique)
+        skipped.extend(file_skipped)
 
-    dedup = Deduplicator()
-    unique, skipped = dedup.dedupe_by_hash(
-        all_transactions, seen_hashes=seen_hashes
-    )
+    if failures:
+        logger.warning(
+            "Scan finished with %d of %d files failed",
+            len(failures),
+            len(files),
+        )
+
+    continuity: Optional[ContinuityResult] = None
+    if len(all_results) >= 2:
+        continuity = verify_continuity(
+            [
+                (
+                    path,
+                    r.verification.opening_balance
+                    if r.verification is not None
+                    else None,
+                    r.verification.closing_balance
+                    if r.verification is not None
+                    else None,
+                )
+                for path, r in zip(ingested_paths, all_results, strict=True)
+            ]
+        )
+        if continuity.status is not VerificationStatus.VERIFIED:
+            logger.warning("Continuity check: %s", continuity.message)
 
     return ScanResult(
         results=tuple(all_results),
@@ -122,4 +187,6 @@ def scan_and_ingest(
         file_count=len(files),
         total_unique=len(unique),
         total_skipped=len(skipped),
+        failures=tuple(failures),
+        continuity=continuity,
     )

@@ -27,8 +27,8 @@ Covers:
 
 from __future__ import annotations
 
-import math
 import unittest
+from decimal import Decimal
 from typing import Any
 
 from hypothesis import HealthCheck, assume, given, settings
@@ -37,6 +37,7 @@ from lxml import etree
 
 from bankstatementparser.additional_parsers import _parse_amount
 from bankstatementparser.camt_parser import CamtParser
+from bankstatementparser.exceptions import ParserError
 from bankstatementparser.input_validator import (
     InputValidator,
     ValidationError,
@@ -109,9 +110,7 @@ def _build_ntry_xml(
         ind.text = cdt_dbt
 
     if debtor is not None:
-        dbtr = etree.SubElement(
-            etree.SubElement(root, "TxDtls"), "Dbtr"
-        )
+        dbtr = etree.SubElement(etree.SubElement(root, "TxDtls"), "Dbtr")
         nm = etree.SubElement(dbtr, "Nm")
         nm.text = debtor
         if debtor_addr is not None:
@@ -161,12 +160,12 @@ class TestParseAmountProperties(unittest.TestCase):
 
     @given(text=_amount_text)
     @settings(max_examples=500)
-    def test_valid_number_strings_return_float(self, text: str) -> None:
-        """Valid numeric strings always produce a finite float."""
+    def test_valid_number_strings_return_decimal(self, text: str) -> None:
+        """Valid numeric strings always produce a finite Decimal."""
         result = _parse_amount(text)
         self.assertIsNotNone(result)
-        self.assertIsInstance(result, float)
-        self.assertTrue(math.isfinite(result))
+        self.assertIsInstance(result, Decimal)
+        self.assertTrue(result.is_finite())
 
     @given(value=st.one_of(st.none(), st.just(float("nan"))))
     def test_none_and_nan_return_none(self, value: Any) -> None:
@@ -194,36 +193,28 @@ class TestParseAmountProperties(unittest.TestCase):
         whole=st.integers(min_value=0, max_value=999_999_999),
         frac=st.integers(min_value=0, max_value=99),
     )
-    def test_roundtrip_us_format(
-        self, whole: int, frac: int
-    ) -> None:
-        """US format '12345.67' round-trips to the expected float."""
+    def test_roundtrip_us_format(self, whole: int, frac: int) -> None:
+        """US format '12345.67' round-trips to the expected Decimal."""
         text = f"{whole}.{frac:02d}"
         result = _parse_amount(text)
-        expected = float(text)
-        self.assertAlmostEqual(result, expected, places=2)
+        self.assertEqual(result, Decimal(text))
 
     @given(
         whole=st.integers(min_value=0, max_value=999_999),
         frac=st.integers(min_value=0, max_value=99),
     )
-    def test_european_comma_decimal(
-        self, whole: int, frac: int
-    ) -> None:
+    def test_european_comma_decimal(self, whole: int, frac: int) -> None:
         """European '1234,56' parses to 1234.56."""
         text = f"{whole},{frac:02d}"
         result = _parse_amount(text)
-        expected = whole + frac / 100.0
-        self.assertAlmostEqual(result, expected, places=2)
+        self.assertEqual(result, Decimal(f"{whole}.{frac:02d}"))
 
     @given(text=_garbage_text)
     @settings(max_examples=300)
     def test_never_raises(self, text: str) -> None:
-        """_parse_amount never raises — always returns float or None."""
+        """_parse_amount never raises — always returns Decimal or None."""
         result = _parse_amount(text)
-        self.assertTrue(
-            result is None or isinstance(result, float)
-        )
+        self.assertTrue(result is None or isinstance(result, Decimal))
 
 
 # -------------------------------------------------------------------
@@ -295,7 +286,7 @@ class TestValidateXmlContentProperties(unittest.TestCase):
             f"<Stmt>{safe_body}</Stmt>"
             "</Document>"
         )
-        xml_bytes, source = self.validator.validate_xml_content(
+        xml_bytes, _source = self.validator.validate_xml_content(
             xml.encode("utf-8")
         )
         self.assertIsInstance(xml_bytes, bytes)
@@ -351,9 +342,7 @@ class TestValidateXmlContentProperties(unittest.TestCase):
             '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">'
             "<Stmt>x</Stmt></Document>"
         )
-        _, source = self.validator.validate_xml_content(
-            xml, source_name=name
-        )
+        _, source = self.validator.validate_xml_content(xml, source_name=name)
         self.assertIsInstance(source, str)
         # No control characters in sanitized name
         for ch in source:
@@ -428,6 +417,20 @@ class TestParseStreamingTransactionProperties(unittest.TestCase):
             val_date=val_date,
             booking_date=booking_date,
         )
+        if amount is None:
+            with self.assertRaises(ValueError):
+                self.parser._parse_streaming_transaction(
+                    elem, "ACCT001", redact_pii=redact_pii
+                )
+            return
+        if currency is None:
+            # No entry-level Ccy and no statement fallback supplied —
+            # the parser must refuse rather than default silently.
+            with self.assertRaises(ParserError):
+                self.parser._parse_streaming_transaction(
+                    elem, "ACCT001", redact_pii=redact_pii
+                )
+            return
         result = self.parser._parse_streaming_transaction(
             elem, "ACCT001", redact_pii=redact_pii
         )
@@ -448,8 +451,8 @@ class TestParseStreamingTransactionProperties(unittest.TestCase):
             self.assertIn(key, result)
 
         self.assertEqual(result["AccountId"], "ACCT001")
-        self.assertIsInstance(result["Amount"], float)
-        self.assertTrue(math.isfinite(result["Amount"]))
+        self.assertIsInstance(result["Amount"], Decimal)
+        self.assertTrue(result["Amount"].is_finite())
 
     @given(
         amount=st.floats(
@@ -462,12 +465,8 @@ class TestParseStreamingTransactionProperties(unittest.TestCase):
     @settings(max_examples=200)
     def test_debit_negates_amount(self, amount: str) -> None:
         """DBIT indicator produces a negative Amount."""
-        elem = _build_ntry_xml(
-            amount=amount, currency="EUR", cdt_dbt="DBIT"
-        )
-        result = self.parser._parse_streaming_transaction(
-            elem, "X"
-        )
+        elem = _build_ntry_xml(amount=amount, currency="EUR", cdt_dbt="DBIT")
+        result = self.parser._parse_streaming_transaction(elem, "X")
         self.assertLessEqual(result["Amount"], 0.0)
 
     @given(
@@ -481,18 +480,12 @@ class TestParseStreamingTransactionProperties(unittest.TestCase):
     @settings(max_examples=200)
     def test_credit_preserves_amount(self, amount: str) -> None:
         """CRDT indicator preserves positive Amount."""
-        elem = _build_ntry_xml(
-            amount=amount, currency="EUR", cdt_dbt="CRDT"
-        )
-        result = self.parser._parse_streaming_transaction(
-            elem, "X"
-        )
+        elem = _build_ntry_xml(amount=amount, currency="EUR", cdt_dbt="CRDT")
+        result = self.parser._parse_streaming_transaction(elem, "X")
         self.assertGreaterEqual(result["Amount"], 0.0)
 
     @given(
-        debtor_addr=st.text(
-            alphabet=_xml_safe_chars, min_size=1, max_size=50
-        ),
+        debtor_addr=st.text(alphabet=_xml_safe_chars, min_size=1, max_size=50),
         creditor_addr=st.text(
             alphabet=_xml_safe_chars, min_size=1, max_size=50
         ),
@@ -515,25 +508,15 @@ class TestParseStreamingTransactionProperties(unittest.TestCase):
             elem, "X", redact_pii=True
         )
         if "DebtorAddress" in result:
-            self.assertEqual(
-                result["DebtorAddress"], "***REDACTED***"
-            )
+            self.assertEqual(result["DebtorAddress"], "***REDACTED***")
         if "CreditorAddress" in result:
-            self.assertEqual(
-                result["CreditorAddress"], "***REDACTED***"
-            )
+            self.assertEqual(result["CreditorAddress"], "***REDACTED***")
 
-    def test_empty_element_returns_defaults(self) -> None:
-        """Completely empty <Ntry> returns zero-value defaults."""
+    def test_empty_element_raises(self) -> None:
+        """Completely empty <Ntry> raises — no silent 0.0 amounts."""
         elem = etree.Element("Ntry")
-        result = self.parser._parse_streaming_transaction(
-            elem, "X"
-        )
-        self.assertEqual(result["Amount"], 0.0)
-        self.assertEqual(result["Currency"], "")
-        self.assertEqual(result["DrCr"], "")
-        self.assertEqual(result["Debtor"], "")
-        self.assertEqual(result["Creditor"], "")
+        with self.assertRaises(ValueError):
+            self.parser._parse_streaming_transaction(elem, "X")
 
 
 if __name__ == "__main__":

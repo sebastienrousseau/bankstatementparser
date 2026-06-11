@@ -125,12 +125,8 @@ def to_beancount(
             if tx.booking_date is not None
             else "1970-01-01"
         )
-        payee = _escape_beancount_string(
-            tx.counterparty or ""
-        )
-        narration = _escape_beancount_string(
-            tx.description or "Unknown"
-        )
+        payee = _escape_beancount_string(tx.counterparty or "")
+        narration = _escape_beancount_string(tx.description or "Unknown")
         currency = tx.currency or default_currency
         amount = format(tx.amount.normalize(), "f")
         neg_amount = format((-tx.amount).normalize(), "f")
@@ -145,9 +141,7 @@ def to_beancount(
     return "\n".join(lines)
 
 
-def _resolve_contra(
-    tx: Transaction, default: str
-) -> str:
+def _resolve_contra(tx: Transaction, default: str) -> str:
     """Use the enrichment category as contra-account if available."""
     category = tx.category
     if category:

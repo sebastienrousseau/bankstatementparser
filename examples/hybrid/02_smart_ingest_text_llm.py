@@ -70,22 +70,86 @@ def _mock_completion(**kwargs: Any) -> dict[str, Any]:
         "opening_balance": "1500.00",
         "closing_balance": "2621.59",
         "transactions": [
-            {"booking_date": "2026-04-01", "description": "SALARY ACME CORP",                 "amount": 2500.00, "reference": None,        "confidence": 0.99},
-            {"booking_date": "2026-04-01", "description": "STANDING ORDER RENT",              "amount": -1200.00, "reference": "SO-RENT",  "confidence": 0.99},
-            {"booking_date": "2026-04-02", "description": "CARD PAYMENT 12:49 COFFEE SHOP",   "amount": -3.85,    "reference": None,        "confidence": 0.95},
-            {"booking_date": "2026-04-02", "description": "AMZN MKTPLACE 2026-04-02 #A1B2C3", "amount": -29.99,   "reference": "A1B2C3",    "confidence": 0.97},
-            {"booking_date": "2026-04-03", "description": "CONTACTLESS TFL TRAVEL",            "amount": -7.40,    "reference": None,        "confidence": 0.96},
-            {"booking_date": "2026-04-03", "description": "REFUND ZARA RETURNS",               "amount": 39.95,    "reference": "RFD-001",   "confidence": 0.94},
-            {"booking_date": "2026-04-04", "description": "DIRECT DEBIT BRITISH GAS",         "amount": -89.50,   "reference": "DD-GAS",    "confidence": 0.98},
-            {"booking_date": "2026-04-05", "description": "AMZN MKTPLACE 2026-04-05 #Z9Y8X7", "amount": -29.99,   "reference": "Z9Y8X7",    "confidence": 0.97},
-            {"booking_date": "2026-04-06", "description": "CARD PAYMENT 19:02 SAINSBURYS",    "amount": -54.20,   "reference": None,        "confidence": 0.96},
-            {"booking_date": "2026-04-07", "description": "INTEREST PAID",                     "amount": 0.42,     "reference": None,        "confidence": 0.99},
-            {"booking_date": "2026-04-08", "description": "CARD PAYMENT 08:15 COFFEE SHOP",   "amount": -3.85,    "reference": None,        "confidence": 0.95},
+            {
+                "booking_date": "2026-04-01",
+                "description": "SALARY ACME CORP",
+                "amount": 2500.00,
+                "reference": None,
+                "confidence": 0.99,
+            },
+            {
+                "booking_date": "2026-04-01",
+                "description": "STANDING ORDER RENT",
+                "amount": -1200.00,
+                "reference": "SO-RENT",
+                "confidence": 0.99,
+            },
+            {
+                "booking_date": "2026-04-02",
+                "description": "CARD PAYMENT 12:49 COFFEE SHOP",
+                "amount": -3.85,
+                "reference": None,
+                "confidence": 0.95,
+            },
+            {
+                "booking_date": "2026-04-02",
+                "description": "AMZN MKTPLACE 2026-04-02 #A1B2C3",
+                "amount": -29.99,
+                "reference": "A1B2C3",
+                "confidence": 0.97,
+            },
+            {
+                "booking_date": "2026-04-03",
+                "description": "CONTACTLESS TFL TRAVEL",
+                "amount": -7.40,
+                "reference": None,
+                "confidence": 0.96,
+            },
+            {
+                "booking_date": "2026-04-03",
+                "description": "REFUND ZARA RETURNS",
+                "amount": 39.95,
+                "reference": "RFD-001",
+                "confidence": 0.94,
+            },
+            {
+                "booking_date": "2026-04-04",
+                "description": "DIRECT DEBIT BRITISH GAS",
+                "amount": -89.50,
+                "reference": "DD-GAS",
+                "confidence": 0.98,
+            },
+            {
+                "booking_date": "2026-04-05",
+                "description": "AMZN MKTPLACE 2026-04-05 #Z9Y8X7",
+                "amount": -29.99,
+                "reference": "Z9Y8X7",
+                "confidence": 0.97,
+            },
+            {
+                "booking_date": "2026-04-06",
+                "description": "CARD PAYMENT 19:02 SAINSBURYS",
+                "amount": -54.20,
+                "reference": None,
+                "confidence": 0.96,
+            },
+            {
+                "booking_date": "2026-04-07",
+                "description": "INTEREST PAID",
+                "amount": 0.42,
+                "reference": None,
+                "confidence": 0.99,
+            },
+            {
+                "booking_date": "2026-04-08",
+                "description": "CARD PAYMENT 08:15 COFFEE SHOP",
+                "amount": -3.85,
+                "reference": None,
+                "confidence": 0.95,
+            },
         ],
     }
-    return {
-        "choices": [{"message": {"content": json.dumps(payload)}}]
-    }
+    return {"choices": [{"message": {"content": json.dumps(payload)}}]}
 
 
 def main() -> int:
@@ -110,7 +174,9 @@ def main() -> int:
     print()
 
     extractor = (
-        LLMExtractor() if live else LLMExtractor(completion_fn=_mock_completion)
+        LLMExtractor()
+        if live
+        else LLMExtractor(completion_fn=_mock_completion)
     )
 
     result = smart_ingest(SAMPLE_PDF, extractor=extractor)
@@ -136,7 +202,7 @@ def main() -> int:
         booking = tx.booking_date.isoformat() if tx.booking_date else ""
         conf = f"{tx.confidence:.2f}" if tx.confidence is not None else ""
         print(
-            f"  {booking:<10}  {str(tx.amount):>10}  {conf:>5}  "
+            f"  {booking:<10}  {tx.amount!s:>10}  {conf:>5}  "
             f"{(tx.description or '')[:40]}"
         )
     print()

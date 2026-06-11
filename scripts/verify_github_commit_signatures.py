@@ -74,9 +74,7 @@ def commits_for_initial_push(
         if not sha:
             continue
         commits.append(
-            github_get_json(
-                f"{API_ROOT}/repos/{repo}/commits/{sha}", token
-            )
+            github_get_json(f"{API_ROOT}/repos/{repo}/commits/{sha}", token)
         )
 
     if commits:
@@ -84,9 +82,7 @@ def commits_for_initial_push(
 
     head_sha = cast(str, event["after"])
     return [
-        github_get_json(
-            f"{API_ROOT}/repos/{repo}/commits/{head_sha}", token
-        )
+        github_get_json(f"{API_ROOT}/repos/{repo}/commits/{head_sha}", token)
     ]
 
 
@@ -135,9 +131,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Verify that all commits in the current GitHub event are signed."
     )
-    parser.add_argument(
-        "--repo", default=os.environ.get("GITHUB_REPOSITORY")
-    )
+    parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY"))
     parser.add_argument("--base-sha")
     parser.add_argument("--head-sha")
     parser.add_argument(
@@ -148,9 +142,7 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path(os.environ.get("GITHUB_EVENT_PATH", "")),
     )
-    parser.add_argument(
-        "--token", default=os.environ.get("GITHUB_TOKEN")
-    )
+    parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN"))
     return parser.parse_args()
 
 
@@ -166,9 +158,7 @@ def main() -> int:
     if args.base_sha and args.head_sha:
         base_sha = args.base_sha
         head_sha = args.head_sha
-        commits = compare_commits(
-            args.repo, base_sha, head_sha, args.token
-        )
+        commits = compare_commits(args.repo, base_sha, head_sha, args.token)
     else:
         if not args.event_name or not args.event_path.exists():
             print(

@@ -13,18 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module provides a command line interface for parsing bank statement
-files in various formats. Currently, it supports CAMT (ISO 20022) format, with
-potential to extend support to other formats.
+"""Command line interface for parsing bank statement files.
+
+Currently supports CAMT (ISO 20022) format, with potential to extend
+support to other formats.
 """
 
 import argparse
 import logging
 import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -39,8 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 def setup_logging(level: int = logging.INFO) -> None:
-    """
-    Configure logging for the CLI application.
+    """Configure logging for the CLI application.
 
     Args:
         level (int): Logging level (default: INFO)
@@ -60,50 +60,8 @@ class BankStatementCLI:
         self.parser = self.setup_arg_parser()
         self.validator = InputValidator()
 
-    def _sanitize_file_path(self, file_path: str) -> str:
-        """
-        Sanitize and validate file path for security.
-
-        Args:
-            file_path (str): Input file path to sanitize.
-
-        Returns:
-            str: Sanitized absolute path.
-
-        Raises:
-            ValidationError: If path is invalid or potentially dangerous.
-        """
-        # Check for None or empty path
-        if file_path is None:
-            raise ValueError("File path cannot be None")
-
-        # Convert to absolute path to prevent directory traversal
-        abs_path = os.path.abspath(file_path)
-
-        # Get the common path with current working directory to prevent escaping
-        cwd = os.path.abspath(os.getcwd())
-        try:
-            common_path = os.path.commonpath([abs_path, cwd])
-            # Allow paths under current working directory or use system temp directory
-            import tempfile
-
-            system_temp = os.path.abspath(tempfile.gettempdir())
-            if not (
-                common_path == cwd or abs_path.startswith(system_temp)
-            ):
-                # For production, you might want to be more restrictive
-                logger.info(
-                    f"Path outside working directory: {file_path}"
-                )
-        except ValueError:
-            # Different drives on Windows or other path issues
-            logger.warning(f"Path validation warning for: {file_path}")
-
-        return abs_path
-
     def _redact_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Redact sensitive PII columns in a DataFrame.
+        """Redact sensitive PII columns in a DataFrame.
 
         Args:
             df (pd.DataFrame): Original DataFrame containing potentially sensitive data.
@@ -128,8 +86,7 @@ class BankStatementCLI:
         return redacted_df
 
     def setup_arg_parser(self) -> argparse.ArgumentParser:
-        """
-        Set up the command line argument parser.
+        """Set up the command line argument parser.
 
         Returns:
             argparse.ArgumentParser: The configured argument parser.
@@ -146,7 +103,7 @@ class BankStatementCLI:
                 'Type of operation: "camt"/"pain001" for direct '
                 'parsing, "ingest" for the hybrid pipeline, or '
                 '"review" to walk through a saved IngestResult JSON '
-                'and resolve discrepancies.'
+                "and resolve discrepancies."
             ),
         )
         parser.add_argument(
@@ -184,6 +141,18 @@ class BankStatementCLI:
             action="store_true",
             help="Use streaming XML parsing to keep memory usage under 50MB for large files (default: False).",
         )
+        parser.add_argument(
+            "--review-below",
+            type=float,
+            required=False,
+            default=None,
+            metavar="THRESHOLD",
+            help=(
+                "With --type review: also walk through rows whose "
+                "extraction confidence is below THRESHOLD (0.0-1.0), "
+                "even when statement-level verification passed."
+            ),
+        )
         return parser
 
     def parse_camt(
@@ -193,135 +162,35 @@ class BankStatementCLI:
         show_pii: bool = False,
         streaming: bool = False,
     ) -> None:
-        """
-        Parse a CAMT format bank statement file and print or save the results.
+        """Parse a CAMT format bank statement file and print or save the results.
 
         Args:
             file_path (Path): Validated path to the CAMT file.
-            output_path (Path, optional): Validated path to save the parsed data.
-            If None, data is printed to console.
+            output_path (Path, optional): Validated path to save the
+                parsed data. If None, data is printed to console.
             show_pii (bool): Whether to display unredacted PII data.
             streaming (bool): Whether to use streaming parsing for large files.
         """
-        try:
-            parser = CamtParser(str(file_path))
 
-            if streaming:
-                # Use streaming parsing to process transactions incrementally
-                transactions = []
-                transaction_count = 0
+        def get_camt_stats(parser: Any) -> list[dict[str, Any]]:
+            data = parser.get_statement_stats()
+            if isinstance(data, pd.DataFrame):
+                # list(DataFrame) would yield column names, not rows
+                return [dict(row) for row in data.to_dict(orient="records")]
+            if isinstance(data, dict):
+                return [data]
+            return list(data)
 
-                if output_path:
-                    # For output file, use atomic write operation with temp file
-                    safe_name = self.validator.get_safe_filename(
-                        output_path.name
-                    )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
-                    temp_output = f"{safe_output_path}.tmp"
-
-                    with open(temp_output, "w", encoding="utf-8") as f:
-                        # Write CSV header
-                        header_written = False
-
-                        for transaction_data in parser.parse_streaming(
-                            redact_pii=not show_pii
-                        ):
-                            transaction_count += 1
-
-                            # Convert to DataFrame for consistent formatting
-                            tx_df = pd.DataFrame([transaction_data])
-
-                            if not header_written:
-                                # Write header on first transaction
-                                tx_df.to_csv(f, index=False, mode="w")
-                                header_written = True
-                            else:
-                                # Write data without header
-                                tx_df.to_csv(
-                                    f,
-                                    index=False,
-                                    mode="a",
-                                    header=False,
-                                )
-
-                    # Atomically move temp file to final location
-                    os.replace(temp_output, safe_output_path)
-                    print(
-                        f"Parsed {transaction_count} transactions in streaming mode, saved to {safe_output_path}"
-                    )
-
-                else:
-                    # For console output, collect a reasonable number of transactions
-                    max_console_transactions = 100
-
-                    for transaction_data in parser.parse_streaming(
-                        redact_pii=not show_pii
-                    ):
-                        transactions.append(transaction_data)
-                        transaction_count += 1
-
-                        # Limit console output to prevent overwhelming display
-                        if (
-                            transaction_count
-                            >= max_console_transactions
-                        ):
-                            break
-
-                    data_df = pd.DataFrame(transactions)
-
-                    if show_pii:
-                        print("WARNING: Displaying unredacted PII data")
-                        print(data_df)
-                    else:
-                        redacted_df = self._redact_dataframe(data_df)
-                        print(redacted_df)
-
-                    if transaction_count >= max_console_transactions:
-                        print(
-                            f"\n... (showing first {max_console_transactions} transactions in streaming mode)"
-                        )
-
-            else:
-                # Use traditional parsing
-                data = parser.get_statement_stats()
-
-                if isinstance(data, dict):
-                    data = [data]
-
-                data_df = pd.DataFrame(data)
-
-                if output_path:
-                    # Use safe filename for output
-                    safe_name = self.validator.get_safe_filename(
-                        output_path.name
-                    )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
-                    data_df.to_csv(safe_output_path, index=False)
-                    print(f"Parsed data saved to {safe_output_path}")
-                else:
-                    if show_pii:
-                        print("WARNING: Displaying unredacted PII data")
-                        print(data_df)
-                    else:
-                        redacted_df = self._redact_dataframe(data_df)
-                        print(redacted_df)
-
-        except FileNotFoundError as e:
-            logger.error(f"File not found: {e}")
-            print(f"Error: Input file not found - {str(e)}")
-            sys.exit(1)
-        except ValidationError as e:
-            logger.error(f"Validation error: {e}")
-            print(f"Error: Invalid input - {str(e)}")
-            sys.exit(1)
-        except Exception as e:
-            logger.error(f"Unexpected error during CAMT parsing: {e}")
-            print(f"Error: Failed to parse CAMT file - {str(e)}")
-            sys.exit(1)
+        self._parse_statement_file(
+            file_path,
+            output_path,
+            show_pii,
+            streaming,
+            parser_factory=CamtParser,
+            get_data=get_camt_stats,
+            noun="transactions",
+            format_label="CAMT",
+        )
 
     def parse_pain(
         self,
@@ -330,57 +199,86 @@ class BankStatementCLI:
         show_pii: bool = False,
         streaming: bool = False,
     ) -> None:
-        """
-        Parse a PAIN.001 format bank statement file and print or save the
-        results.
+        """Parse a PAIN.001 file and print or save the results.
 
         Args:
             file_path (Path): Validated path to the PAIN.001 file.
-            output_path (Path, optional): Validated path to save the parsed data.
-            If None, data is printed to console.
+            output_path (Path, optional): Validated path to save the
+                parsed data. If None, data is printed to console.
             show_pii (bool): Whether to display unredacted PII data.
             streaming (bool): Whether to use streaming parsing for large files.
         """
+        self._parse_statement_file(
+            file_path,
+            output_path,
+            show_pii,
+            streaming,
+            parser_factory=Pain001Parser,
+            get_data=lambda parser: parser.parse(),
+            noun="payments",
+            format_label="PAIN.001",
+        )
+
+    def _parse_statement_file(
+        self,
+        file_path: Path,
+        output_path: Optional[Path],
+        show_pii: bool,
+        streaming: bool,
+        *,
+        parser_factory: Callable[[str], Any],
+        get_data: Callable[[Any], Any],
+        noun: str,
+        format_label: str,
+    ) -> None:
+        """Shared CAMT/PAIN.001 parse-and-output flow.
+
+        Args:
+            file_path: Validated path to the statement file.
+            output_path: Validated path to save the parsed data, or None
+                to print to console.
+            show_pii: Whether to display unredacted PII data.
+            streaming: Whether to use streaming parsing for large files.
+            parser_factory: Builds the parser from the file path.
+            get_data: Returns non-streaming records from the parser.
+            noun: Record noun for user-facing messages.
+            format_label: Format name for error messages.
+        """
         try:
-            # Instantiate the PAIN.001 parser
-            parser = Pain001Parser(str(file_path))
+            parser = parser_factory(str(file_path))
 
             if streaming:
-                # Use streaming parsing to process payments incrementally
-                payments = []
-                payment_count = 0
+                # Process records incrementally to bound memory usage
+                records = []
+                record_count = 0
 
                 if output_path:
                     # For output file, use atomic write operation with temp file
                     safe_name = self.validator.get_safe_filename(
                         output_path.name
                     )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
+                    safe_output_path = str(output_path.parent / safe_name)
                     temp_output = f"{safe_output_path}.tmp"
 
                     with open(temp_output, "w", encoding="utf-8") as f:
                         # Write CSV header
                         header_written = False
 
-                        for payment_data in parser.parse_streaming(
+                        for record_data in parser.parse_streaming(
                             redact_pii=not show_pii
                         ):
-                            payment_count += 1
+                            record_count += 1
 
                             # Convert to DataFrame for consistent formatting
-                            payment_df = pd.DataFrame([payment_data])
+                            record_df = pd.DataFrame([record_data])
 
                             if not header_written:
-                                # Write header on first payment
-                                payment_df.to_csv(
-                                    f, index=False, mode="w"
-                                )
+                                # Write header on first record
+                                record_df.to_csv(f, index=False, mode="w")
                                 header_written = True
                             else:
                                 # Write data without header
-                                payment_df.to_csv(
+                                record_df.to_csv(
                                     f,
                                     index=False,
                                     mode="a",
@@ -390,24 +288,24 @@ class BankStatementCLI:
                     # Atomically move temp file to final location
                     os.replace(temp_output, safe_output_path)
                     print(
-                        f"Parsed {payment_count} payments in streaming mode, saved to {safe_output_path}"
+                        f"Parsed {record_count} {noun} in streaming mode, saved to {safe_output_path}"
                     )
 
                 else:
-                    # For console output, collect a reasonable number of payments
-                    max_console_payments = 100
+                    # For console output, collect a reasonable number of records
+                    max_console_records = 100
 
-                    for payment_data in parser.parse_streaming(
+                    for record_data in parser.parse_streaming(
                         redact_pii=not show_pii
                     ):
-                        payments.append(payment_data)
-                        payment_count += 1
+                        records.append(record_data)
+                        record_count += 1
 
                         # Limit console output to prevent overwhelming display
-                        if payment_count >= max_console_payments:
+                        if record_count >= max_console_records:
                             break
 
-                    data_df = pd.DataFrame(payments)
+                    data_df = pd.DataFrame(records)
 
                     if show_pii:
                         print("WARNING: Displaying unredacted PII data")
@@ -416,24 +314,21 @@ class BankStatementCLI:
                         redacted_df = self._redact_dataframe(data_df)
                         print(redacted_df)
 
-                    if payment_count >= max_console_payments:
+                    if record_count >= max_console_records:
                         print(
-                            f"\n... (showing first {max_console_payments} payments in streaming mode)"
+                            f"\n... (showing first {max_console_records} {noun} in streaming mode)"
                         )
 
             else:
                 # Use traditional parsing
-                parsed_data = parser.parse()
-                data_df = pd.DataFrame(parsed_data)
+                data_df = pd.DataFrame(get_data(parser))
 
                 if output_path:
                     # Use safe filename for output
                     safe_name = self.validator.get_safe_filename(
                         output_path.name
                     )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
+                    safe_output_path = str(output_path.parent / safe_name)
                     data_df.to_csv(safe_output_path, index=False)
                     print(f"Parsed data saved to {safe_output_path}")
                 else:
@@ -446,17 +341,17 @@ class BankStatementCLI:
 
         except FileNotFoundError as e:
             logger.error(f"File not found: {e}")
-            print(f"Error: Input file not found - {str(e)}")
+            print(f"Error: Input file not found - {e!s}")
             sys.exit(1)
         except ValidationError as e:
             logger.error(f"Validation error: {e}")
-            print(f"Error: Invalid input - {str(e)}")
+            print(f"Error: Invalid input - {e!s}")
             sys.exit(1)
         except Exception as e:
             logger.error(
-                f"Unexpected error during PAIN.001 parsing: {e}"
+                f"Unexpected error during {format_label} parsing: {e}"
             )
-            print(f"Error: Failed to parse PAIN.001 file - {str(e)}")
+            print(f"Error: Failed to parse {format_label} file - {e!s}")
             sys.exit(1)
 
     def run_ingest(
@@ -504,6 +399,9 @@ class BankStatementCLI:
             {
                 "transaction_hash": tx.transaction_hash,
                 "source_method": tx.source_method,
+                "source_page": tx.source_page
+                if tx.source_page is not None
+                else "",
                 "booking_date": tx.booking_date.isoformat()
                 if tx.booking_date
                 else "",
@@ -520,9 +418,7 @@ class BankStatementCLI:
         df = pd.DataFrame(rows)
 
         if output_path:
-            safe_name = self.validator.get_safe_filename(
-                output_path.name
-            )
+            safe_name = self.validator.get_safe_filename(output_path.name)
             safe_output_path = str(output_path.parent / safe_name)
             df.to_csv(safe_output_path, index=False)
             print(
@@ -538,9 +434,7 @@ class BankStatementCLI:
 
         if result.verification is not None:
             v = result.verification
-            print(
-                f"\nVerification: {v.status.value.upper()} - {v.message}"
-            )
+            print(f"\nVerification: {v.status.value.upper()} - {v.message}")
         for warning in result.warnings:
             print(f"Warning: {warning}")
 
@@ -548,16 +442,20 @@ class BankStatementCLI:
         self,
         file_path: Path,
         output_path: Optional[Path] = None,
+        review_below: Optional[float] = None,
     ) -> None:
         """Walk through a saved IngestResult JSON and resolve discrepancies.
 
         Reads the file produced by ``--type ingest --output ...``
         (when that file is JSON) or any other source that emits an
         :class:`~bankstatementparser.hybrid.IngestResult` via its
-        ``to_json()`` method. For every transaction whose status is
+        ``to_json()`` method. When the statement-level status is
         :class:`VerificationStatus.DISCREPANCY` or
-        :class:`VerificationStatus.FAILED`, the operator is prompted
-        with a single-character action menu:
+        :class:`VerificationStatus.FAILED`, every transaction is
+        reviewed. Independently, ``review_below`` routes individual
+        low-confidence rows into the same flow even when the
+        statement verified cleanly. The operator is prompted with a
+        single-character action menu:
 
         * ``a`` accept the row as-is
         * ``e`` edit the description and amount
@@ -567,7 +465,17 @@ class BankStatementCLI:
 
         Every action is recorded in the ``audit_trail`` field of
         the saved result, so the audit history is preserved across
-        review sessions.
+        review sessions. After the walk, the Golden Rule is re-run
+        on the kept rows so edits and deletions are reflected in
+        the saved verification verdict.
+
+        Args:
+            file_path: Validated path to the IngestResult JSON.
+            output_path: Optional destination; defaults to
+                rewriting ``file_path`` in place.
+            review_below: Optional confidence threshold (0.0-1.0).
+                Rows with ``confidence`` below this value are
+                reviewed even when verification passed.
 
         The CLI is non-curses (plain stdin/stdout) so it works on
         any terminal and is straightforward to mock in CI.
@@ -576,6 +484,7 @@ class BankStatementCLI:
             from bankstatementparser.hybrid import (
                 IngestResult,
                 VerificationStatus,
+                verify_transactions,
             )
         except ImportError as exc:
             print(
@@ -596,17 +505,41 @@ class BankStatementCLI:
             return  # pragma: no cover
 
         v = result.verification
-        if v is None or v.status is VerificationStatus.VERIFIED:
-            print(
-                "Verification status is "
-                f"{v.status.value.upper() if v else 'absent'}"
-                " — nothing to review."
-            )
+        review_all = v is not None and v.status is not (
+            VerificationStatus.VERIFIED
+        )
+        low_confidence = (
+            {
+                index
+                for index, tx in enumerate(result.transactions)
+                if tx.confidence is not None and tx.confidence < review_below
+            }
+            if review_below is not None
+            else set()
+        )
+
+        if not review_all and not low_confidence:
+            status_label = v.status.value.upper() if v else "absent"
+            if review_below is not None:
+                print(
+                    f"Verification status is {status_label} and no rows "
+                    f"are below confidence {review_below:.2f} — nothing "
+                    "to review."
+                )
+            else:
+                print(
+                    f"Verification status is {status_label}"
+                    " — nothing to review."
+                )
             return
 
-        print(
-            f"Verification: {v.status.value.upper()} - {v.message}"
-        )
+        if v is not None:
+            print(f"Verification: {v.status.value.upper()} - {v.message}")
+        if not review_all:
+            print(
+                f"Reviewing {len(low_confidence)} rows below "
+                f"confidence {review_below:.2f}."
+            )
         print(f"Loaded {len(result.transactions)} transactions.")
         print()
 
@@ -614,6 +547,9 @@ class BankStatementCLI:
         audit: list[dict[str, object]] = list(result.audit_trail)
 
         for index, tx in enumerate(result.transactions):
+            if not review_all and index not in low_confidence:
+                kept.append(tx)
+                continue
             self._render_review_row(index, len(result.transactions), tx)
             action = self._prompt_review_action()
 
@@ -631,14 +567,10 @@ class BankStatementCLI:
                 break
             elif action == "a":
                 kept.append(tx)
-                audit.append(
-                    {"row_index": index, "action": "accept"}
-                )
+                audit.append({"row_index": index, "action": "accept"})
             elif action == "s":
                 kept.append(tx)
-                audit.append(
-                    {"row_index": index, "action": "skip"}
-                )
+                audit.append({"row_index": index, "action": "skip"})
             elif action == "d":
                 audit.append(
                     {
@@ -662,25 +594,45 @@ class BankStatementCLI:
                     }
                 )
 
-        # Reconstruct the result with the kept transactions and
-        # the appended audit trail. Verification is left untouched
-        # — re-running smart_ingest is the way to recompute it.
+        # Reconstruct the result with the kept transactions, the
+        # appended audit trail, and a verification verdict re-run
+        # against the kept rows so edits and deletions are reflected
+        # in the saved status.
         from dataclasses import replace
+
+        new_verification = result.verification
+        if result.verification is not None:
+            new_verification = verify_transactions(
+                kept,
+                opening_balance=result.verification.opening_balance,
+                closing_balance=result.verification.closing_balance,
+            )
+            audit.append(
+                {
+                    "action": "reverify",
+                    "status_before": result.verification.status.value,
+                    "status_after": new_verification.status.value,
+                }
+            )
 
         updated = replace(
             result,
             transactions=tuple(kept),
+            verification=new_verification,
             audit_trail=tuple(audit),
         )
 
         output_target = output_path or file_path
         safe_name = self.validator.get_safe_filename(output_target.name)
         safe_output = str(output_target.parent / safe_name)
-        Path(safe_output).write_text(
-            updated.to_json(), encoding="utf-8"
-        )
+        Path(safe_output).write_text(updated.to_json(), encoding="utf-8")
         print(f"\nReview complete. Wrote {len(kept)} rows -> {safe_output}")
         print(f"Audit trail entries: {len(audit)}")
+        if new_verification is not None:
+            print(
+                f"Re-verified: {new_verification.status.value.upper()} - "
+                f"{new_verification.message}"
+            )
 
     def _render_review_row(
         self,
@@ -708,6 +660,8 @@ class BankStatementCLI:
             print(f"  confidence:  {confidence:.2f}")
         if raw:
             print(f"  source text: {raw[:160]}")
+        if tx.source_page is not None:
+            print(f"  source page: {tx.source_page}")
         if bbox is not None:
             print(
                 "  source bbox: "
@@ -736,9 +690,7 @@ class BankStatementCLI:
             value = raw_input.strip().lower()[:1]
             if value in valid:
                 return value
-            print(
-                "  Please enter one of: a, e, s, d, q"
-            )
+            print("  Please enter one of: a, e, s, d, q")
 
     def _edit_review_row(self, tx: Transaction) -> Transaction:
         """Prompt the operator for new description and amount.
@@ -757,13 +709,11 @@ class BankStatementCLI:
         current_amount = tx.amount
         try:
             new_desc = (
-                input(f"  new description [{current_desc}]: ")
-                or current_desc
+                input(f"  new description [{current_desc}]: ") or current_desc
             )
-            new_amount_raw = (
-                input(f"  new amount      [{current_amount}]: ")
-                or str(current_amount)
-            )
+            new_amount_raw = input(
+                f"  new amount      [{current_amount}]: "
+            ) or str(current_amount)
             new_amount = Decimal(new_amount_raw)
         except (EOFError, InvalidOperation):
             print("  edit aborted; keeping original row")
@@ -790,8 +740,7 @@ class BankStatementCLI:
         )
 
     def run(self) -> None:
-        """
-        Parse command line arguments and perform the requested action.
+        """Parse command line arguments and perform the requested action.
 
         Validates input/output paths, configures logging, and delegates
         to the appropriate parser (CAMT or PAIN.001) based on the --type
@@ -828,22 +777,18 @@ class BankStatementCLI:
         setup_logging(log_level)
 
         # Update validator max file size setting
-        max_size_bytes = (
-            args.max_size * 1024 * 1024
-        )  # Convert MB to bytes
+        max_size_bytes = args.max_size * 1024 * 1024  # Convert MB to bytes
         self.validator.max_file_size = max_size_bytes
 
         # Validate input file
         try:
-            # First sanitize the path for security
-            sanitized_input = self._sanitize_file_path(args.input)
-            validated_input_path = (
-                self.validator.validate_input_file_path(sanitized_input)
+            validated_input_path = self.validator.validate_input_file_path(
+                args.input
             )
             logger.info(f"Input file validated: {validated_input_path}")
         except (ValidationError, FileNotFoundError) as e:
             logger.error(f"Input validation failed: {e}")
-            print(f"Error: {str(e)}")
+            print(f"Error: {e!s}")
             sys.exit(1)
             return  # Defensive programming: ensure we don't continue if sys.exit is mocked
 
@@ -851,19 +796,13 @@ class BankStatementCLI:
         validated_output_path = None
         if args.output:
             try:
-                # First sanitize the path for security
-                sanitized_output = self._sanitize_file_path(args.output)
                 validated_output_path = (
-                    self.validator.validate_output_file_path(
-                        sanitized_output
-                    )
+                    self.validator.validate_output_file_path(args.output)
                 )
-                logger.info(
-                    f"Output file validated: {validated_output_path}"
-                )
+                logger.info(f"Output file validated: {validated_output_path}")
             except ValidationError as e:
                 logger.error(f"Output validation failed: {e}")
-                print(f"Error: {str(e)}")
+                print(f"Error: {e!s}")
                 sys.exit(1)
 
         # Parse based on type
@@ -902,16 +841,22 @@ class BankStatementCLI:
                     validated_output_path,
                 )
             elif args.type == "review":
+                if args.review_below is not None and not (
+                    0.0 <= args.review_below <= 1.0
+                ):
+                    print("Error: --review-below must be between 0.0 and 1.0")
+                    sys.exit(1)
                 self.run_review(
                     validated_input_path,
                     validated_output_path,
+                    review_below=args.review_below,
                 )
             else:
                 print("Error: The specified type is not supported.")
                 sys.exit(1)
         except Exception as e:
             logger.error(f"Parsing failed: {e}")
-            print(f"Error: Parsing failed - {str(e)}")
+            print(f"Error: Parsing failed - {e!s}")
             sys.exit(1)
 
 

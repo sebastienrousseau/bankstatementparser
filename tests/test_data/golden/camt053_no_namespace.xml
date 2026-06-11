@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document>
+	<BkToCstmrStmt>
+		<GrpHdr>
+			<MsgId>GOLDEN-NONS-001</MsgId>
+			<CreDtTm>2026-04-30T17:00:00+01:00</CreDtTm>
+		</GrpHdr>
+		<Stmt>
+			<Id>GOLDEN-NONS</Id>
+			<CreDtTm>2026-04-30T17:00:00+01:00</CreDtTm>
+			<Acct>
+				<Id>
+					<IBAN>GB29NWBK60161331926819</IBAN>
+				</Id>
+			</Acct>
+			<Bal>
+				<Tp>
+					<CdOrPrtry>
+						<Cd>OPBD</Cd>
+					</CdOrPrtry>
+				</Tp>
+				<Amt Ccy="GBP">100.00</Amt>
+				<CdtDbtInd>CRDT</CdtDbtInd>
+				<Dt>
+					<Dt>2026-04-01</Dt>
+				</Dt>
+			</Bal>
+			<Bal>
+				<Tp>
+					<CdOrPrtry>
+						<Cd>CLBD</Cd>
+					</CdOrPrtry>
+				</Tp>
+				<Amt Ccy="GBP">350.00</Amt>
+				<CdtDbtInd>CRDT</CdtDbtInd>
+				<Dt>
+					<Dt>2026-04-30</Dt>
+				</Dt>
+			</Bal>
+			<Ntry>
+				<Amt Ccy="GBP">250.00</Amt>
+				<CdtDbtInd>CRDT</CdtDbtInd>
+				<Sts>BOOK</Sts>
+				<BookgDt>
+					<Dt>2026-04-12</Dt>
+				</BookgDt>
+				<ValDt>
+					<Dt>2026-04-12</Dt>
+				</ValDt>
+				<NtryDtls>
+					<TxDtls>
+						<RltdPties>
+							<Dbtr>
+								<Nm>JANE CLIENT</Nm>
+							</Dbtr>
+						</RltdPties>
+						<RmtInf>
+							<Ustrd>Consulting fee</Ustrd>
+						</RmtInf>
+					</TxDtls>
+				</NtryDtls>
+			</Ntry>
+		</Stmt>
+	</BkToCstmrStmt>
+</Document>

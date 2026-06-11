@@ -36,13 +36,8 @@ def _days_between(left: date | None, right: date | None) -> int | None:
     return abs((left - right).days)
 
 
-def _description_similarity(
-    left: Transaction, right: Transaction
-) -> float:
-    if (
-        not left.normalized_description
-        or not right.normalized_description
-    ):
+def _description_similarity(left: Transaction, right: Transaction) -> float:
+    if not left.normalized_description or not right.normalized_description:
         return 0.0
     return SequenceMatcher(
         None, left.normalized_description, right.normalized_description
@@ -95,6 +90,15 @@ class Deduplicator:
         value_date_window_days: int = 3,
         description_similarity_threshold: float = 0.9,
     ) -> None:
+        """Configure the fuzzy-match tier.
+
+        Args:
+            value_date_window_days: Maximum day gap between value
+                dates for two transactions to be suspected matches.
+            description_similarity_threshold: Minimum normalized
+                description similarity (0 to 1) for a suspected
+                match.
+        """
         self.value_date_window_days = value_date_window_days
         self.description_similarity_threshold = (
             description_similarity_threshold
@@ -159,10 +163,17 @@ class Deduplicator:
         fingerprint. Unlike :meth:`deduplicate`, this performs no fuzzy
         matching — it is a strict identity filter.
 
+        Stored keys are occurrence-counted (``<hash>:<n>``): the nth
+        occurrence of a hash in a batch matches the nth persisted key.
+        Re-ingesting the same batch is therefore idempotent, while
+        genuine repeats within one statement (two identical same-day
+        purchases) are not silently dropped.
+
         Args:
             transactions: Items to ingest.
-            seen_hashes: Hashes already persisted upstream. New hashes
-                from this batch are added in-place.
+            seen_hashes: Occurrence-counted keys already persisted
+                upstream by a previous call. New keys from this batch
+                are added in-place.
 
         Returns:
             Tuple of (new transactions, list of skipped duplicate
@@ -173,12 +184,15 @@ class Deduplicator:
         normalized = self.normalize_transactions(transactions)
         unique: list[Transaction] = []
         skipped: list[str] = []
+        occurrences: dict[str, int] = defaultdict(int)
         for tx in normalized:
             digest = tx.transaction_hash
-            if digest in seen_hashes:
+            key = f"{digest}:{occurrences[digest]}"
+            occurrences[digest] += 1
+            if key in seen_hashes:
                 skipped.append(digest)
                 continue
-            seen_hashes.add(digest)
+            seen_hashes.add(key)
             unique.append(tx)
         return unique, skipped
 
@@ -213,17 +227,11 @@ class Deduplicator:
             if len(bucket) > 1
             for candidate in bucket
         }
-        suspected_groups = self._find_suspected_matches(
+        suspected_groups, suspected_indices = self._find_suspected_matches(
             candidates,
             excluded_indices=exact_indices,
         )
 
-        suspected_indices = {
-            transaction.source_index
-            for group in suspected_groups
-            for transaction in group.transactions
-            if transaction.source_index is not None
-        }
         unique_transactions = [
             candidate.transaction
             for candidate in candidates
@@ -272,31 +280,28 @@ class Deduplicator:
         candidates: list[_Candidate],
         *,
         excluded_indices: set[int],
-    ) -> list[MatchGroup]:
-        probable_groups = self._find_probable_matches(candidates)
-        probable_indices = {
-            transaction.source_index
-            for group in probable_groups
-            for transaction in group.transactions
-            if transaction.source_index is not None
-        }
-        temporal_groups = self._find_temporal_matches(
+    ) -> tuple[list[MatchGroup], set[int]]:
+        probable_groups, probable_indices = self._find_probable_matches(
+            candidates
+        )
+        temporal_groups, temporal_indices = self._find_temporal_matches(
             [
                 candidate
                 for candidate in candidates
-                if candidate.index
-                not in excluded_indices | probable_indices
+                if candidate.index not in excluded_indices | probable_indices
             ]
         )
-        return probable_groups + temporal_groups
+        return (
+            probable_groups + temporal_groups,
+            probable_indices | temporal_indices,
+        )
 
     def _find_probable_matches(
         self, candidates: list[_Candidate]
-    ) -> list[MatchGroup]:
+    ) -> tuple[list[MatchGroup], set[int]]:
         groups = []
-        for bucket in self._candidate_groups_by_primary(
-            candidates
-        ).values():
+        matched_indices: set[int] = set()
+        for bucket in self._candidate_groups_by_primary(candidates).values():
             if len(bucket) < 2:
                 continue
             similarities = []
@@ -306,8 +311,7 @@ class Deduplicator:
                         left.transaction, right.transaction
                     )
                     if (
-                        similarity
-                        >= self.description_similarity_threshold
+                        similarity >= self.description_similarity_threshold
                         and left.transaction.normalized_description
                         != right.transaction.normalized_description
                     ):
@@ -316,6 +320,7 @@ class Deduplicator:
             if not similarities:
                 continue
 
+            matched_indices.update(candidate.index for candidate in bucket)
             groups.append(
                 MatchGroup(
                     transactions=sorted(
@@ -333,13 +338,13 @@ class Deduplicator:
                     tier="probable",
                 )
             )
-        return groups
+        return groups, matched_indices
 
     def _find_temporal_matches(
         self, candidates: list[_Candidate]
-    ) -> list[MatchGroup]:
-        buckets: dict[tuple[str, str, str], list[_Candidate]] = (
-            defaultdict(list)
+    ) -> tuple[list[MatchGroup], set[int]]:
+        buckets: dict[tuple[str, str, str], list[_Candidate]] = defaultdict(
+            list
         )
         for candidate in candidates:
             transaction = candidate.transaction
@@ -352,6 +357,15 @@ class Deduplicator:
             ].append(candidate)
 
         groups = []
+        matched_indices: set[int] = set()
+
+        def _emit(
+            component: list[_Candidate],
+            similarities: list[float],
+        ) -> None:
+            matched_indices.update(candidate.index for candidate in component)
+            groups.append(self._temporal_group(component, similarities))
+
         for bucket in buckets.values():
             if len(bucket) < 2:
                 continue
@@ -385,52 +399,37 @@ class Deduplicator:
                     continue
 
                 if len(component) > 1:
-                    groups.append(
-                        self._temporal_group(
-                            component, component_similarities
-                        )
-                    )
+                    _emit(component, component_similarities)
                 component = [candidate]
                 component_similarities = []
 
             if len(component) > 1:
-                groups.append(
-                    self._temporal_group(
-                        component, component_similarities
-                    )
-                )
+                _emit(component, component_similarities)
 
-        return groups
+        return groups, matched_indices
 
     def _temporal_group(
         self,
         component: list[_Candidate],
         similarities: list[float],
     ) -> MatchGroup:
-        max_delta = max(
+        max_delta = (
             _days_between(
                 component[0].transaction.value_date,
                 component[-1].transaction.value_date,
             )
-            or 0,
-            0,
+            or 0
         )
         max_similarity = max(similarities) if similarities else 0.0
         confidence = min(0.95, 0.75 + (max_similarity * 0.2))
-        reason = (
-            f"Value date shift within {max_delta} day window"
-            if max_delta == 1
-            else f"Value date shift within {max_delta} day window"
-        )
+        reason = f"Value date shift within {max_delta} day window"
         if max_similarity > 0:
             reason += f"; description similarity {max_similarity:.2f}"
 
         return MatchGroup(
             transactions=[
                 candidate.transaction
-                for candidate in sorted(
-                    component, key=lambda item: item.index
-                )
+                for candidate in sorted(component, key=lambda item: item.index)
             ],
             reason=reason,
             confidence=confidence,

@@ -1,0 +1,11 @@
+# Commits to skip when running `git blame` — bulk mechanical changes
+# that would otherwise bury the meaningful history of every line.
+#
+# Enable locally (one-time, per clone):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Append the full 40-character SHA of each repo-wide reformat commit
+# below, one per line, with a short comment above it.
+
+# v0.1.0: repo-wide `ruff format` at line-length 79
+# (append the format commit SHA here when it lands)

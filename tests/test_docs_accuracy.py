@@ -78,24 +78,21 @@ class TestReadmeAccuracy:
         actual = _actual_test_count()
         for claimed in _claimed_test_count(self.readme_text):
             assert claimed == actual, (
-                f"README claims {claimed} tests but "
-                f"actual count is {actual}"
+                f"README claims {claimed} tests but actual count is {actual}"
             )
 
     def test_module_count_matches_reality(self) -> None:
         modules = [
             p
             for p in SRC_DIR.rglob("*.py")
-            if "__pycache__" not in str(p)
-            and ".mypy_cache" not in str(p)
+            if "__pycache__" not in str(p) and ".mypy_cache" not in str(p)
         ]
         actual = len(modules)
         match = re.search(r"(\d+)\s+modules", self.readme_text)
         assert match is not None, "README should mention module count"
         claimed = int(match.group(1))
         assert claimed == actual, (
-            f"README claims {claimed} modules but "
-            f"actual count is {actual}"
+            f"README claims {claimed} modules but actual count is {actual}"
         )
 
     def test_example_count_matches_reality(self) -> None:
@@ -126,7 +123,7 @@ class TestReadmeAccuracy:
     def test_install_extras_match_pyproject(self) -> None:
         pyproject = _read(PYPROJECT)
         for extra in ["hybrid", "hybrid-plus", "hybrid-vision", "enrichment"]:
-            if f'{extra} = [' in pyproject or f"{extra} = [" in pyproject:
+            if f"{extra} = [" in pyproject or f"{extra} = [" in pyproject:
                 assert extra in self.readme_text, (
                     f"README doesn't mention [{extra}] extra "
                     f"but it exists in pyproject.toml"
@@ -134,9 +131,7 @@ class TestReadmeAccuracy:
 
     def test_cli_type_choices_documented(self) -> None:
         cli_py = _read(SRC_DIR / "cli.py")
-        choices = re.search(
-            r'choices=\[([^\]]+)\]', cli_py
-        )
+        choices = re.search(r"choices=\[([^\]]+)\]", cli_py)
         assert choices is not None
         for choice in re.findall(r'"(\w+)"', choices.group(1)):
             assert choice in self.readme_text, (
@@ -207,9 +202,7 @@ class TestFaqAccuracy:
 
     def test_no_stale_442_467_counts(self) -> None:
         for stale in ["442 tests", "467 tests", "484 tests"]:
-            assert stale not in self.faq_text, (
-                f"FAQ has stale count: {stale}"
-            )
+            assert stale not in self.faq_text, f"FAQ has stale count: {stale}"
 
 
 # ---------------------------------------------------------------------------
@@ -280,9 +273,9 @@ class TestContributingAccuracy:
     def test_install_extras_documented(self) -> None:
         pyproject = _read(PYPROJECT)
         if "hybrid-vision" in pyproject:
-            assert (
-                "hybrid" in self.contributing_text
-            ), "CONTRIBUTING should mention hybrid extras for contributors"
+            assert "hybrid" in self.contributing_text, (
+                "CONTRIBUTING should mention hybrid extras for contributors"
+            )
 
     def test_signed_commits_section_present(self) -> None:
         assert "Signed Commits" in self.contributing_text or (
@@ -334,17 +327,14 @@ class TestExamplesExist:
     def _extract_script_paths(self, text: str) -> list[str]:
         """Pull script paths from markdown table rows."""
         # Matches patterns like `script.py` or `hybrid/script.py`
-        return re.findall(
-            r"`((?:hybrid/)?[\w]+\.(?:py|sh|ps1))`", text
-        )
+        return re.findall(r"`((?:hybrid/)?[\w]+\.(?:py|sh|ps1))`", text)
 
     def test_all_readme_example_scripts_exist(self) -> None:
         scripts = self._extract_script_paths(self.readme_text)
         for script in scripts:
             path = EXAMPLES_DIR / script
             assert path.exists(), (
-                f"README references examples/{script} but file "
-                f"doesn't exist"
+                f"README references examples/{script} but file doesn't exist"
             )
 
     def test_all_examples_readme_scripts_exist(self) -> None:
@@ -462,7 +452,9 @@ class TestCrossFileConsistency:
         pyproject = _read(PYPROJECT)
         if ">=3.10" in pyproject:
             # v0.0.6+ — 3.9 should not be in any CI matrix
-            workflow = REPO_ROOT / ".github" / "workflows" / "quality-gates.yml"
+            workflow = (
+                REPO_ROOT / ".github" / "workflows" / "quality-gates.yml"
+            )
             if workflow.exists():
                 wf_text = _read(workflow)
                 assert '"3.9"' not in wf_text, (

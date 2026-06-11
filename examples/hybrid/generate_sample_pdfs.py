@@ -42,17 +42,17 @@ STATEMENT_PERIOD = "2026-04-01 to 2026-04-08"
 
 # (date, description, amount). Negative = debit, positive = credit.
 TRANSACTIONS: list[tuple[str, str, Decimal]] = [
-    ("2026-04-01", "SALARY ACME CORP",                   Decimal("2500.00")),
-    ("2026-04-01", "STANDING ORDER RENT",               Decimal("-1200.00")),
-    ("2026-04-02", "CARD PAYMENT 12:49 COFFEE SHOP",      Decimal("-3.85")),
-    ("2026-04-02", "AMZN MKTPLACE 2026-04-02 #A1B2C3",   Decimal("-29.99")),
-    ("2026-04-03", "CONTACTLESS TFL TRAVEL",              Decimal("-7.40")),
-    ("2026-04-03", "REFUND ZARA RETURNS",                 Decimal("39.95")),
-    ("2026-04-04", "DIRECT DEBIT BRITISH GAS",          Decimal("-89.50")),
-    ("2026-04-05", "AMZN MKTPLACE 2026-04-05 #Z9Y8X7",   Decimal("-29.99")),
-    ("2026-04-06", "CARD PAYMENT 19:02 SAINSBURYS",      Decimal("-54.20")),
-    ("2026-04-07", "INTEREST PAID",                       Decimal("0.42")),
-    ("2026-04-08", "CARD PAYMENT 08:15 COFFEE SHOP",      Decimal("-3.85")),
+    ("2026-04-01", "SALARY ACME CORP", Decimal("2500.00")),
+    ("2026-04-01", "STANDING ORDER RENT", Decimal("-1200.00")),
+    ("2026-04-02", "CARD PAYMENT 12:49 COFFEE SHOP", Decimal("-3.85")),
+    ("2026-04-02", "AMZN MKTPLACE 2026-04-02 #A1B2C3", Decimal("-29.99")),
+    ("2026-04-03", "CONTACTLESS TFL TRAVEL", Decimal("-7.40")),
+    ("2026-04-03", "REFUND ZARA RETURNS", Decimal("39.95")),
+    ("2026-04-04", "DIRECT DEBIT BRITISH GAS", Decimal("-89.50")),
+    ("2026-04-05", "AMZN MKTPLACE 2026-04-05 #Z9Y8X7", Decimal("-29.99")),
+    ("2026-04-06", "CARD PAYMENT 19:02 SAINSBURYS", Decimal("-54.20")),
+    ("2026-04-07", "INTEREST PAID", Decimal("0.42")),
+    ("2026-04-08", "CARD PAYMENT 08:15 COFFEE SHOP", Decimal("-3.85")),
 ]
 
 
@@ -104,7 +104,7 @@ def _try_import_pil() -> object:
 def render_digital_pdf(target: Path) -> None:
     """Write a text-layer PDF that pypdf can extract cleanly."""
     canvas_mod, A4, mm = _try_import_reportlab()  # type: ignore[misc]
-    page_w, page_h = A4
+    _page_w, page_h = A4
 
     target.parent.mkdir(parents=True, exist_ok=True)
     c = canvas_mod.Canvas(str(target), pagesize=A4)
@@ -112,7 +112,11 @@ def render_digital_pdf(target: Path) -> None:
     c.setFont("Helvetica-Bold", 16)
     c.drawString(20 * mm, page_h - 25 * mm, "EXAMPLE BANK PLC")
     c.setFont("Helvetica", 10)
-    c.drawString(20 * mm, page_h - 32 * mm, "Synthetic statement for hybrid pipeline examples")
+    c.drawString(
+        20 * mm,
+        page_h - 32 * mm,
+        "Synthetic statement for hybrid pipeline examples",
+    )
 
     c.setFont("Helvetica-Bold", 11)
     c.drawString(20 * mm, page_h - 45 * mm, f"Account: {ACCOUNT_NUMBER}")

@@ -71,8 +71,12 @@ class AccountRule:
     account: str
 
     def __post_init__(self) -> None:
-        # Validate the regex at construction time so bad patterns
-        # fail loudly, not silently at map time.
+        """Validate the regex at construction time.
+
+        Raises:
+            ValueError: If ``pattern`` is not a valid regex, so bad
+                patterns fail loudly instead of silently at map time.
+        """
         try:
             re.compile(self.pattern, re.IGNORECASE)
         except re.error as exc:
@@ -100,6 +104,7 @@ class AccountMapper:
     )
 
     def __post_init__(self) -> None:
+        """Pre-compile all rule patterns for fast matching."""
         self._compiled = [
             (re.compile(rule.pattern, re.IGNORECASE), rule.account)
             for rule in self.rules
@@ -113,9 +118,7 @@ class AccountMapper:
                 return account
         return self.default
 
-    def map_batch(
-        self, transactions: Iterable[Transaction]
-    ) -> list[str]:
+    def map_batch(self, transactions: Iterable[Transaction]) -> list[str]:
         """Map every transaction in a batch. Returns one account per row."""
         return [self.map(tx) for tx in transactions]
 

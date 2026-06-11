@@ -39,7 +39,7 @@ class _FakeBitmap:
         bitmap = self
 
         class _PilLike:
-            def save(self, buffer: Any, format: str) -> None:  # noqa: A002
+            def save(self, buffer: Any, format: str) -> None:
                 assert format == "PNG"
                 buffer.write(bitmap._payload)
 
@@ -75,9 +75,7 @@ def _install_fake_pdfium(
     open_fail: bool = False,
 ) -> None:
     module = types.ModuleType("pypdfium2")
-    effective = (
-        pages if pages is not None else [_FakePage(b"PNGBYTES_PAGE_1")]
-    )
+    effective = pages if pages is not None else [_FakePage(b"PNGBYTES_PAGE_1")]
 
     def _doc_factory(_path: str) -> _FakePdfDocument:
         if open_fail:
@@ -130,11 +128,7 @@ def test_vision_extract_renders_and_calls_model(
         captured.update(kwargs)
         return {
             "choices": [
-                {
-                    "message": {
-                        "content": json.dumps(_valid_vision_payload())
-                    }
-                }
+                {"message": {"content": json.dumps(_valid_vision_payload())}}
             ]
         }
 
@@ -176,11 +170,7 @@ def test_vision_extract_caps_pages(
         captured.update(kwargs)
         return {
             "choices": [
-                {
-                    "message": {
-                        "content": json.dumps(_valid_vision_payload())
-                    }
-                }
+                {"message": {"content": json.dumps(_valid_vision_payload())}}
             ]
         }
 
@@ -221,11 +211,7 @@ def test_vision_reads_model_from_env(
         captured.update(kwargs)
         return {
             "choices": [
-                {
-                    "message": {
-                        "content": json.dumps(_valid_vision_payload())
-                    }
-                }
+                {"message": {"content": json.dumps(_valid_vision_payload())}}
             ]
         }
 
@@ -246,11 +232,7 @@ def test_vision_passes_api_base_when_set(
         captured.update(kwargs)
         return {
             "choices": [
-                {
-                    "message": {
-                        "content": json.dumps(_valid_vision_payload())
-                    }
-                }
+                {"message": {"content": json.dumps(_valid_vision_payload())}}
             ]
         }
 
@@ -272,9 +254,7 @@ def test_vision_completion_failure_wrapped(
     def boom(**_: Any) -> Any:
         raise RuntimeError("network")
 
-    extractor = VisionExtractor(
-        model="ollama/llava", completion_fn=boom
-    )
+    extractor = VisionExtractor(model="ollama/llava", completion_fn=boom)
     with pytest.raises(VisionExtractorError, match="Vision completion"):
         extractor.extract(pdf_path)
 
@@ -298,9 +278,7 @@ def test_vision_render_failure_wrapped(
 ) -> None:
     pdf_path = tmp_path / "scan.pdf"
     pdf_path.write_bytes(b"%PDF stub")
-    _install_fake_pdfium(
-        monkeypatch, [_FakePage(b"", fail=True)]
-    )
+    _install_fake_pdfium(monkeypatch, [_FakePage(b"", fail=True)])
 
     extractor = VisionExtractor(
         model="ollama/llava", completion_fn=lambda **_: None
@@ -338,9 +316,7 @@ def test_build_vision_messages_encodes_images() -> None:
     assert messages[1]["role"] == "user"
     content = messages[1]["content"]
     assert content[0]["type"] == "text"
-    assert content[1]["image_url"]["url"].startswith(
-        "data:image/png;base64,"
-    )
+    assert content[1]["image_url"]["url"].startswith("data:image/png;base64,")
     assert len(content) == 3  # 1 text + 2 images
 
 
@@ -363,7 +339,7 @@ class _FakePil:
     def crop(self, _box: Any) -> _FakePil:
         return _FakePil(self.size[0], 100)
 
-    def save(self, buffer: Any, format: str) -> None:  # noqa: A002
+    def save(self, buffer: Any, format: str) -> None:
         buffer.write(b"PNG_STRIP")
 
 
@@ -373,7 +349,7 @@ class _FakeBitmapPil:
 
 
 class _FakePageStrip:
-    def render(self, scale: float) -> _FakeBitmapPil:  # noqa: ARG002
+    def render(self, scale: float) -> _FakeBitmapPil:
         return _FakeBitmapPil()
 
 
@@ -463,9 +439,7 @@ def test_strip_extractor_calls_completion_per_strip(
                     }
                 ]
             }
-        return {
-            "choices": [{"message": {"content": json.dumps(payload)}}]
-        }
+        return {"choices": [{"message": {"content": json.dumps(payload)}}]}
 
     extractor = VisionExtractor(
         model="ollama/minicpm-v",
@@ -542,7 +516,7 @@ def test_strip_extractor_render_failure_wrapped(
     pdf_path.write_bytes(b"%PDF stub")
 
     class _BoomPage:
-        def render(self, scale: float) -> Any:  # noqa: ARG002
+        def render(self, scale: float) -> Any:
             raise RuntimeError("render boom")
 
     fake = types.ModuleType("pypdfium2")
@@ -586,7 +560,7 @@ def test_strip_extractor_crop_failure_wrapped(
             return _BadPil()
 
     class _Page:
-        def render(self, scale: float) -> _BadBitmap:  # noqa: ARG002
+        def render(self, scale: float) -> _BadBitmap:
             return _BadBitmap()
 
     fake = types.ModuleType("pypdfium2")
@@ -624,13 +598,9 @@ def test_build_strip_messages_header_vs_body_prompt() -> None:
     )
     assert "TOP STRIP" in header[0]["content"]
     assert "HORIZONTAL BAND" in body[0]["content"]
-    assert (
-        header[1]["content"][1]["image_url"]["url"].startswith(
-            "data:image/png;base64,"
-        )
+    assert header[1]["content"][1]["image_url"]["url"].startswith(
+        "data:image/png;base64,"
     )
-    assert (
-        body[1]["content"][1]["image_url"]["url"].startswith(
-            "data:image/png;base64,"
-        )
+    assert body[1]["content"][1]["image_url"]["url"].startswith(
+        "data:image/png;base64,"
     )

@@ -7,6 +7,8 @@ Tests for boundary conditions, error handling, and edge scenarios.
 import os
 import tempfile
 import unittest
+from decimal import Decimal
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -170,7 +172,7 @@ class TestCamtParserEdgeCases(unittest.TestCase):
             self.assertEqual(
                 transactions.iloc[1]["Amount"], -100.00
             )  # DBIT is negative
-            self.assertEqual(transactions.iloc[2]["Amount"], 0.01)
+            self.assertEqual(transactions.iloc[2]["Amount"], Decimal("0.01"))
         finally:
             os.unlink(test_file)
 
@@ -208,10 +210,11 @@ class TestCamtParserEdgeCases(unittest.TestCase):
 
             self.assertEqual(len(transactions), 2)
             self.assertEqual(
-                transactions.iloc[0]["Amount"], 999999999999.99
+                transactions.iloc[0]["Amount"],
+                Decimal("999999999999.99"),
             )
-            self.assertAlmostEqual(
-                transactions.iloc[1]["Amount"], 0.000001, places=6
+            self.assertEqual(
+                transactions.iloc[1]["Amount"], Decimal("0.000001")
             )
         finally:
             os.unlink(test_file)
@@ -262,15 +265,11 @@ class TestCamtParserEdgeCases(unittest.TestCase):
             self.assertIn(
                 "goods & services", transactions.iloc[0]["Reference"]
             )
-            self.assertIn(
-                "<order #123>", transactions.iloc[0]["Reference"]
-            )
+            self.assertIn("<order #123>", transactions.iloc[0]["Reference"])
             self.assertEqual(
                 transactions.iloc[0]["Debtor"], 'John "Doe" & Co.'
             )
-            self.assertEqual(
-                transactions.iloc[0]["Creditor"], "Jane <Smith>"
-            )
+            self.assertEqual(transactions.iloc[0]["Creditor"], "Jane <Smith>")
         finally:
             os.unlink(test_file)
 
@@ -357,9 +356,7 @@ class TestCamtParserEdgeCases(unittest.TestCase):
             transactions = parser.get_transactions()
 
             self.assertEqual(len(transactions), 2)
-            self.assertEqual(
-                transactions.iloc[0]["ValDt"], "2023-01-01"
-            )
+            self.assertEqual(transactions.iloc[0]["ValDt"], "2023-01-01")
             self.assertEqual(
                 transactions.iloc[1]["ValDt"], "2023-01-02T14:30:00"
             )
@@ -400,9 +397,7 @@ class TestCamtParserEdgeCases(unittest.TestCase):
                 self.assertGreater(os.path.getsize(excel_file), 0)
 
                 # Verify Excel file can be read back
-                balances_df = pd.read_excel(
-                    excel_file, sheet_name="Balances"
-                )
+                balances_df = pd.read_excel(excel_file, sheet_name="Balances")
                 transactions_df = pd.read_excel(
                     excel_file, sheet_name="Transactions"
                 )
@@ -511,7 +506,7 @@ class TestBankStatementParsersEdgeCases(unittest.TestCase):
             self.assertEqual(len(parser.payments), 1)
 
             payment = parser.payments[0]
-            self.assertEqual(payment["Amount"], 0.01)
+            self.assertEqual(payment["Amount"], Decimal("0.01"))
             self.assertEqual(payment["Currency"], "EUR")
             self.assertEqual(payment["Name"], "Creditor")
 
@@ -544,9 +539,7 @@ class TestBankStatementParsersEdgeCases(unittest.TestCase):
 
             statement = parser.statements[0]
             self.assertEqual(statement["StatementId"], "STMT001")
-            self.assertEqual(
-                statement["AccountId"], "GB29NWBK60161331926819"
-            )
+            self.assertEqual(statement["AccountId"], "GB29NWBK60161331926819")
 
         finally:
             os.unlink(test_file)
@@ -641,7 +634,6 @@ class TestErrorConditions(unittest.TestCase):
 
     def test_file_permission_errors(self):
         """Test handling of file permission errors."""
-        # Create a file and remove read permissions
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".xml", delete=False
         ) as f:
@@ -649,17 +641,17 @@ class TestErrorConditions(unittest.TestCase):
             test_file = f.name
 
         try:
-            # Remove read permissions
-            os.chmod(test_file, 0o000)
-
-            with self.assertRaises(
-                (PermissionError, OSError, ValidationError)
+            # chmod(0o000) does not revoke read access on Windows, so
+            # mock the validator's access check instead.
+            with patch(
+                "bankstatementparser.input_validator.os.access",
+                return_value=False,
             ):
-                CamtParser(test_file)
-
+                with self.assertRaises(
+                    (PermissionError, OSError, ValidationError)
+                ):
+                    CamtParser(test_file)
         finally:
-            # Restore permissions and cleanup
-            os.chmod(test_file, 0o644)
             os.unlink(test_file)
 
     def test_concurrent_access(self):

@@ -55,22 +55,30 @@ def main() -> int:
     if result.transactions:
         print("First 5 transactions (audit-friendly fields only):")
         print()
-        print(f"  {'idx':>3}  {'date':<10}  {'amount':>12}  {'hash[:8]':<10}  description")
+        print(
+            f"  {'idx':>3}  {'date':<10}  {'amount':>12}  {'hash[:8]':<10}  description"
+        )
         print(f"  {'---':>3}  {'-' * 10}  {'-' * 12}  {'-' * 10}  {'-' * 40}")
         for idx, tx in enumerate(result.transactions[:5]):
             booking = tx.booking_date.isoformat() if tx.booking_date else ""
             print(
                 f"  {idx:>3}  {booking:<10}  "
-                f"{str(tx.amount):>12}  "
+                f"{tx.amount!s:>12}  "
                 f"{tx.transaction_hash[:8]:<10}  "
                 f"{(tx.description or '')[:40]}"
             )
         print()
 
     print("Notice that every transaction carries:")
-    print(f"  - source_method='{result.transactions[0].source_method}' (audit trail)")
-    print("  - transaction_hash (idempotent fingerprint, MD5 of date|desc|amount)")
-    print(f"  - confidence={result.transactions[0].confidence} (None for deterministic rows)")
+    print(
+        f"  - source_method='{result.transactions[0].source_method}' (audit trail)"
+    )
+    print(
+        "  - transaction_hash (idempotent fingerprint, MD5 of date|desc|amount)"
+    )
+    print(
+        f"  - confidence={result.transactions[0].confidence} (None for deterministic rows)"
+    )
     print()
     print("Path A complete. Cost: $0.00. Network calls: 0.")
     return 0

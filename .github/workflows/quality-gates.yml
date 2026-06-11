@@ -19,7 +19,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -33,24 +33,40 @@ jobs:
           poetry-version: "2.3.2"
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev -E excel
 
       - name: Ruff
         run: poetry run ruff check bankstatementparser tests examples scripts
+
+      - name: Ruff format
+        run: poetry run ruff format --check bankstatementparser tests examples scripts
 
       - name: Mypy
         run: poetry run mypy bankstatementparser
 
   unit-tests:
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # Full version sweep on Linux; macOS and Windows run the
+      # version bounds (oldest + newest) to catch platform issues
+      # without tripling the matrix.
       matrix:
+        os: ["ubuntu-latest"]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: "macos-latest"
+            python-version: "3.10"
+          - os: "macos-latest"
+            python-version: "3.14"
+          - os: "windows-latest"
+            python-version: "3.10"
+          - os: "windows-latest"
+            python-version: "3.14"
     steps:
       - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -64,48 +80,23 @@ jobs:
           poetry-version: "2.3.2"
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev -E excel
 
       - name: Run unit and package-quality suite
+        # Collect everything under tests/ for unit coverage. Integration
+        # tests that don't drive package coverage run in a separate job
+        # without coverage; the pytest-benchmark suite is excluded here
+        # because it requires baseline files and is not part of the
+        # coverage gate. ``test_zip_security.py`` lives under integration/
+        # but exercises ``bankstatementparser.zip_security`` directly, so
+        # it stays in the coverage run.
+        shell: bash
         run: |
-          poetry run pytest \
-            tests/test_transaction_deduplicator.py \
-            tests/test_polars_export.py \
-            tests/test_additional_parsers.py \
-            tests/test_input_validator.py \
-            tests/test_camt_parser.py \
-            tests/test_security_updated.py \
-            tests/test_performance.py \
-            tests/test_unified_interface.py \
-            tests/test_security.py \
-            tests/test_pain001_parser.py \
-            tests/test_bank_statement_parsers.py \
-            tests/test_cli.py \
-            tests/test_pii_redaction.py \
-            tests/test_edge_cases.py \
-            tests/test_branch_coverage.py \
-            tests/test_coverage_gaps.py \
-            tests/test_enterprise_coverage.py \
-            tests/test_property_based.py \
-            tests/test_large_file_streaming.py \
-            tests/test_performance_contracts.py \
-            tests/test_hybrid_cli.py \
-            tests/test_hybrid_dedupe_by_hash.py \
-            tests/test_hybrid_llm_extractor.py \
-            tests/test_hybrid_ollama_direct.py \
-            tests/test_hybrid_orchestrator.py \
-            tests/test_hybrid_pdf_text.py \
-            tests/test_hybrid_review_cli.py \
-            tests/test_hybrid_verification.py \
-            tests/test_hybrid_vision.py \
-            tests/test_enrichment_categorizer.py \
-            tests/test_account_mapper.py \
-            tests/test_multi_currency_verification.py \
-            tests/test_export_ledger.py \
-            tests/test_scanner.py \
-            tests/test_api.py \
-            tests/test_docs_accuracy.py \
-            tests/integration/test_zip_security.py
+          poetry run pytest tests/ \
+            --ignore=tests/integration/test_malformed_data.py \
+            --ignore=tests/integration/test_security_boundaries.py \
+            --ignore=tests/integration/test_supply_chain_tools.py \
+            --ignore=tests/test_benchmark_suite.py
 
   integration-tests:
     name: Integration Tests
@@ -117,7 +108,7 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -131,11 +122,18 @@ jobs:
           poetry-version: "2.3.2"
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev -E excel
 
       - name: Run integration regression suite
         run: |
           poetry run pytest --no-cov tests/integration tests/test_enterprise_coverage.py
+
+      - name: Run performance contracts (slow suite)
+        # Timing-sensitive tests are excluded from the coverage run
+        # (`-m "not slow"` in pyproject addopts) so they don't flake
+        # under coverage instrumentation. The CLI -m overrides it.
+        run: |
+          poetry run pytest --no-cov -m slow tests/test_performance_contracts.py
 
   platform-parity:
     name: Platform Parity
@@ -148,7 +146,7 @@ jobs:
         python-version: ["3.11"]
     steps:
       - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -162,7 +160,7 @@ jobs:
           poetry-version: "2.3.2"
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev -E excel
 
       - name: Run cross-platform smoke suite
         shell: bash
@@ -172,3 +170,98 @@ jobs:
           tests/test_pain001_parser.py
           tests/test_cli.py
           tests/integration/test_supply_chain_tools.py
+
+  benchmarks:
+    name: Benchmark Regression (non-blocking)
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install dependencies
+        run: poetry install --with dev -E excel
+
+      - name: Restore benchmark baseline
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .benchmarks
+          key: benchmark-baseline-${{ runner.os }}-py312
+          restore-keys: |
+            benchmark-baseline-${{ runner.os }}-py312
+
+      - name: Run benchmarks and compare against baseline
+        # Non-blocking by design: shared-runner timing variance makes a
+        # hard gate too flaky. A >25% mean regression shows up as a
+        # failed step annotation for humans to investigate.
+        continue-on-error: true
+        run: |
+          if compgen -G ".benchmarks/*/*.json" > /dev/null; then
+            poetry run pytest --no-cov tests/test_benchmark_suite.py \
+              --benchmark-only --benchmark-autosave \
+              --benchmark-compare --benchmark-compare-fail=mean:25%
+          else
+            echo "No baseline found; recording first benchmark run."
+            poetry run pytest --no-cov tests/test_benchmark_suite.py \
+              --benchmark-only --benchmark-autosave
+          fi
+
+      - name: Save benchmark baseline
+        # Only main-branch pushes refresh the baseline, so PRs are
+        # compared against the last known-good main run.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .benchmarks
+          key: benchmark-baseline-${{ runner.os }}-py312-${{ github.run_id }}
+
+  llm-eval:
+    name: LLM Accuracy Eval (non-blocking)
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install dependencies
+        run: poetry install --with dev -E hybrid
+
+      - name: Harness self-check (mock mode, no model)
+        # Deterministic: loads every ground-truth case, runs the full
+        # extract -> score -> report path against perfect mock answers.
+        # A failure here means the harness itself broke.
+        run: poetry run python scripts/run_llm_eval.py --mock
+
+      - name: Run accuracy eval against configured model
+        # Gated on the BSP_EVAL_MODEL repository variable so forks and
+        # model-less runs skip silently. Non-blocking by design:
+        # accuracy drift surfaces as a failed-step annotation for
+        # humans, it never blocks a merge.
+        if: vars.BSP_EVAL_MODEL != ''
+        continue-on-error: true
+        env:
+          BSP_HYBRID_MODEL: ${{ vars.BSP_EVAL_MODEL }}
+          BSP_HYBRID_API_BASE: ${{ secrets.BSP_EVAL_API_BASE }}
+        run: poetry run python scripts/run_llm_eval.py

@@ -6,10 +6,14 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
 from bankstatementparser import Transaction
 from bankstatementparser.hybrid.verification import (
     VerificationStatus,
+    aggregate_verifications,
     verify_balance_multi_currency,
+    verify_transactions,
 )
 
 
@@ -94,3 +98,118 @@ def test_currency_keys_are_uppercase() -> None:
     )
     assert "GBP" in results
     assert "gbp" not in results
+
+
+# ---------------------------------------------------------------------------
+# aggregate_verifications
+# ---------------------------------------------------------------------------
+
+
+def test_aggregate_all_verified_is_verified() -> None:
+    txs = [
+        _tx("100.00", "GBP"),
+        _tx("200.00", "EUR"),
+    ]
+    results = verify_balance_multi_currency(
+        txs,
+        balances={
+            "GBP": (Decimal("0"), Decimal("100")),
+            "EUR": (Decimal("0"), Decimal("200")),
+        },
+    )
+    aggregate = aggregate_verifications(results)
+    assert aggregate.status is VerificationStatus.VERIFIED
+    assert aggregate.total_credits == Decimal("300.00")
+    assert aggregate.total_debits == Decimal("0")
+    assert aggregate.opening_balance is None
+    assert aggregate.expected_delta is None
+    assert "Multi-currency statement" in aggregate.message
+    assert "EUR" in aggregate.message
+    assert "GBP" in aggregate.message
+
+
+def test_aggregate_discrepancy_wins_over_failed() -> None:
+    txs = [
+        _tx("100.00", "GBP"),
+        _tx("200.00", "EUR"),
+    ]
+    results = verify_balance_multi_currency(
+        txs,
+        balances={"GBP": (Decimal("0"), Decimal("999"))},  # EUR missing
+    )
+    aggregate = aggregate_verifications(results)
+    assert aggregate.status is VerificationStatus.DISCREPANCY
+
+
+def test_aggregate_failed_when_any_currency_unverifiable() -> None:
+    txs = [
+        _tx("100.00", "GBP"),
+        _tx("200.00", "EUR"),
+    ]
+    results = verify_balance_multi_currency(
+        txs,
+        balances={"GBP": (Decimal("0"), Decimal("100"))},  # EUR missing
+    )
+    aggregate = aggregate_verifications(results)
+    assert aggregate.status is VerificationStatus.FAILED
+
+
+def test_aggregate_empty_results_raises() -> None:
+    with pytest.raises(ValueError, match="requires results"):
+        aggregate_verifications({})
+
+
+# ---------------------------------------------------------------------------
+# verify_transactions (currency-aware dispatch)
+# ---------------------------------------------------------------------------
+
+
+def test_verify_transactions_single_currency_uses_golden_rule() -> None:
+    txs = [_tx("100.00", "GBP"), _tx("-30.00", "GBP")]
+    result = verify_transactions(
+        txs,
+        opening_balance=Decimal("500"),
+        closing_balance=Decimal("570"),
+    )
+    assert result.status is VerificationStatus.VERIFIED
+    assert result.opening_balance == Decimal("500")
+
+
+def test_verify_transactions_no_currency_metadata_uses_golden_rule() -> None:
+    txs = [
+        Transaction(amount=Decimal("100.00"), description="x"),
+        Transaction(amount=Decimal("-30.00"), description="y"),
+    ]
+    result = verify_transactions(
+        txs,
+        opening_balance=Decimal("0"),
+        closing_balance=Decimal("70"),
+    )
+    assert result.status is VerificationStatus.VERIFIED
+
+
+def test_verify_transactions_multi_currency_avoids_false_discrepancy() -> None:
+    """Mixed currencies must not be summed into one Golden Rule check."""
+    txs = [
+        _tx("100.00", "GBP"),
+        _tx("200.00", "EUR"),
+    ]
+    # Balances cannot be attributed to one currency: the statement
+    # reports FAILED (cannot verify) instead of a spurious mismatch.
+    result = verify_transactions(
+        txs,
+        opening_balance=Decimal("0"),
+        closing_balance=Decimal("100"),
+    )
+    assert result.status is VerificationStatus.FAILED
+    assert "Multi-currency statement" in result.message
+
+
+def test_verify_transactions_missing_balances_failed() -> None:
+    txs = [_tx("100.00", "GBP")]
+    result = verify_transactions(
+        txs,
+        opening_balance=None,
+        closing_balance=None,
+    )
+    assert result.status is VerificationStatus.FAILED

@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal, DecimalException
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -55,11 +55,11 @@ from pydantic import ValidationError
 from ..additional_parsers import create_parser, detect_statement_format
 from ..transaction_models import Transaction
 from .llm_extractor import LLMExtractionResult, LLMExtractor
-from .pdf_text import extract_text
+from .pdf_text import extract_text_pages
 from .verification import (
     BalanceVerification,
     VerificationStatus,
-    verify_balance,
+    verify_transactions,
 )
 from .vision import VisionExtractor
 
@@ -106,9 +106,7 @@ class IngestResult:
         :class:`VerificationStatus` enum, and any ``audit_trail``
         entries the review CLI has appended.
         """
-        return json.dumps(
-            self._to_dict(), indent=indent, sort_keys=False
-        )
+        return json.dumps(self._to_dict(), indent=indent, sort_keys=False)
 
     def _to_dict(self) -> dict[str, Any]:
         return {
@@ -143,9 +141,7 @@ class IngestResult:
                 f"IngestResult JSON is not valid JSON: {exc}"
             ) from exc
         if not isinstance(data, dict):
-            raise ValueError(
-                "IngestResult JSON must decode to an object"
-            )
+            raise ValueError("IngestResult JSON must decode to an object")
         return cls._from_dict(data)
 
     @classmethod
@@ -171,9 +167,7 @@ class IngestResult:
             raise ValueError("IngestResult 'warnings' must be a list")
         audit_raw = data.get("audit_trail") or []
         if not isinstance(audit_raw, list):
-            raise ValueError(
-                "IngestResult 'audit_trail' must be a list"
-            )
+            raise ValueError("IngestResult 'audit_trail' must be a list")
 
         return cls(
             source_method=str(data.get("source_method", "")),
@@ -231,9 +225,7 @@ def _verification_from_dict(
             message=str(data.get("message", "")),
         )
     except (KeyError, ValueError, DecimalException) as exc:
-        raise ValueError(
-            f"Invalid verification payload: {exc}"
-        ) from exc
+        raise ValueError(f"Invalid verification payload: {exc}") from exc
 
 
 def _decimal_to_str(value: Optional[Decimal]) -> Optional[str]:
@@ -278,6 +270,15 @@ def smart_ingest(
     Returns:
         An :class:`IngestResult` tagged with ``source_method`` so the
         caller can audit which path produced each row.
+
+    Raises:
+        PDFExtractionError: If the PDF fallback is reached and text
+            extraction fails (e.g. ``pypdf`` is not installed or the
+            file is not a readable PDF).
+        LLMExtractorError: If the text-LLM path fails or returns a
+            malformed response.
+        VisionExtractorError: If the vision path fails, including
+            when no vision model is configured for a scanned PDF.
     """
     file_path = Path(path)
     warnings: list[str] = []
@@ -299,9 +300,7 @@ def smart_ingest(
                 fmt,
                 exc,
             )
-            warnings.append(
-                f"Deterministic parser '{fmt}' failed: {exc}"
-            )
+            warnings.append(f"Deterministic parser '{fmt}' failed: {exc}")
 
     return _run_pdf_fallbacks(
         file_path,
@@ -313,9 +312,7 @@ def smart_ingest(
     )
 
 
-def _safe_detect(
-    file_path: Path, warnings: list[str]
-) -> Optional[str]:
+def _safe_detect(file_path: Path, warnings: list[str]) -> Optional[str]:
     try:
         return detect_statement_format(str(file_path))
     except Exception as exc:
@@ -335,7 +332,7 @@ def _run_deterministic(
     raw = parser.parse()
     transactions = _coerce_transactions(raw, source=fmt)
     verification = (
-        verify_balance(
+        verify_transactions(
             transactions,
             opening_balance=opening_balance,
             closing_balance=closing_balance,
@@ -362,7 +359,8 @@ def _run_pdf_fallbacks(
     warnings: list[str],
 ) -> IngestResult:
     """Path B (text-LLM) → Path C (vision-LLM) routing for PDFs."""
-    text = extract_text(file_path)
+    pages = extract_text_pages(file_path)
+    text = "\n".join(pages)
     stripped_len = len(text.strip())
 
     if stripped_len < LOW_TEXT_DENSITY_THRESHOLD:
@@ -385,6 +383,10 @@ def _run_pdf_fallbacks(
 
     extractor = extractor or LLMExtractor()
     result = extractor.extract(text)
+    result = replace(
+        result,
+        transactions=_attach_text_pages(result.transactions, pages),
+    )
     return _build_ingest_result(
         source_method="llm",
         result=result,
@@ -392,6 +394,45 @@ def _run_pdf_fallbacks(
         closing_balance=closing_balance,
         warnings=warnings,
     )
+
+
+def _page_for_description(
+    description: Optional[str], pages_lower: list[str]
+) -> Optional[int]:
+    """Find the first page whose text contains the description."""
+    if not description:
+        return None
+    needle = description.strip().lower()
+    if not needle:
+        return None
+    for index, page in enumerate(pages_lower):
+        if needle in page:
+            return index
+    return None
+
+
+def _attach_text_pages(
+    transactions: list[Transaction], pages: list[str]
+) -> list[Transaction]:
+    """Trace text-LLM rows back to their source page.
+
+    The LLM receives one joined text blob, so per-row page provenance
+    has to be recovered afterwards with a case-insensitive search of
+    each page's text. Rows whose description cannot be located on any
+    single page keep ``source_page=None`` — an honest "untraceable"
+    signal rather than a guess.
+    """
+    pages_lower = [page.lower() for page in pages]
+    attached: list[Transaction] = []
+    for tx in transactions:
+        if tx.source_page is not None:
+            attached.append(tx)
+            continue
+        page = _page_for_description(tx.description, pages_lower)
+        attached.append(
+            tx if page is None else tx.model_copy(update={"source_page": page})
+        )
+    return attached
 
 
 def _run_vision(
@@ -432,7 +473,7 @@ def _build_ingest_result(
         else result.closing_balance
     )
 
-    verification = verify_balance(
+    verification = verify_transactions(
         result.transactions,
         opening_balance=effective_opening,
         closing_balance=effective_closing,
@@ -447,9 +488,7 @@ def _build_ingest_result(
     )
 
 
-def _coerce_transactions(
-    raw: object, *, source: str
-) -> list[Transaction]:
+def _coerce_transactions(raw: object, *, source: str) -> list[Transaction]:
     """Normalize parser output (DataFrame / list / dict) to Transactions."""
     if raw is None:
         return []

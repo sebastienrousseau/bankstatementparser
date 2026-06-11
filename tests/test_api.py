@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import sys
 import types
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -76,7 +76,7 @@ def test_create_app_returns_app_with_routes(
     _install_fake_fastapi(monkeypatch)
     app = create_app()
     assert app.title == "Bank Statement Parser API"
-    assert app.version == "0.0.8"
+    assert app.version == "0.0.9"
     assert "POST /ingest" in app._routes
     assert "GET /health" in app._routes
 
@@ -108,7 +108,7 @@ def test_health_endpoint(
 
     result = asyncio.run(health_fn())
     assert result["status"] == "ok"
-    assert result["version"] == "0.0.8"
+    assert result["version"] == "0.0.9"
 
 
 def test_main_raises_without_uvicorn(
@@ -116,9 +116,7 @@ def test_main_raises_without_uvicorn(
 ) -> None:
     _install_fake_fastapi(monkeypatch)
     monkeypatch.setitem(sys.modules, "uvicorn", None)
-    monkeypatch.setattr(
-        sys, "argv", ["bankstatementparser-api"]
-    )
+    monkeypatch.setattr(sys, "argv", ["bankstatementparser-api"])
     with pytest.raises(APIError, match="uvicorn is required"):
         main()
 
@@ -142,7 +140,7 @@ def test_result_to_dict_structure() -> None:
     class _MockResult:
         source_method = "deterministic"
         source_format = "camt"
-        transactions = [_MockTx()]
+        transactions: ClassVar[list[Any]] = [_MockTx()]
         verification = _MockVerification()
         warnings = ("a warning",)
 
@@ -153,13 +151,117 @@ def test_result_to_dict_structure() -> None:
     assert result["warnings"] == ["a warning"]
 
 
+# ---------------------------------------------------------------------------
+# Safety floor (C-1): upload size cap, suffix allow-list, basename strip,
+# generic error responses. These tests cover the helpers directly; the
+# async ``ingest`` endpoint itself is exercised by the asgi smoke tests
+# below.
+# ---------------------------------------------------------------------------
+
+
+def test_safe_basename_strips_path_components() -> None:
+    from bankstatementparser.api import _safe_basename
+
+    assert _safe_basename("../../../etc/passwd") == "passwd"
+    assert _safe_basename("evil/../tmp/x.xml") == "x.xml"
+    assert _safe_basename("just-a-file.xml") == "just-a-file.xml"
+
+
+def test_safe_basename_defaults_when_missing() -> None:
+    from bankstatementparser.api import _safe_basename
+
+    assert _safe_basename(None) == "upload"
+    assert _safe_basename("") == "upload"
+
+
+def test_allowed_suffix_accepts_known_extensions() -> None:
+    from bankstatementparser.api import _allowed_suffix
+
+    assert _allowed_suffix("statement.xml") is True
+    assert _allowed_suffix("STATEMENT.XML") is True
+    assert _allowed_suffix("statement.pdf") is True
+    assert _allowed_suffix("statement.csv") is True
+
+
+def test_allowed_suffix_rejects_unknown_and_empty() -> None:
+    from bankstatementparser.api import _allowed_suffix
+
+    assert _allowed_suffix("statement.exe") is False
+    assert _allowed_suffix("no-suffix") is False
+    assert _allowed_suffix("") is False
+
+
+def test_resolve_max_upload_bytes_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bankstatementparser.api import (
+        DEFAULT_MAX_UPLOAD_BYTES,
+        ENV_MAX_UPLOAD_BYTES,
+        _resolve_max_upload_bytes,
+    )
+
+    monkeypatch.delenv(ENV_MAX_UPLOAD_BYTES, raising=False)
+    assert _resolve_max_upload_bytes() == DEFAULT_MAX_UPLOAD_BYTES
+
+
+def test_resolve_max_upload_bytes_from_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bankstatementparser.api import (
+        ENV_MAX_UPLOAD_BYTES,
+        _resolve_max_upload_bytes,
+    )
+
+    monkeypatch.setenv(ENV_MAX_UPLOAD_BYTES, "1048576")
+    assert _resolve_max_upload_bytes() == 1048576
+
+
+def test_resolve_max_upload_bytes_invalid_env_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bankstatementparser.api import (
+        DEFAULT_MAX_UPLOAD_BYTES,
+        ENV_MAX_UPLOAD_BYTES,
+        _resolve_max_upload_bytes,
+    )
+
+    monkeypatch.setenv(ENV_MAX_UPLOAD_BYTES, "not-a-number")
+    assert _resolve_max_upload_bytes() == DEFAULT_MAX_UPLOAD_BYTES
+
+
+def test_resolve_max_upload_bytes_zero_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bankstatementparser.api import (
+        DEFAULT_MAX_UPLOAD_BYTES,
+        ENV_MAX_UPLOAD_BYTES,
+        _resolve_max_upload_bytes,
+    )
+
+    monkeypatch.setenv(ENV_MAX_UPLOAD_BYTES, "0")
+    assert _resolve_max_upload_bytes() == DEFAULT_MAX_UPLOAD_BYTES
+
+
+def test_create_app_accepts_explicit_max_upload_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Explicit ``max_upload_bytes`` overrides env + default.
+
+    The value is captured into the closure of ``ingest`` so this
+    test asserts ``create_app`` accepts the kwarg without raising.
+    """
+    _install_fake_fastapi(monkeypatch)
+    app = create_app(max_upload_bytes=2048)
+    assert "POST /ingest" in app._routes
+
+
 def test_result_to_dict_none_verification() -> None:
     from bankstatementparser.api import _result_to_dict
 
     class _MockResult:
         source_method = "llm"
         source_format = "pdf"
-        transactions = []
+        transactions: ClassVar[list[Any]] = []
         verification = None
         warnings = ()
 

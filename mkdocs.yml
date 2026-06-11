@@ -1,0 +1,77 @@
+site_name: Bank Statement Parser
+site_description: >-
+  Parse CAMT (ISO 20022), SEPA Pain.001, CSV, OFX/QFX, and MT940 bank
+  statements into pandas DataFrames.
+site_url: https://sebastienrousseau.github.io/bankstatementparser/
+repo_url: https://github.com/sebastienrousseau/bankstatementparser
+repo_name: sebastienrousseau/bankstatementparser
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            members_order: source
+            merge_init_into_class: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - XML Field Mapping: MAPPING.md
+  - API Reference:
+      - Parsers:
+          - CAMT.053: api/camt_parser.md
+          - Pain.001: api/pain001_parser.md
+          - CSV / OFX / MT940: api/additional_parsers.md
+          - Base parser: api/base_parser.md
+          - Compatibility wrappers: api/bank_statement_parsers.md
+      - CLI: api/cli.md
+      - REST API: api/api.md
+      - Exceptions: api/exceptions.md
+      - Records & models:
+          - Typed records: api/record_types.md
+          - Transaction models: api/transaction_models.md
+      - Deduplication: api/transaction_deduplicator.md
+      - Parallel processing: api/parallel.md
+      - Input validation: api/input_validator.md
+      - ZIP security: api/zip_security.md
+      - Ledger export: api/export.md
+      - Enrichment: api/enrichment.md
+      - Hybrid LLM pipeline: api/hybrid.md
+  - Compliance:
+      - Change Control: compliance/CHANGE_CONTROL_PROCEDURE.md
+      - Risk Register: compliance/RISK_REGISTER.md
+      - Secure Path to Production: compliance/SECURE_PATH_TO_PRODUCTION.md
+      - Software Validation: compliance/SOFTWARE_VALIDATION_PROCEDURE.md
+      - SOUP Register: compliance/SOUP_REGISTER.md
+      - Traceability Matrix: compliance/TRACEABILITY_MATRIX.md

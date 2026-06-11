@@ -71,9 +71,7 @@ class TestPIIRedaction(unittest.TestCase):
 
     def test_redact_dataframe_basic_functionality(self):
         """Test that _redact_dataframe correctly identifies and redacts PII columns."""
-        redacted_df = self.cli._redact_dataframe(
-            self.test_data_with_pii
-        )
+        redacted_df = self.cli._redact_dataframe(self.test_data_with_pii)
 
         # Ensure original data is not modified
         self.assertIsNot(redacted_df, self.test_data_with_pii)
@@ -114,17 +112,11 @@ class TestPIIRedaction(unittest.TestCase):
             redacted_df["Account_Number"].iloc[0], "***REDACTED***"
         )
         self.assertEqual(redacted_df["IBAN"].iloc[0], "***REDACTED***")
-        self.assertEqual(
-            redacted_df["Name_Debtor"].iloc[0], "***REDACTED***"
-        )
-        self.assertEqual(
-            redacted_df["ADDRESS_LINE"].iloc[0], "***REDACTED***"
-        )
+        self.assertEqual(redacted_df["Name_Debtor"].iloc[0], "***REDACTED***")
+        self.assertEqual(redacted_df["ADDRESS_LINE"].iloc[0], "***REDACTED***")
 
         # Non-PII should remain unchanged
-        self.assertEqual(
-            redacted_df["Safe_Column"].iloc[0], "Safe Data"
-        )
+        self.assertEqual(redacted_df["Safe_Column"].iloc[0], "Safe Data")
 
     def test_redact_dataframe_empty_dataframe(self):
         """Test redaction behavior with empty DataFrame."""
@@ -151,9 +143,7 @@ class TestPIIRedaction(unittest.TestCase):
         pd.testing.assert_frame_equal(redacted_df, safe_data)
 
     @patch("bankstatementparser.cli.CamtParser")
-    def test_cli_default_console_output_redacts_pii(
-        self, mock_camt_parser
-    ):
+    def test_cli_default_console_output_redacts_pii(self, mock_camt_parser):
         """Test CLI default behavior redacts PII in console output."""
         # Setup mock parser to return data with PII
         mock_parser_instance = Mock()
@@ -239,34 +229,32 @@ class TestPIIRedaction(unittest.TestCase):
         )
         mock_camt_parser.return_value = mock_parser_instance
 
-        with patch.object(
-            self.cli.validator,
-            "get_safe_filename",
-            return_value="safe_output.csv",
+        with (
+            patch.object(
+                self.cli.validator,
+                "get_safe_filename",
+                return_value="safe_output.csv",
+            ),
+            tempfile.NamedTemporaryFile(suffix=".xml") as temp_input,
         ):
-            with tempfile.NamedTemporaryFile(
-                suffix=".xml"
-            ) as temp_input:
-                input_path = Path(temp_input.name)
-                output_path = Path("output.csv")
+            input_path = Path(temp_input.name)
+            output_path = Path("output.csv")
 
-                with patch("builtins.print"):
-                    self.cli.parse_camt(
-                        input_path, output_path, show_pii=False
-                    )
+            with patch("builtins.print"):
+                self.cli.parse_camt(input_path, output_path, show_pii=False)
 
-                    # Verify to_csv was called once
-                    self.assertEqual(mock_to_csv.call_count, 1)
+                # Verify to_csv was called once
+                self.assertEqual(mock_to_csv.call_count, 1)
 
-                    # Extract the DataFrame passed to to_csv
-                    mock_to_csv.call_args[1]["data"] if "data" in str(
-                        mock_to_csv.call_args
-                    ) else None
+                # Extract the DataFrame passed to to_csv
+                mock_to_csv.call_args[1]["data"] if "data" in str(
+                    mock_to_csv.call_args
+                ) else None
 
-                    # Verify that file export contains unredacted data
-                    # The DataFrame passed to to_csv should be the original, not redacted
-                    # Since we can't easily extract the actual DataFrame, we verify the logic path:
-                    # File output goes through direct CSV save without redaction
+                # Verify that file export contains unredacted data
+                # The DataFrame passed to to_csv should be the original, not redacted
+                # Since we can't easily extract the actual DataFrame, we verify the logic path:
+                # File output goes through direct CSV save without redaction
 
     @patch("bankstatementparser.cli.Pain001Parser")
     @patch("pandas.DataFrame.to_csv")
@@ -281,24 +269,22 @@ class TestPIIRedaction(unittest.TestCase):
         )
         mock_pain_parser.return_value = mock_parser_instance
 
-        with patch.object(
-            self.cli.validator,
-            "get_safe_filename",
-            return_value="safe_output.csv",
+        with (
+            patch.object(
+                self.cli.validator,
+                "get_safe_filename",
+                return_value="safe_output.csv",
+            ),
+            tempfile.NamedTemporaryFile(suffix=".xml") as temp_input,
         ):
-            with tempfile.NamedTemporaryFile(
-                suffix=".xml"
-            ) as temp_input:
-                input_path = Path(temp_input.name)
-                output_path = Path("output.csv")
+            input_path = Path(temp_input.name)
+            output_path = Path("output.csv")
 
-                with patch("builtins.print"):
-                    self.cli.parse_pain(
-                        input_path, output_path, show_pii=False
-                    )
+            with patch("builtins.print"):
+                self.cli.parse_pain(input_path, output_path, show_pii=False)
 
-                    # Verify to_csv was called once for file export
-                    self.assertEqual(mock_to_csv.call_count, 1)
+                # Verify to_csv was called once for file export
+                self.assertEqual(mock_to_csv.call_count, 1)
 
     @patch("bankstatementparser.cli.Pain001Parser")
     def test_cli_pain001_console_redaction(self, mock_pain_parser):
@@ -351,28 +337,28 @@ class TestPIIRedaction(unittest.TestCase):
                 ]
             )
 
+            # Close the handle before reopening/unlinking: Windows
+            # cannot delete or share a file that is still open.
             with tempfile.NamedTemporaryFile(
                 suffix=".xml", mode="w", delete=False
             ) as temp_file:
                 temp_file.write("<xml></xml>")  # Minimal valid XML
-                temp_file.flush()
+                temp_path = temp_file.name
 
-                try:
-                    parser = CamtParser(temp_file.name)
+            try:
+                parser = CamtParser(temp_path)
 
-                    # Test with redact_pii=True
-                    result_redacted = parser.parse(redact_pii=True)
+                # Test with redact_pii=True
+                result_redacted = parser.parse(redact_pii=True)
 
-                    # Verify get_transactions was called with redact_pii=True
-                    mock_get_transactions.assert_called_with(
-                        redact_pii=True
-                    )
+                # Verify get_transactions was called with redact_pii=True
+                mock_get_transactions.assert_called_with(redact_pii=True)
 
-                    # Verify the result is a DataFrame
-                    self.assertIsInstance(result_redacted, pd.DataFrame)
+                # Verify the result is a DataFrame
+                self.assertIsInstance(result_redacted, pd.DataFrame)
 
-                finally:
-                    os.unlink(temp_file.name)
+            finally:
+                os.unlink(temp_path)
 
     def test_parser_redact_pii_false_returns_full_data(self):
         """Test parser redact_pii=False (default) returns unredacted data."""
@@ -396,36 +382,28 @@ class TestPIIRedaction(unittest.TestCase):
                 suffix=".xml", mode="w", delete=False
             ) as temp_file:
                 temp_file.write("<xml></xml>")  # Minimal valid XML
-                temp_file.flush()
+                temp_path = temp_file.name
 
-                try:
-                    parser = CamtParser(temp_file.name)
+            try:
+                parser = CamtParser(temp_path)
 
-                    # Test with redact_pii=False (explicit)
-                    result_unredacted = parser.parse(redact_pii=False)
-                    mock_get_transactions.assert_called_with(
-                        redact_pii=False
-                    )
+                # Test with redact_pii=False (explicit)
+                result_unredacted = parser.parse(redact_pii=False)
+                mock_get_transactions.assert_called_with(redact_pii=False)
 
-                    # Test default behavior (should be False)
-                    result_default = parser.parse()
-                    mock_get_transactions.assert_called_with(
-                        redact_pii=False
-                    )
+                # Test default behavior (should be False)
+                result_default = parser.parse()
+                mock_get_transactions.assert_called_with(redact_pii=False)
 
-                    # Both calls should result in DataFrames
-                    self.assertIsInstance(
-                        result_unredacted, pd.DataFrame
-                    )
-                    self.assertIsInstance(result_default, pd.DataFrame)
+                # Both calls should result in DataFrames
+                self.assertIsInstance(result_unredacted, pd.DataFrame)
+                self.assertIsInstance(result_default, pd.DataFrame)
 
-                    # Verify mock was called twice
-                    self.assertEqual(
-                        mock_get_transactions.call_count, 2
-                    )
+                # Verify mock was called twice
+                self.assertEqual(mock_get_transactions.call_count, 2)
 
-                finally:
-                    os.unlink(temp_file.name)
+            finally:
+                os.unlink(temp_path)
 
     def test_pain001_parser_redact_pii_functionality(self):
         """Test Pain001Parser redact_pii parameter functionality."""
@@ -436,71 +414,56 @@ class TestPIIRedaction(unittest.TestCase):
             temp_file.write(
                 '<?xml version="1.0" encoding="UTF-8"?><Document></Document>'
             )  # Minimal valid XML
-            temp_file.flush()
+            temp_path = temp_file.name
 
-            try:
-                parser = Pain001Parser(temp_file.name)
+        try:
+            parser = Pain001Parser(temp_path)
 
-                # Use patch to avoid actual XML parsing but verify parameter acceptance
-                with patch.object(
-                    parser, "__init__", return_value=None
-                ):
-                    # Create a mock parser instance
-                    Mock(spec=Pain001Parser)
+            # Use patch to avoid actual XML parsing but verify parameter acceptance
+            with patch.object(parser, "__init__", return_value=None):
+                # Create a mock parser instance
+                Mock(spec=Pain001Parser)
 
-                    # Test that the parse method signature accepts redact_pii
-                    self.assertTrue(
-                        hasattr(Pain001Parser.parse, "__code__")
-                    )
-                    param_names = (
-                        Pain001Parser.parse.__code__.co_varnames
-                    )
-                    self.assertIn(
-                        "redact_pii",
-                        param_names,
-                        "Pain001Parser.parse should accept redact_pii parameter",
-                    )
+                # Test that the parse method signature accepts redact_pii
+                self.assertTrue(hasattr(Pain001Parser.parse, "__code__"))
+                param_names = Pain001Parser.parse.__code__.co_varnames
+                self.assertIn(
+                    "redact_pii",
+                    param_names,
+                    "Pain001Parser.parse should accept redact_pii parameter",
+                )
 
-                    # Test that get_summary method signature accepts redact_pii
-                    self.assertTrue(
-                        hasattr(Pain001Parser.get_summary, "__code__")
-                    )
-                    summary_params = (
-                        Pain001Parser.get_summary.__code__.co_varnames
-                    )
-                    self.assertIn(
-                        "redact_pii",
-                        summary_params,
-                        "Pain001Parser.get_summary should accept redact_pii parameter",
-                    )
+                # Test that get_summary method signature accepts redact_pii
+                self.assertTrue(hasattr(Pain001Parser.get_summary, "__code__"))
+                summary_params = Pain001Parser.get_summary.__code__.co_varnames
+                self.assertIn(
+                    "redact_pii",
+                    summary_params,
+                    "Pain001Parser.get_summary should accept redact_pii parameter",
+                )
 
-            finally:
-                os.unlink(temp_file.name)
+        finally:
+            os.unlink(temp_path)
 
     def test_cli_integration_camt_full_workflow(self):
         """Integration test: Full CLI workflow with CAMT file and PII redaction."""
         test_args = ["cli.py", "--type", "camt", "--input", "test.xml"]
 
-        with patch("sys.argv", test_args):
-            with patch.object(
-                self.cli,
-                "_sanitize_file_path",
-                return_value="/path/test.xml",
-            ):
-                with patch.object(
-                    self.cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path("/path/test.xml"),
-                ):
-                    with patch.object(
-                        self.cli, "parse_camt"
-                    ) as mock_parse_camt:
-                        self.cli.run()
+        with (
+            patch("sys.argv", test_args),
+            patch.object(
+                self.cli.validator,
+                "validate_input_file_path",
+                return_value=Path("/path/test.xml"),
+            ),
+            patch.object(self.cli, "parse_camt") as mock_parse_camt,
+        ):
+            self.cli.run()
 
-                        # Verify parse_camt was called with default show_pii=False
-                        mock_parse_camt.assert_called_once_with(
-                            Path("/path/test.xml"), None, False
-                        )
+            # Verify parse_camt was called with default show_pii=False
+            mock_parse_camt.assert_called_once_with(
+                Path("/path/test.xml"), None, False
+            )
 
     def test_cli_integration_with_show_pii_flag(self):
         """Integration test: CLI with --show-pii flag."""
@@ -513,26 +476,21 @@ class TestPIIRedaction(unittest.TestCase):
             "--show-pii",
         ]
 
-        with patch("sys.argv", test_args):
-            with patch.object(
-                self.cli,
-                "_sanitize_file_path",
-                return_value="/path/test.xml",
-            ):
-                with patch.object(
-                    self.cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path("/path/test.xml"),
-                ):
-                    with patch.object(
-                        self.cli, "parse_camt"
-                    ) as mock_parse_camt:
-                        self.cli.run()
+        with (
+            patch("sys.argv", test_args),
+            patch.object(
+                self.cli.validator,
+                "validate_input_file_path",
+                return_value=Path("/path/test.xml"),
+            ),
+            patch.object(self.cli, "parse_camt") as mock_parse_camt,
+        ):
+            self.cli.run()
 
-                        # Verify parse_camt was called with show_pii=True
-                        mock_parse_camt.assert_called_once_with(
-                            Path("/path/test.xml"), None, True
-                        )
+            # Verify parse_camt was called with show_pii=True
+            mock_parse_camt.assert_called_once_with(
+                Path("/path/test.xml"), None, True
+            )
 
     def test_cli_integration_pain001_with_output_file(self):
         """Integration test: PAIN001 parsing with output file."""
@@ -548,31 +506,26 @@ class TestPIIRedaction(unittest.TestCase):
 
         with patch("sys.argv", test_args):
             with patch.object(
-                self.cli,
-                "_sanitize_file_path",
-                side_effect=["/path/test.xml", "/path/result.csv"],
+                self.cli.validator,
+                "validate_input_file_path",
+                return_value=Path("/path/test.xml"),
             ):
                 with patch.object(
                     self.cli.validator,
-                    "validate_input_file_path",
-                    return_value=Path("/path/test.xml"),
+                    "validate_output_file_path",
+                    return_value=Path("/path/result.csv"),
                 ):
                     with patch.object(
-                        self.cli.validator,
-                        "validate_output_file_path",
-                        return_value=Path("/path/result.csv"),
-                    ):
-                        with patch.object(
-                            self.cli, "parse_pain"
-                        ) as mock_parse_pain:
-                            self.cli.run()
+                        self.cli, "parse_pain"
+                    ) as mock_parse_pain:
+                        self.cli.run()
 
-                            # Verify parse_pain was called with output file and default show_pii=False
-                            mock_parse_pain.assert_called_once_with(
-                                Path("/path/test.xml"),
-                                Path("/path/result.csv"),
-                                False,
-                            )
+                        # Verify parse_pain was called with output file and default show_pii=False
+                        mock_parse_pain.assert_called_once_with(
+                            Path("/path/test.xml"),
+                            Path("/path/result.csv"),
+                            False,
+                        )
 
     def test_edge_case_dataframe_with_only_pii_columns(self):
         """Test redaction with DataFrame containing only PII columns."""
@@ -600,9 +553,7 @@ class TestPIIRedaction(unittest.TestCase):
             {
                 "customer_name_full": ["John Doe"],  # Contains 'name'
                 "iban_code": ["GB123"],  # Contains 'iban'
-                "home_address_line1": [
-                    "123 Main St"
-                ],  # Contains 'address'
+                "home_address_line1": ["123 Main St"],  # Contains 'address'
                 "safe_data": ["Safe Value"],  # No PII keywords
                 "account_holder": ["Jane Smith"],  # Contains 'account'
             }
@@ -614,9 +565,7 @@ class TestPIIRedaction(unittest.TestCase):
         self.assertEqual(
             redacted_df["customer_name_full"].iloc[0], "***REDACTED***"
         )
-        self.assertEqual(
-            redacted_df["iban_code"].iloc[0], "***REDACTED***"
-        )
+        self.assertEqual(redacted_df["iban_code"].iloc[0], "***REDACTED***")
         self.assertEqual(
             redacted_df["home_address_line1"].iloc[0], "***REDACTED***"
         )

@@ -38,6 +38,11 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, Optional, Union
 
+from .._llm_common import (
+    ENV_API_BASE,
+    ENV_VISION_MODEL,
+    warn_if_data_leaves_machine,
+)
 from ..transaction_models import Transaction
 from .llm_extractor import (
     LLMExtractionResult,
@@ -49,9 +54,6 @@ from .llm_extractor import (
 
 PathLike = Union[str, Path]
 CompletionFn = Callable[..., Any]
-
-ENV_VISION_MODEL = "BSP_HYBRID_VISION_MODEL"
-ENV_API_BASE = "BSP_HYBRID_API_BASE"
 
 # Render scale factor: 2.0 ≈ 144 DPI, a sweet spot between OCR
 # legibility and base64 payload size for the LLM call.
@@ -98,6 +100,7 @@ Schema:
   "transactions": [
     {
       "booking_date": "YYYY-MM-DD",
+      "value_date": "YYYY-MM-DD"|null,
       "description": string,
       "amount": number,
       "reference": string|null,
@@ -168,9 +171,15 @@ class VisionExtractor:
         strip_rows: bool = False,
         n_strips: int = DEFAULT_STRIP_COUNT,
     ) -> None:
+        """Resolve model/render settings; see class docstring.
+
+        Raises:
+            ValueError: If ``n_strips`` is less than 2.
+        """
         self.model = model or os.environ.get(ENV_VISION_MODEL)
         self.api_base = api_base or os.environ.get(ENV_API_BASE)
         self._completion_fn = completion_fn
+        warn_if_data_leaves_machine(self.model, self.api_base)
         self.render_scale = render_scale
         self.max_pages = max_pages
         self.strip_rows = strip_rows
@@ -209,9 +218,7 @@ class VisionExtractor:
 
         images = self._render_pages(Path(pdf_path))
         if not images:
-            raise VisionExtractorError(
-                f"No pages rendered from {pdf_path}"
-            )
+            raise VisionExtractorError(f"No pages rendered from {pdf_path}")
 
         return self._call_vision(_build_vision_messages(images))
 
@@ -237,7 +244,9 @@ class VisionExtractor:
 
         raw = _extract_message_content(response)
         payload = _parse_json_payload(raw)
-        return _build_result(payload, raw, source_text="")
+        return _build_result(
+            payload, raw, source_text="", source_method="vision"
+        )
 
     def _extract_strip(self, pdf_path: Path) -> LLMExtractionResult:
         """Strip-mode extraction: per-strip LLM calls + merge by hash.
@@ -253,9 +262,7 @@ class VisionExtractor:
         """
         page_strips = self._render_strips(pdf_path)
         if not page_strips:
-            raise VisionExtractorError(
-                f"No strips rendered from {pdf_path}"
-            )
+            raise VisionExtractorError(f"No strips rendered from {pdf_path}")
 
         merged_transactions: list[Transaction] = []
         seen_hashes: set[str] = set()
@@ -440,6 +447,7 @@ markdown — using this schema:
   "transactions": [
     {
       "booking_date": "YYYY-MM-DD",
+      "value_date": "YYYY-MM-DD"|null,
       "description": string,
       "amount": number,
       "reference": string|null,
@@ -463,6 +471,7 @@ no markdown — using this schema:
   "transactions": [
     {
       "booking_date": "YYYY-MM-DD",
+      "value_date": "YYYY-MM-DD"|null,
       "description": string,
       "amount": number,
       "reference": string|null,

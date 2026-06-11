@@ -37,9 +37,7 @@ class FileResult:
 
     path: str
     status: str
-    transactions: pd.DataFrame = field(
-        default_factory=pd.DataFrame
-    )
+    transactions: pd.DataFrame = field(default_factory=pd.DataFrame)
     error: str = ""
 
 
@@ -66,7 +64,7 @@ def _parse_single_file(
         return FileResult(
             path=file_path,
             status="FAILED",
-            error=str(exc),
+            error=f"{type(exc).__name__}: {exc}",
         )
 
 
@@ -103,13 +101,9 @@ def parse_files_parallel(
 
     results: dict[str, FileResult] = {}
 
-    with ProcessPoolExecutor(
-        max_workers=max_workers
-    ) as executor:
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_path = {
-            executor.submit(
-                _parse_single_file, p, format_name
-            ): p
+            executor.submit(_parse_single_file, p, format_name): p
             for p in str_paths
         }
         for future in as_completed(future_to_path):
@@ -120,7 +114,7 @@ def parse_files_parallel(
                 results[path] = FileResult(
                     path=path,
                     status="FAILED",
-                    error=str(exc),
+                    error=f"{type(exc).__name__}: {exc}",
                 )
 
     # Preserve original order

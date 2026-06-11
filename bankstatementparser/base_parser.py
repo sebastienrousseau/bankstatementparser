@@ -13,11 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-base_parser.py
+"""Abstract base class for bank statement parsers.
 
-Abstract base class for bank statement parsers providing a standardized
-interface for parsing different bank statement formats.
+Provides a standardized interface for parsing different bank
+statement formats.
 """
 
 import importlib
@@ -36,8 +35,7 @@ if TYPE_CHECKING:
 
 
 class BankStatementParser(ABC):
-    """
-    Abstract base class for bank statement parsers.
+    """Abstract base class for bank statement parsers.
 
     This class defines a standardized interface that all bank statement
     parsers should implement, ensuring consistency across different
@@ -48,8 +46,7 @@ class BankStatementParser(ABC):
     """
 
     def __init__(self, file_name: Union[str, Path]) -> None:
-        """
-        Initialize the parser with a file path.
+        """Initialize the parser with a file path.
 
         Args:
             file_name (Union[str, Path]): Path to the bank statement file.
@@ -58,8 +55,7 @@ class BankStatementParser(ABC):
 
     @abstractmethod
     def parse(self) -> pd.DataFrame:
-        """
-        Parse the bank statement file and return structured data.
+        """Parse the bank statement file and return structured data.
 
         This method should parse the bank statement file and return
         a pandas DataFrame containing the parsed transaction data
@@ -73,12 +69,10 @@ class BankStatementParser(ABC):
             ValidationError: If the file format is invalid.
             Exception: For other parsing errors.
         """
-        pass
 
     @abstractmethod
     def get_summary(self) -> SummaryRecord:
-        """
-        Get a summary of the parsed bank statement data.
+        """Get a summary of the parsed bank statement data.
 
         This method should return key statistics and metadata about
         the bank statement, such as account information, balance data,
@@ -94,11 +88,9 @@ class BankStatementParser(ABC):
                 - closing_balance: Closing balance (if available)
                 - currency: Statement currency
         """
-        pass
 
     def export_csv(self, output_path: Union[str, Path]) -> None:
-        """
-        Export parsed data to a CSV file.
+        """Export parsed data to a CSV file.
 
         Args:
             output_path (Union[str, Path]): Path where CSV file should be saved.
@@ -120,8 +112,7 @@ class BankStatementParser(ABC):
             raise ExportError(f"Failed to export CSV: {exc}") from exc
 
     def export_json(self, output_path: Union[str, Path]) -> None:
-        """
-        Export parsed data to a JSON file.
+        """Export parsed data to a JSON file.
 
         Args:
             output_path (Union[str, Path]): Path where JSON file should be saved.
@@ -151,8 +142,7 @@ class BankStatementParser(ABC):
             raise ExportError(f"Failed to export JSON: {exc}") from exc
 
     def to_polars(self) -> "pl.DataFrame":
-        """
-        Convert parsed transaction data to a Polars DataFrame.
+        """Convert parsed transaction data to a Polars DataFrame.
 
         Returns:
             Any: ``polars.DataFrame`` for the parsed data.
@@ -170,8 +160,7 @@ class BankStatementParser(ABC):
         return polars.from_pandas(self.parse())
 
     def to_polars_lazy(self) -> "pl.LazyFrame":
-        """
-        Convert parsed transaction data to a Polars LazyFrame.
+        """Convert parsed transaction data to a Polars LazyFrame.
 
         Returns:
             Any: ``polars.LazyFrame`` for the parsed data.
@@ -179,8 +168,7 @@ class BankStatementParser(ABC):
         return self.to_polars().lazy()
 
     def __repr__(self) -> str:
-        """
-        Return a string representation of the parser.
+        """Return a string representation of the parser.
 
         Returns:
             str: String representation including parser type and file name.
@@ -188,8 +176,7 @@ class BankStatementParser(ABC):
         return f"{self.__class__.__name__}(file='{self.file_name}')"
 
     def __str__(self) -> str:
-        """
-        Return a human-readable string representation.
+        """Return a human-readable string representation.
 
         Returns:
             str: Human-readable representation with summary information.

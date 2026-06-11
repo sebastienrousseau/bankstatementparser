@@ -55,7 +55,10 @@ def test_regex_pattern() -> None:
             )
         ]
     )
-    assert mapper.map(_tx("AMZN MKTPLACE 2026-04-01")) == "Expenses:Shopping:Amazon"
+    assert (
+        mapper.map(_tx("AMZN MKTPLACE 2026-04-01"))
+        == "Expenses:Shopping:Amazon"
+    )
     assert mapper.map(_tx("AMAZON.CO.UK")) == "Expenses:Shopping:Amazon"
 
 

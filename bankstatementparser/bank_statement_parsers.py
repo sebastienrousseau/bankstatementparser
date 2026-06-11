@@ -13,19 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-bank_statement_parsers.py
+"""Consolidated access to bank statement parsing functionality.
 
-This module provides consolidated access to bank statement parsing functionality.
-The actual parser implementations are in standalone modules with compatibility wrappers.
+The actual parser implementations are in standalone modules; this
+module provides compatibility wrappers around them.
 """
 
 import os
+import warnings
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, ClassVar, Union
 
 import pandas as pd
 from lxml.etree import _Element
+
+from ._amounts import iso_decimal
 
 # Import parsers from standalone modules
 from .camt_parser import CamtParser
@@ -36,12 +38,9 @@ from .pain001_parser import Pain001Parser as StandalonePain001Parser
 class FileParserError(Exception):
     """Custom exception for file parsing errors."""
 
-    pass
-
 
 class Pain001Parser:
-    """
-    Compatibility wrapper for SEPA Pain.001 credit transfer files.
+    """Compatibility wrapper for SEPA Pain.001 credit transfer files.
 
     This maintains the original API while delegating to enhanced standalone implementation.
 
@@ -55,8 +54,7 @@ class Pain001Parser:
     def __init__(
         self, file_name: Union[str, Path], redact_pii: bool = False
     ) -> None:
-        """
-        Initializes the parser and parses payments from the given file.
+        """Initializes the parser and parses payments from the given file.
 
         Parameters:
             file_name (Union[str, Path]): The path to the SEPA Pain.001 XML file.
@@ -65,13 +63,18 @@ class Pain001Parser:
         Raises:
             FileNotFoundError: If the specified file cannot be found.
         """
+        warnings.warn(
+            "bank_statement_parsers.Pain001Parser is a compatibility "
+            "wrapper; use bankstatementparser.pain001_parser."
+            "Pain001Parser instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Store redact_pii setting
         self._redact_pii = redact_pii
 
         # Delegate to the standalone parser for file I/O and XML parsing
-        self._standalone_parser = StandalonePain001Parser(
-            str(file_name)
-        )
+        self._standalone_parser = StandalonePain001Parser(str(file_name))
         tree = self._standalone_parser.tree
 
         # Extract payment batches from the already-parsed XML tree.
@@ -87,8 +90,7 @@ class Pain001Parser:
         self.total_payments_count: int = len(self.payments)
 
     def _parse_batch_header(self, batch: _Element) -> dict[str, str]:
-        """
-        Parses header data for a payment batch.
+        """Parses header data for a payment batch.
 
         Parameters:
             batch (_Element): The XML element representing a payment batch.
@@ -102,9 +104,7 @@ class Pain001Parser:
         debtor_elems = batch.xpath(".//Dbtr/Nm")
         debtor_name: str = debtor_elems[0].text if debtor_elems else ""
         debtor_account: str = (
-            batch.xpath(".//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id")[
-                0
-            ].text
+            batch.xpath(".//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id")[0].text
             if batch.xpath(".//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id")
             else ""
         )
@@ -116,8 +116,7 @@ class Pain001Parser:
         }
 
     def _parse_batch(self, batch: _Element) -> list[dict[str, Any]]:
-        """
-        Parses all payments in a payment batch.
+        """Parses all payments in a payment batch.
 
         Parameters:
             batch (_Element): The XML element representing a payment batch.
@@ -142,8 +141,7 @@ class Pain001Parser:
     def _parse_payment(
         self, payment: _Element, redact_pii: bool = False
     ) -> dict[str, Any]:
-        """
-        Parses a single payment within a payment batch.
+        """Parses a single payment within a payment batch.
 
         Parameters:
             payment (_Element): The XML element representing a single payment.
@@ -157,12 +155,8 @@ class Pain001Parser:
         currency: str = payment.xpath(".//InstdAmt/@Ccy")[0]
         name: str = payment.xpath(".//Cdtr/Nm")[0].text
         account: str = (
-            payment.xpath(".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id")[
-                0
-            ].text
-            if payment.xpath(
-                ".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id"
-            )
+            payment.xpath(".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id")[0].text
+            if payment.xpath(".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id")
             else ""
         )
         country: str = (
@@ -185,7 +179,7 @@ class Pain001Parser:
 
         return {
             "Name": name,
-            "Amount": float(amount),
+            "Amount": iso_decimal(amount, context="InstdAmt element"),
             "Currency": currency,
             "Reference": reference,
             "CreditorAccount": account,
@@ -194,8 +188,7 @@ class Pain001Parser:
         }
 
     def __repr__(self) -> str:
-        """
-        Returns a string representation of the Pain001Parser instance.
+        """Returns a string representation of the Pain001Parser instance.
 
         Returns:
             str: A string representation of the instance.
@@ -207,8 +200,7 @@ class Pain001Parser:
 
 
 class Camt053Parser:
-    """
-    Compatibility wrapper for CAMT.053 bank account statement files.
+    """Compatibility wrapper for CAMT.053 bank account statement files.
 
     This maintains the original API while delegating to enhanced standalone implementation.
 
@@ -218,7 +210,7 @@ class Camt053Parser:
     """
 
     # Balance type definitions.
-    DEFINITIONS = {
+    DEFINITIONS: ClassVar[dict[str, str]] = {
         "OPBD": "Opening booked balance",
         "CLBD": "Closing booked balance",
         "CLAV": "Closing available balance",
@@ -227,8 +219,7 @@ class Camt053Parser:
     def __init__(
         self, file_name: Union[str, Path], redact_pii: bool = False
     ) -> None:
-        """
-        Initializes the parser and parses statements and transactions from the given file.
+        """Initializes the parser and parses statements and transactions from the given file.
 
         Parameters:
             file_name (Union[str, Path]): The path to the CAMT.053 XML file.
@@ -236,9 +227,15 @@ class Camt053Parser:
 
         Raises:
             FileNotFoundError: If the specified file cannot be found.
-            FileParserError: If the file is not a valid CAMT.053 file or if it
-            does not contain any statements.
+            FileParserError: If the file is not a valid CAMT.053 file
+                or if it does not contain any statements.
         """
+        warnings.warn(
+            "Camt053Parser is a compatibility wrapper; use "
+            "bankstatementparser.camt_parser.CamtParser instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Use the enhanced standalone parser internally
         try:
             self._parser = CamtParser(str(file_name))
@@ -251,15 +248,11 @@ class Camt053Parser:
             transactions_df = self._parser.get_transactions(
                 redact_pii=redact_pii
             )
-            stats_df = self._parser.get_statement_stats(
-                redact_pii=redact_pii
-            )
+            stats_df = self._parser.get_statement_stats(redact_pii=redact_pii)
 
             # Convert to original format
             self.statements = (
-                stats_df.to_dict("records")
-                if not stats_df.empty
-                else []
+                stats_df.to_dict("records") if not stats_df.empty else []
             )
             self.transactions = (
                 transactions_df.to_dict("records")
@@ -269,12 +262,8 @@ class Camt053Parser:
 
             # Add balance information to statements if available
             if not balances_df.empty:
-                balances_by_account: dict[
-                    str, dict[str, dict[str, str]]
-                ] = {}
-                for account_id, group in balances_df.groupby(
-                    "AccountId"
-                ):
+                balances_by_account: dict[str, dict[str, dict[str, str]]] = {}
+                for account_id, group in balances_df.groupby("AccountId"):
                     balances_by_account[account_id] = {
                         str(row["Code"]): {
                             "Amount": str(row["Amount"]),
@@ -291,15 +280,12 @@ class Camt053Parser:
         except ValidationError as e:
             raise FileParserError("Not a valid CAMT.053 file") from e
         except FileNotFoundError as e:
-            raise FileNotFoundError(
-                f"File {file_name} not found!"
-            ) from e
+            raise FileNotFoundError(f"File {file_name} not found!") from e
         except Exception as e:
             raise FileParserError("Not a valid CAMT.053 file") from e
 
     def __repr__(self) -> str:
-        """
-        Returns a string representation of the Camt053Parser instance.
+        """Returns a string representation of the Camt053Parser instance.
 
         Returns:
             str: A string representation of the instance.
@@ -314,8 +300,7 @@ class Camt053Parser:
 def process_camt053_folder(
     folder: Union[str, Path], redact_pii: bool = False
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """
-    Processes all CAMT.053 files in a specified folder.
+    """Processes all CAMT.053 files in a specified folder.
 
     Parameters:
         folder (Union[str, Path]): The path to the folder containing CAMT.053 files.
@@ -342,9 +327,7 @@ def process_camt053_folder(
                 )
 
                 # Append parsed data to the respective DataFrames.
-                statement_rows: list[dict[str, Any]] = list(
-                    parser.statements
-                )
+                statement_rows: list[dict[str, Any]] = list(parser.statements)
                 statements_df = pd.concat(
                     [statements_df, pd.DataFrame(statement_rows)]
                 )

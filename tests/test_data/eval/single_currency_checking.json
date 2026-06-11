@@ -1,0 +1,17 @@
+{
+  "name": "single_currency_checking",
+  "statement_text": "ACME BANK plc\nAccount: GB29NWBK60161331926819\nStatement period: 01 Apr 2026 - 30 Apr 2026\nCurrency: GBP\nOpening balance: 1,000.00\n\nDate        Description                 Amount\n2026-04-02  COFFEE SHOP LONDON          -4.50\n2026-04-05  SALARY ACME CORP          2,500.00\n2026-04-09  RENT APRIL              -1,200.00\n2026-04-15  GROCERY MART               -85.20\n2026-04-28  ELECTRICITY DD             -60.30\n\nClosing balance: 2,150.00\n",
+  "expected": {
+    "account_id": "GB29NWBK60161331926819",
+    "currency": "GBP",
+    "opening_balance": "1000.00",
+    "closing_balance": "2150.00",
+    "transactions": [
+      {"booking_date": "2026-04-02", "amount": "-4.50", "description": "COFFEE SHOP LONDON"},
+      {"booking_date": "2026-04-05", "amount": "2500.00", "description": "SALARY ACME CORP"},
+      {"booking_date": "2026-04-09", "amount": "-1200.00", "description": "RENT APRIL"},
+      {"booking_date": "2026-04-15", "amount": "-85.20", "description": "GROCERY MART"},
+      {"booking_date": "2026-04-28", "amount": "-60.30", "description": "ELECTRICITY DD"}
+    ]
+  }
+}

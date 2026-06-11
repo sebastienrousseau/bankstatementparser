@@ -126,6 +126,51 @@ def test_smart_ingest_runs_balance_check_when_balances_provided(
     assert result.verification.status is VerificationStatus.VERIFIED
 
 
+def test_smart_ingest_multi_currency_avoids_false_discrepancy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mixed-currency statements are verified per currency, not summed."""
+    file_path = tmp_path / "statement.csv"
+    file_path.write_text("placeholder")
+
+    records = [
+        {
+            "account_id": "A",
+            "currency": "GBP",
+            "amount": "100.00",
+            "date": "2026-04-01",
+            "description": "Credit GBP",
+        },
+        {
+            "account_id": "A",
+            "currency": "EUR",
+            "amount": "200.00",
+            "date": "2026-04-02",
+            "description": "Credit EUR",
+        },
+    ]
+    monkeypatch.setattr(
+        orchestrator, "detect_statement_format", lambda _p: "csv"
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "create_parser",
+        lambda _p, _f: _FakeParser(records),
+    )
+
+    result = smart_ingest(
+        file_path,
+        opening_balance=Decimal("0"),
+        closing_balance=Decimal("100"),
+    )
+    assert result.verification is not None
+    # The single balance pair cannot be attributed to one currency,
+    # so the statement reports FAILED (cannot verify) instead of the
+    # false DISCREPANCY the summed single-currency check would give.
+    assert result.verification.status is VerificationStatus.FAILED
+    assert "Multi-currency statement" in result.verification.message
+
+
 def test_smart_ingest_falls_back_to_llm_when_parser_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -141,7 +186,7 @@ def test_smart_ingest_falls_back_to_llm_when_parser_raises(
 
     monkeypatch.setattr(orchestrator, "create_parser", boom)
     monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "raw pdf text " * 10
+        orchestrator, "extract_text_pages", lambda _p: ["raw pdf text " * 10]
     )
 
     payload = {
@@ -170,11 +215,9 @@ def test_smart_ingest_warns_when_detection_raises(
     def boom(_path: str) -> str:
         raise RuntimeError("detector blew up")
 
+    monkeypatch.setattr(orchestrator, "detect_statement_format", boom)
     monkeypatch.setattr(
-        orchestrator, "detect_statement_format", boom
-    )
-    monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "pdf text " * 20
+        orchestrator, "extract_text_pages", lambda _p: ["pdf text " * 20]
     )
 
     payload = {
@@ -202,7 +245,7 @@ def test_smart_ingest_uses_llm_for_pdf_directly(
         orchestrator, "detect_statement_format", lambda _p: "pdf"
     )
     monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "raw pdf text " * 10
+        orchestrator, "extract_text_pages", lambda _p: ["raw pdf text " * 10]
     )
 
     payload = {
@@ -243,7 +286,7 @@ def test_smart_ingest_explicit_balances_override_llm_balances(
         orchestrator, "detect_statement_format", lambda _p: None
     )
     monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "text " * 30
+        orchestrator, "extract_text_pages", lambda _p: ["text " * 30]
     )
 
     payload = {
@@ -304,7 +347,7 @@ def test_smart_ingest_routes_scanned_pdf_to_vision(
     )
     # Low-density text: below LOW_TEXT_DENSITY_THRESHOLD
     monkeypatch.setattr(
-        orchestrator, "extract_text", lambda _p: "  \n  "
+        orchestrator, "extract_text_pages", lambda _p: ["  \n  "]
     )
 
     payload = {
@@ -335,7 +378,7 @@ def test_smart_ingest_routes_scanned_pdf_to_vision(
     class _Bitmap:
         def to_pil(self) -> Any:
             class _P:
-                def save(self, buf: Any, format: str) -> None:  # noqa: A002
+                def save(self, buf: Any, format: str) -> None:
                     buf.write(b"PNG")
 
             return _P()
@@ -360,9 +403,10 @@ def test_smart_ingest_routes_scanned_pdf_to_vision(
     result = smart_ingest(file_path, vision_extractor=vision)
     assert result.source_method == "vision"
     assert result.source_format == "pdf"
-    assert any(
-        "LOW_TEXT_DENSITY" in w for w in result.warnings
-    )
+    # Per-row provenance must match the path that produced the row.
+    assert result.transactions[0].source_method == "vision"
+    assert result.transactions[0].source == "vision"
+    assert any("LOW_TEXT_DENSITY" in w for w in result.warnings)
     assert result.verification is not None
     assert result.verification.status is VerificationStatus.VERIFIED
 
@@ -376,12 +420,10 @@ def test_smart_ingest_vision_raises_when_model_unset(
     monkeypatch.setattr(
         orchestrator, "detect_statement_format", lambda _p: "pdf"
     )
-    monkeypatch.setattr(orchestrator, "extract_text", lambda _p: "")
+    monkeypatch.setattr(orchestrator, "extract_text_pages", lambda _p: [""])
     monkeypatch.delenv("BSP_HYBRID_VISION_MODEL", raising=False)
 
-    with pytest.raises(
-        VisionExtractorError, match="Vision model required"
-    ):
+    with pytest.raises(VisionExtractorError, match="Vision model required"):
         smart_ingest(file_path)
 
 
@@ -464,9 +506,7 @@ def _make_full_result() -> orchestrator.IngestResult:
         transactions=tuple(txs),
         verification=verification,
         warnings=("a warning",),
-        audit_trail=(
-            {"action": "review_started", "operator": "alice"},
-        ),
+        audit_trail=({"action": "review_started", "operator": "alice"},),
     )
 
 
@@ -512,9 +552,7 @@ def test_ingest_result_json_round_trip_with_no_verification() -> None:
     original = orchestrator.IngestResult(
         source_method="deterministic",
         source_format="camt",
-        transactions=[
-            Transaction(amount=Decimal("10.00"), description="x")
-        ],
+        transactions=[Transaction(amount=Decimal("10.00"), description="x")],
     )
     restored = orchestrator.IngestResult.from_json(original.to_json())
     assert restored.verification is None
@@ -559,7 +597,7 @@ def test_ingest_result_from_json_rejects_non_list_warnings() -> None:
     payload = json.dumps(
         {"schema_version": 1, "transactions": [], "warnings": "oops"}
     )
-    with pytest.raises(ValueError, match="warnings.*list"):
+    with pytest.raises(ValueError, match=r"warnings.*list"):
         orchestrator.IngestResult.from_json(payload)
 
 
@@ -571,7 +609,7 @@ def test_ingest_result_from_json_rejects_non_list_audit_trail() -> None:
             "audit_trail": "oops",
         }
     )
-    with pytest.raises(ValueError, match="audit_trail.*list"):
+    with pytest.raises(ValueError, match=r"audit_trail.*list"):
         orchestrator.IngestResult.from_json(payload)
 
 
@@ -583,7 +621,7 @@ def test_ingest_result_from_json_rejects_non_object_verification() -> None:
             "verification": "oops",
         }
     )
-    with pytest.raises(ValueError, match="verification.*object or null"):
+    with pytest.raises(ValueError, match=r"verification.*object or null"):
         orchestrator.IngestResult.from_json(payload)
 
 
@@ -654,3 +692,56 @@ def test_ingest_result_from_json_skips_non_dict_audit_entries() -> None:
         {},
         {"action": "also ok"},
     )
+
+
+def test_smart_ingest_attaches_page_provenance_to_text_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "statement.pdf"
+    file_path.write_text("placeholder")
+
+    monkeypatch.setattr(
+        orchestrator, "detect_statement_format", lambda _p: None
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "extract_text_pages",
+        lambda _p: [
+            "Page one ledger: COFFEE SHOP 4.50 settled " * 3,
+            "Page two ledger: Salary Payment 2500.00 in " * 3,
+        ],
+    )
+
+    payload = {
+        "transactions": [
+            {"amount": "-4.50", "description": "Coffee Shop"},
+            {"amount": "2500.00", "description": "Salary Payment"},
+            {"amount": "1.00", "description": "Not In The Text"},
+            {"amount": "2.00", "description": "   "},
+            {"amount": "3.00", "description": None},
+            {
+                "amount": "5.00",
+                "description": "Coffee Shop",
+                "bbox": {
+                    "x0": 0.1,
+                    "y0": 0.2,
+                    "x1": 0.9,
+                    "y1": 0.3,
+                    "page_index": 1,
+                },
+            },
+        ],
+    }
+    extractor = LLMExtractor(
+        completion_fn=lambda **_: {
+            "choices": [{"message": {"content": json.dumps(payload)}}]
+        }
+    )
+
+    result = smart_ingest(file_path, extractor=extractor)
+    assert result.source_method == "llm"
+    # Case-insensitive match on page 0; exact match on page 1; rows
+    # that cannot be located (absent, blank, or no description) stay
+    # None; a bbox-supplied page_index wins without a text search.
+    pages = [tx.source_page for tx in result.transactions]
+    assert pages == [0, 1, None, None, None, 1]

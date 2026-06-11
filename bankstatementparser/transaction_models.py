@@ -97,16 +97,14 @@ def normalize_description(value: str | None) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
-def _first_value(
-    record: Mapping[str, object], *keys: str
-) -> object | None:
+def _first_value(record: Mapping[str, object], *keys: str) -> object | None:
     for key in keys:
         if key in record and record[key] not in (None, ""):
             return record[key]
     return None
 
 
-SourceMethod = Literal["deterministic", "llm"]
+SourceMethod = Literal["deterministic", "llm", "vision"]
 
 
 class BoundingBox(BaseModel):
@@ -180,16 +178,24 @@ class Transaction(BaseModel):
     # deterministic and text-LLM paths because no spatial source
     # exists in either case.
     source_bbox: Optional[BoundingBox] = None
+    # Zero-based page the row was traced back to. Vision rows derive
+    # it from ``source_bbox.page_index``; text-LLM rows from a
+    # per-page search of the extracted text. ``None`` when the source
+    # has no pages (deterministic parsers) or the row could not be
+    # located on any single page.
+    source_page: Optional[int] = Field(default=None, ge=0)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def transaction_hash(self) -> str:
-        """Idempotent fingerprint of date|normalized_description|amount.
+        """Idempotent fingerprint of date|normalized_description|amount|id.
 
         Generated from normalized fields so the same transaction
         produces the same hash regardless of source (deterministic
-        parser vs. LLM extraction). MD5 is used for a compact,
-        non-cryptographic identity key.
+        parser vs. LLM extraction). The bank-assigned transaction_id
+        (or reference) is included when present so two distinct
+        same-day, same-amount transactions never collide. MD5 is used
+        for a compact, non-cryptographic identity key.
         """
         date_part = (
             self.booking_date.isoformat()
@@ -205,9 +211,10 @@ class Transaction(BaseModel):
                 date_part,
                 self.normalized_description,
                 self.amount_key(),
+                self.transaction_id or self.reference or "",
             ]
         )
-        return hashlib.md5(  # noqa: S324
+        return hashlib.md5(
             material.encode("utf-8"),
             usedforsecurity=False,
         ).hexdigest()
@@ -265,12 +272,8 @@ class Transaction(BaseModel):
         currency = _first_value(record, "Currency", "currency")
 
         return cls(
-            account_id=str(account_id)
-            if account_id is not None
-            else None,
-            currency=str(currency).upper()
-            if currency is not None
-            else None,
+            account_id=str(account_id) if account_id is not None else None,
+            currency=str(currency).upper() if currency is not None else None,
             amount=amount,
             booking_date=_parse_date(
                 _first_value(record, "BookgDt", "booking_date", "date")
@@ -278,9 +281,7 @@ class Transaction(BaseModel):
             value_date=_parse_date(
                 _first_value(record, "ValDt", "value_date", "date")
             ),
-            description=str(description)
-            if description is not None
-            else None,
+            description=str(description) if description is not None else None,
             normalized_description=normalize_description(
                 str(description) if description is not None else None
             ),

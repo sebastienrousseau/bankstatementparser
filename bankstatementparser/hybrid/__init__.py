@@ -26,6 +26,17 @@ their LLM/PDF entry points are actually invoked.
 
 from __future__ import annotations
 
+from .evaluation import (
+    EvalCase,
+    EvalCaseError,
+    EvalScore,
+    EvalSummary,
+    ExpectedTransaction,
+    load_eval_case,
+    load_eval_cases,
+    score_extraction,
+    summarize_scores,
+)
 from .llm_extractor import LLMExtractor, LLMExtractorError
 from .ollama_direct import (
     OllamaDirectError,
@@ -37,19 +48,36 @@ from .orchestrator import (
     IngestResult,
     smart_ingest,
 )
-from .pdf_text import PDFExtractionError, extract_text
-from .scanner import ScanResult, scan_and_ingest
+from .pdf_text import (
+    PDFExtractionError,
+    extract_text,
+    extract_text_pages,
+)
+from .scanner import FileFailure, ScanResult, scan_and_ingest
 from .verification import (
     BalanceVerification,
+    ContinuityBreak,
+    ContinuityResult,
     VerificationStatus,
+    aggregate_verifications,
     verify_balance,
     verify_balance_multi_currency,
+    verify_continuity,
+    verify_transactions,
 )
 from .vision import VisionExtractor, VisionExtractorError
 
 __all__ = [
     "LOW_TEXT_DENSITY_THRESHOLD",
     "BalanceVerification",
+    "ContinuityBreak",
+    "ContinuityResult",
+    "EvalCase",
+    "EvalCaseError",
+    "EvalScore",
+    "EvalSummary",
+    "ExpectedTransaction",
+    "FileFailure",
     "IngestResult",
     "LLMExtractor",
     "LLMExtractorError",
@@ -59,11 +87,19 @@ __all__ = [
     "VerificationStatus",
     "VisionExtractor",
     "VisionExtractorError",
+    "aggregate_verifications",
     "extract_text",
+    "extract_text_pages",
     "is_ollama_model",
+    "load_eval_case",
+    "load_eval_cases",
     "ollama_direct_completion",
     "scan_and_ingest",
+    "score_extraction",
     "smart_ingest",
-    "verify_balance_multi_currency",
+    "summarize_scores",
     "verify_balance",
+    "verify_balance_multi_currency",
+    "verify_continuity",
+    "verify_transactions",
 ]

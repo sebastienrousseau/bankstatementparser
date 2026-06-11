@@ -13,11 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-input_validator.py
+"""Input validation for file paths, sizes, and formats.
 
-Provides comprehensive input validation for file paths, sizes, and formats
-used throughout the bank statement parser.
+Used throughout the bank statement parser to validate user-supplied
+paths before any file I/O happens.
 """
 
 import logging
@@ -25,15 +24,13 @@ import mimetypes
 import os
 import re
 from pathlib import Path
-from typing import Optional, Union
+from typing import ClassVar, Optional, Union
+
+from .exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
-
-class ValidationError(Exception):
-    """Custom exception for validation errors."""
-
-    pass
+__all__ = ["InputValidator", "ValidationError"]
 
 
 class InputValidator:
@@ -44,7 +41,7 @@ class InputValidator:
     MIN_FILE_SIZE_BYTES = 1  # 1 byte minimum
 
     # Allowed file extensions for input files
-    ALLOWED_INPUT_EXTENSIONS = {
+    ALLOWED_INPUT_EXTENSIONS: ClassVar[set[str]] = {
         ".xml",
         ".XML",
         ".csv",
@@ -64,7 +61,7 @@ class InputValidator:
     }
 
     # Allowed file extensions for output files
-    ALLOWED_OUTPUT_EXTENSIONS = {
+    ALLOWED_OUTPUT_EXTENSIONS: ClassVar[set[str]] = {
         ".csv",
         ".CSV",
         ".xlsx",
@@ -76,7 +73,7 @@ class InputValidator:
     }
 
     # Dangerous path patterns to block
-    DANGEROUS_PATTERNS = [
+    DANGEROUS_PATTERNS: ClassVar[list[str]] = [
         r"\.\.",  # Directory traversal (catches ../.. and ..\.. patterns)
         r"/\./",  # Hidden directory traversal
         r"~/",  # Home directory shortcuts (can be allowed if needed)
@@ -85,7 +82,7 @@ class InputValidator:
     ]
 
     # System directories to block (platform-specific)
-    BLOCKED_DIRECTORIES = {
+    BLOCKED_DIRECTORIES: ClassVar[set[str]] = {
         # Unix/Linux/macOS
         "/etc",
         "/bin",
@@ -110,8 +107,7 @@ class InputValidator:
     }
 
     def __init__(self, max_file_size: Optional[int] = None):
-        """
-        Initialize the validator with optional custom configuration.
+        """Initialize the validator with optional custom configuration.
 
         Args:
             max_file_size: Maximum allowed file size in bytes.
@@ -119,8 +115,7 @@ class InputValidator:
         self.max_file_size = max_file_size or self.MAX_FILE_SIZE_BYTES
 
     def validate_input_file_path(self, file_path: str) -> Path:
-        """
-        Validate and sanitize an input file path.
+        """Validate and sanitize an input file path.
 
         Args:
             file_path: Raw file path string to validate.
@@ -133,9 +128,7 @@ class InputValidator:
             FileNotFoundError: If file doesn't exist.
         """
         if not isinstance(file_path, str):
-            raise ValidationError(
-                "File path must be a non-empty string"
-            )
+            raise ValidationError("File path must be a non-empty string")
 
         if not file_path:
             raise ValidationError("File path cannot be empty")
@@ -156,9 +149,7 @@ class InputValidator:
         try:
             path = Path(file_path).resolve()
         except (OSError, ValueError) as e:
-            raise ValidationError(
-                f"Invalid file path format: {e}"
-            ) from e
+            raise ValidationError(f"Invalid file path format: {e}") from e
 
         # Check for symlink attacks: reject if the original path is a symlink
         # pointing outside its parent directory
@@ -182,9 +173,7 @@ class InputValidator:
 
         # Check if it's actually a file
         if not os.path.isfile(str(path)):
-            raise ValidationError(
-                f"Path exists but is not a file: {path}"
-            )
+            raise ValidationError(f"Path exists but is not a file: {path}")
 
         # Check if we can read the file
         if not os.access(path, os.R_OK):
@@ -202,8 +191,7 @@ class InputValidator:
         return path
 
     def validate_output_file_path(self, file_path: str) -> Path:
-        """
-        Validate and sanitize an output file path.
+        """Validate and sanitize an output file path.
 
         Args:
             file_path: Raw output file path string to validate.
@@ -267,8 +255,7 @@ class InputValidator:
     def sanitize_source_name(
         self, source_name: Optional[str], default: str = "<memory>"
     ) -> str:
-        """
-        Sanitize a caller-supplied source name used only for diagnostics.
+        """Sanitize a caller-supplied source name used only for diagnostics.
 
         Args:
             source_name: Optional caller-provided source identifier.
@@ -314,8 +301,7 @@ class InputValidator:
         *,
         source_name: Optional[str] = None,
     ) -> tuple[bytes, str]:
-        """
-        Validate in-memory XML content.
+        """Validate in-memory XML content.
 
         Args:
             xml_content: XML payload as text or bytes.
@@ -417,9 +403,7 @@ class InputValidator:
         try:
             file_size = path.stat().st_size
         except OSError as e:
-            raise ValidationError(
-                f"Cannot determine file size: {e}"
-            ) from e
+            raise ValidationError(f"Cannot determine file size: {e}") from e
 
         if file_size < self.MIN_FILE_SIZE_BYTES:
             raise ValidationError(
@@ -450,8 +434,7 @@ class InputValidator:
             )
 
     def _validate_input_format(self, path: Path) -> None:
-        """
-        Validate input file format by checking file content.
+        """Validate input file format by checking file content.
 
         Args:
             path: File path to validate.
@@ -520,10 +503,7 @@ class InputValidator:
 
             if not has_xml_indicator:
                 # Check if it's binary data (control chars other than whitespace)
-                if any(
-                    c < 32 and c not in (9, 10, 13)
-                    for c in header[:100]
-                ):
+                if any(c < 32 and c not in (9, 10, 13) for c in header[:100]):
                     raise ValidationError(
                         f"File appears to contain binary data, expected XML: {path}"
                     )
@@ -544,8 +524,7 @@ class InputValidator:
     def _validate_xml_bytes_format(
         self, xml_bytes: bytes, source_name: str
     ) -> None:
-        """
-        Validate XML bytes using the same checks applied to file-backed input.
+        """Validate XML bytes using the same checks applied to file-backed input.
 
         Args:
             xml_bytes: Raw XML bytes.
@@ -594,8 +573,7 @@ class InputValidator:
 
         if not has_xml_indicator:
             if any(
-                byte < 32 and byte not in (9, 10, 13)
-                for byte in header[:100]
+                byte < 32 and byte not in (9, 10, 13) for byte in header[:100]
             ):
                 raise ValidationError(
                     f"XML content appears to contain binary data, expected XML: {source_name}"
@@ -607,8 +585,7 @@ class InputValidator:
             )
 
     def get_safe_filename(self, filename: str) -> str:
-        """
-        Generate a safe filename by removing/replacing dangerous characters.
+        """Generate a safe filename by removing/replacing dangerous characters.
 
         Args:
             filename: Original filename.

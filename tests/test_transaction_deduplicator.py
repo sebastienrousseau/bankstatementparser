@@ -64,9 +64,7 @@ def test_transaction_from_csv_style_record() -> None:
     assert transaction.transaction_id == "abc123"
 
 
-def test_deduplicator_finds_exact_duplicate_primary_hash_collision() -> (
-    None
-):
+def test_deduplicator_finds_exact_duplicate_primary_hash_collision() -> None:
     deduplicator = Deduplicator()
     result = deduplicator.deduplicate(
         [
@@ -100,9 +98,7 @@ def test_deduplicator_finds_exact_duplicate_primary_hash_collision() -> (
     assert result.unique_transactions[0].description == "Payroll"
 
 
-def test_deduplicator_marks_probable_match_for_fuzzy_description() -> (
-    None
-):
+def test_deduplicator_marks_probable_match_for_fuzzy_description() -> None:
     deduplicator = Deduplicator(description_similarity_threshold=0.9)
     result = deduplicator.deduplicate(
         [
@@ -126,9 +122,7 @@ def test_deduplicator_marks_probable_match_for_fuzzy_description() -> (
     assert len(result.exact_duplicates) == 1
     assert len(result.suspected_matches) == 1
     assert result.suspected_matches[0].tier == "probable"
-    assert (
-        "Primary hash collision" in result.suspected_matches[0].reason
-    )
+    assert "Primary hash collision" in result.suspected_matches[0].reason
     assert result.suspected_matches[0].confidence >= 0.9
 
 
@@ -167,6 +161,54 @@ def test_deduplicator_marks_suspected_date_shift_matches() -> None:
     assert len(result.suspected_matches) == 1
     assert result.suspected_matches[0].tier == "suspected"
     assert "Value date shift" in result.suspected_matches[0].reason
+    assert len(result.unique_transactions) == 1
+    assert result.unique_transactions[0].description == "Lunch"
+
+
+def test_deduplicator_excludes_suspected_with_custom_source_index() -> None:
+    # source_index values from the caller (e.g. row offsets in a
+    # larger file) must not leak into the exclusion logic, which
+    # operates on enumeration indices.
+    deduplicator = Deduplicator(value_date_window_days=3)
+    base = {
+        "account_id": "acct-1",
+        "currency": "EUR",
+        "amount": "1200.00",
+        "description": "Salary March 2026",
+    }
+    txs = [
+        Transaction.from_record(
+            {
+                **base,
+                "booking_date": "2026-03-20",
+                "value_date": "2026-03-20",
+            },
+            source_index=100,
+        ),
+        Transaction.from_record(
+            {
+                **base,
+                "booking_date": "2026-03-24",
+                "value_date": "2026-03-22",
+            },
+            source_index=200,
+        ),
+        Transaction.from_record(
+            {
+                "account_id": "acct-1",
+                "currency": "EUR",
+                "amount": "17.50",
+                "booking_date": "2026-03-24",
+                "value_date": "2026-03-24",
+                "description": "Lunch",
+            },
+            source_index=300,
+        ),
+    ]
+
+    result = deduplicator.deduplicate(txs)
+
+    assert len(result.suspected_matches) == 1
     assert len(result.unique_transactions) == 1
     assert result.unique_transactions[0].description == "Lunch"
 
@@ -215,9 +257,7 @@ def test_transaction_model_helpers_cover_edge_cases() -> None:
     assert normalize_description(None) == ""
 
 
-def test_description_similarity_returns_zero_without_normalized_text() -> (
-    None
-):
+def test_description_similarity_returns_zero_without_normalized_text() -> None:
     left = Transaction.from_record(
         {
             "account_id": "acct-1",
@@ -238,9 +278,7 @@ def test_description_similarity_returns_zero_without_normalized_text() -> (
     assert _description_similarity(left, right) == 0.0
 
 
-def test_deduplicator_normalizes_existing_transaction_instances() -> (
-    None
-):
+def test_deduplicator_normalizes_existing_transaction_instances() -> None:
     deduplicator = Deduplicator()
     transaction = Transaction.from_record(
         {
@@ -260,9 +298,7 @@ def test_deduplicator_normalizes_existing_transaction_instances() -> (
     assert normalized[0].source_index == 0
 
 
-def test_deduplicator_temporal_matching_resets_components_cleanly() -> (
-    None
-):
+def test_deduplicator_temporal_matching_resets_components_cleanly() -> None:
     deduplicator = Deduplicator(value_date_window_days=3)
     result = deduplicator.deduplicate(
         [
@@ -295,15 +331,11 @@ def test_deduplicator_temporal_matching_resets_components_cleanly() -> (
 
     assert len(result.suspected_matches) == 1
     assert result.suspected_matches[0].tier == "suspected"
-    assert (
-        "description similarity" in result.suspected_matches[0].reason
-    )
+    assert "description similarity" in result.suspected_matches[0].reason
     assert len(result.unique_transactions) == 1
 
 
-def test_deduplicator_temporal_matching_without_similarity_reason() -> (
-    None
-):
+def test_deduplicator_temporal_matching_without_similarity_reason() -> None:
     deduplicator = Deduplicator(value_date_window_days=3)
     result = deduplicator.deduplicate(
         [
@@ -326,10 +358,7 @@ def test_deduplicator_temporal_matching_without_similarity_reason() -> (
 
     assert len(result.suspected_matches) == 1
     assert result.suspected_matches[0].tier == "suspected"
-    assert (
-        "description similarity"
-        not in result.suspected_matches[0].reason
-    )
+    assert "description similarity" not in result.suspected_matches[0].reason
 
 
 def test_deduplicator_leaves_unmatched_candidates_with_missing_value_dates() -> (

@@ -12,12 +12,13 @@ cd bankstatementparser
 python3 -m venv .venv
 source .venv/bin/activate
 pip install poetry
-poetry install --with dev
+poetry install --with dev -E excel
 make install-hooks   # wires the pre-commit hook (runs `make verify` on every commit)
 ```
 
-The pre-commit hook runs the full verification pipeline (ruff + mypy +
-pytest + bandit, ~80 s on Apple Silicon) before every commit. This is
+The pre-commit hook runs the full verification pipeline (ruff check +
+ruff format --check + mypy + pytest + bandit, ~80 s on Apple Silicon)
+before every commit. This is
 the same gate CI enforces — if the hook passes locally, CI will pass
 on GitHub. To skip on a quick-iteration WIP commit:
 
@@ -47,7 +48,7 @@ extras to be present.
 
 ## Before Opening a Pull Request
 
-Run the full validation suite. The Makefile groups the four gates under
+Run the full validation suite. The Makefile groups the five gates under
 a single target so they run in the same order CI does:
 
 ```bash
@@ -58,15 +59,26 @@ Or run them individually:
 
 ```bash
 poetry run ruff check bankstatementparser tests examples scripts
+poetry run ruff format --check bankstatementparser tests examples scripts
 poetry run mypy bankstatementparser
-poetry run pytest --cov=bankstatementparser  # 100% coverage gate is enforced
+poetry run pytest --cov=bankstatementparser  # coverage gate is enforced
 poetry run bandit -r bankstatementparser examples scripts -c pyproject.toml
 ```
 
-All four commands must pass with zero errors. The `--cov-fail-under=100`
-gate is enforced silently in `pyproject.toml` and surprises contributors
-who are at 99.9% — always pass `--cov=bankstatementparser` so you see
-the missing-lines report immediately.
+All five commands must pass with zero errors. A minimum-coverage gate
+(`--cov-fail-under` in `pyproject.toml`) is enforced silently — always
+pass `--cov=bankstatementparser` so you see the missing-lines report
+immediately.
+
+### Readable `git blame`
+
+Repo-wide reformat commits are listed in `.git-blame-ignore-revs` so
+`git blame` skips them and points at the real change. Enable it once
+per clone:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
 
 ## Signed Commits
 

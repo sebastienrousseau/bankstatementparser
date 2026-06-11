@@ -98,11 +98,11 @@ class TestInputValidationSecurity(unittest.TestCase):
 
     def test_directory_access_prevention(self):
         """Test that directories are rejected as input files."""
+        # tempfile.gettempdir() exists on every platform; "/tmp" does
+        # not exist on Windows runners.
         with self.assertRaises(ValidationError) as cm:
-            CamtParser("/tmp")
-        self.assertIn(
-            "Path exists but is not a file", str(cm.exception)
-        )
+            CamtParser(tempfile.gettempdir())
+        self.assertIn("Path exists but is not a file", str(cm.exception))
 
 
 class TestXMLParsingSecurity(unittest.TestCase):
@@ -480,8 +480,8 @@ class TestSecurityIntegration(unittest.TestCase):
             # Should process the directory safely
             (
                 files_df,
-                statements_df,
-                transactions_df,
+                _statements_df,
+                _transactions_df,
             ) = process_camt053_folder(test_dir)
             self.assertGreaterEqual(len(files_df), 1)
 

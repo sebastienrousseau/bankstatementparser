@@ -75,9 +75,7 @@ def cyclonedx_component(package: dict[str, Any]) -> dict[str, Any]:
         "name": name,
         "version": version,
         "purl": package_ref(name, version),
-        "scope": "optional"
-        if package.get("optional", False)
-        else "required",
+        "scope": "optional" if package.get("optional", False) else "required",
         "hashes": hashes,
         "properties": [
             {"name": "bankstatementparser:groups", "value": groups},
@@ -154,11 +152,7 @@ def build_sbom(
                 "name": poetry["name"],
                 "version": poetry["version"],
                 "licenses": [
-                    {
-                        "license": {
-                            "name": poetry.get("license", "UNKNOWN")
-                        }
-                    }
+                    {"license": {"name": poetry.get("license", "UNKNOWN")}}
                 ],
                 "externalReferences": [
                     {
@@ -187,9 +181,7 @@ def write_markdown_report(
         "| Package | Version | Groups | License | SHA256 Hashes |",
         "| --- | --- | --- | --- | --- |",
     ]
-    for package in sorted(
-        packages, key=lambda item: item["name"].lower()
-    ):
+    for package in sorted(packages, key=lambda item: item["name"].lower()):
         hashes = [
             entry["hash"].split(":", 1)[1]
             for entry in package.get("files", [])
@@ -199,8 +191,7 @@ def write_markdown_report(
             "| {name} | {version} | {groups} | {license_name} | {hash_count} |".format(
                 name=package["name"],
                 version=package["version"],
-                groups=", ".join(package.get("groups", []))
-                or "runtime",
+                groups=", ".join(package.get("groups", [])) or "runtime",
                 license_name=resolve_license(package["name"]),
                 hash_count=len(hashes),
             )
@@ -234,12 +225,8 @@ def main() -> int:
     sbom = build_sbom(pyproject, lock_data)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        json.dumps(sbom, indent=2) + "\n", encoding="utf-8"
-    )
-    write_markdown_report(
-        lock_data.get("package", []), args.markdown_output
-    )
+    args.output.write_text(json.dumps(sbom, indent=2) + "\n", encoding="utf-8")
+    write_markdown_report(lock_data.get("package", []), args.markdown_output)
     print(f"SBOM written to {args.output}")
     print(f"Dependency report written to {args.markdown_output}")
     return 0

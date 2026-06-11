@@ -7,6 +7,293 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.0.9] — 2026-06-11
+
+> "Audit pass" — addresses the three Critical findings and all eight
+> quick wins from the deep audit, adds a hybrid trust & correctness
+> slice and an examples/docs regression suite, drains all open
+> Dependabot version-bump PRs, resolves all open Dependabot security
+> alerts, and removes the remaining silent-failure paths from the
+> public API. The silent-failure fixes below are breaking changes
+> and are flagged under **Changed — BREAKING** with migration notes;
+> per [SemVer](https://semver.org) anything may change while the
+> version is 0.y.z, and from 1.0.0 breaking changes will require a
+> major release.
+
+### Added (hybrid trust & quick wins)
+
+- **Page provenance for text-LLM rows (`Transaction.source_page`).**
+  `extract_text_pages()` keeps per-page text instead of joining the
+  PDF into one blob, and `smart_ingest` attributes each extracted
+  row back to the page whose text contains its description. Vision
+  rows inherit the page from their bounding box. Untraceable rows
+  keep `source_page=None`; the ingest CSV gains a `source_page`
+  column and review mode prints it.
+- **Cross-statement continuity check (`verify_continuity()`).** The
+  closing balance of statement N must equal the opening balance of
+  N+1 — a missing month, duplicated export, or hallucinated balance
+  shows up as a `ContinuityBreak`. `scan_and_ingest` runs the check
+  across scanned files in sorted order and exposes the
+  `ScanResult.continuity` result.
+- **French and Spanish CSV header synonyms.** `Date opération`,
+  `Libellé`, `Montant`, `Solde`, `Devise`, `Fecha`, `Concepto`,
+  `Importe`, `Saldo`, `Divisa`, and friends now map onto the
+  deterministic CSV path. Header normalization folds accents
+  (NFKD), so `Débit`/`Crédit`/`Référence` resolve via the existing
+  English synonyms.
+- **LLM-extraction accuracy eval harness.** New pure scoring module
+  (`bankstatementparser.hybrid.evaluation`) compares an extraction
+  against ground-truth cases (`tests/test_data/eval/`) and produces
+  deterministic precision/recall/F1 plus per-field accuracies. The
+  runner (`scripts/run_llm_eval.py`) supports `--mock` for a
+  model-free harness self-check; CI runs the self-check as a
+  blocking step and the real-model eval as a non-blocking job gated
+  on the `BSP_EVAL_MODEL` repository variable.
+- **`--review-below THRESHOLD` for `--type review`.** Per-row
+  extraction confidence is now acted on, not just displayed: rows
+  with `confidence` below the threshold (0.0–1.0) are routed into
+  the interactive review walk even when statement-level
+  verification passed. Statement-level `DISCREPANCY`/`FAILED`
+  still reviews every row.
+- **`verify_transactions()` and `aggregate_verifications()`**
+  exported from `bankstatementparser.hybrid` — currency-aware
+  Golden Rule dispatch and per-currency result aggregation.
+- **Examples & docs regression suite.** Every shipped example
+  script (`examples/`, `examples/hybrid/`, shell walkthroughs) is
+  now executed end-to-end as a subprocess in CI
+  (`tests/test_regression_examples.py`), and every fenced code
+  block in README.md, FAQ.md, docs/index.md, and docs/MAPPING.md
+  is either executed against the repository fixtures or has its
+  imports verified (`tests/test_regression_docs.py`). New doc
+  blocks must be classified in the suite or the build fails, and
+  every CLI flag mentioned in the docs must exist on the parser.
+
+### Fixed (hybrid trust)
+
+- **Vision-extracted rows are labelled `source_method="vision"`.**
+  Previously rows produced by the vision path were mislabelled
+  `"llm"`, so per-row provenance disagreed with the
+  `IngestResult.source_method` tag. `SourceMethod` now includes
+  the `"vision"` literal.
+- **Review mode re-runs the Golden Rule after edits.** The saved
+  verification verdict previously stayed stale after rows were
+  edited or deleted; the kept rows are now re-verified and a
+  `reverify` entry (with before/after status) is appended to the
+  audit trail.
+- **Multi-currency statements no longer report a false
+  `DISCREPANCY`.** `smart_ingest` previously summed all currencies
+  into one Golden Rule check; transactions spanning multiple
+  currencies are now verified per currency
+  (`verify_balance_multi_currency`) and collapsed into a single
+  statement-level verdict.
+- **`--type camt` console output crashed on real statements.** The
+  CLI converted `get_statement_stats()` (a DataFrame) with
+  `list(...)`, yielding column names instead of rows — the display
+  path then crashed in PII redaction (`'int' object has no
+  attribute 'lower'`) and the `--output` path wrote column names
+  as the CSV body. Caught by the new examples regression suite.
+
+### Changed — BREAKING
+
+- **`Pain001Parser.get_summary()` raises instead of returning an
+  error dict.** Internal failures now raise `Pain001ParseError`
+  (previously a summary full of `"Unknown"` values with an `"error"`
+  key). The `error` key has been removed from `SummaryRecord`.
+  *Migration:* wrap calls in
+  `try: ... except Pain001ParseError:` instead of checking
+  `"error" in summary`.
+- **CAMT streaming no longer defaults transaction currency to
+  `""`.** When an entry's `<Amt>` has no `Ccy` attribute, the
+  statement-level account currency (`<Acct><Ccy>`) is used; if
+  neither is present, `ParserError` is raised.
+  *Migration:* files without any currency information now fail fast
+  — previously they produced rows with an empty `Currency` that
+  corrupted downstream aggregation.
+- **`openpyxl` is now an optional extra.** Excel export
+  (`CamtParser.camt_to_excel`) requires
+  `pip install 'bankstatementparser[excel]'`; calling it without
+  openpyxl raises `ImportError` with that hint.
+  *Migration:* add the `excel` extra if you export to `.xlsx`.
+- **lxml floor raised to `>=5.0`** (was `>=4.9.3`).
+
+### Fixed (0.0.9)
+
+- **CAMT streaming `AccountId` was always empty.** The account id
+  was captured when `</Stmt>` closed — after every `<Ntry>` in the
+  statement had already been yielded. It is now captured when
+  `</Acct>` closes, so streamed rows carry the correct account id,
+  matching the non-streaming path.
+- **`ValidationError` moved to `bankstatementparser.exceptions`**
+  alongside the rest of the hierarchy; it is still re-exported from
+  `bankstatementparser.input_validator`, so existing imports keep
+  working.
+- **Parallel parsing preserves the failure type.**
+  `FileResult.error` is now `"ExceptionType: message"` instead of
+  the bare message.
+- **Temp-file cleanup failures are logged** (`logger.debug`) in
+  PAIN.001 streaming instead of silently swallowed.
+
+### Added
+
+- **Golden-file behavior corpus** — `tests/test_data/golden/` pins
+  the exact parsed output (Decimal amounts, currencies, per-account
+  balances, net amounts, strict-failure behavior) for realistic
+  statement shapes: multi-currency CAMT, namespace-less CAMT,
+  genuine same-day duplicates, garbled amounts, and
+  German-formatted CSV. Enforced by `tests/test_golden_files.py`.
+- **German CSV header recognition** — `CsvStatementParser` now maps
+  `Buchungstag`, `Verwendungszweck`, `Betrag`, `Soll`, and `Haben`
+  to the canonical date/description/amount/debit/credit columns,
+  matching what `docs/MAPPING.md` already promised.
+- **`CamtParser(..., allow_recovery=True)`** — opt-in recovery-mode
+  reparse for malformed XML. Strict parsing is now the default (see
+  Security below); recovery logs a warning because it can silently
+  drop malformed content.
+
+### Fixed
+
+- **Decimal end-to-end, no silent `0.0`** — every monetary amount
+  produced by the parsers (CAMT, PAIN.001, CSV, OFX/QFX, MT940) and
+  carried through DataFrames and summaries is `decimal.Decimal`.
+  Garbled amounts (e.g. `12..34`) and missing `<Amt>` elements now
+  raise `ValueError`/`ValidationError` instead of silently becoming
+  `0.0`.
+- **Deduplication correctness** — `Transaction.transaction_hash`
+  now includes `transaction_id or reference`, so distinct same-day
+  transactions with bank-assigned IDs never collide.
+  `dedupe_by_hash` uses occurrence-counted keys, making
+  re-ingestion idempotent while genuine same-day repeats (two
+  identical coffees) survive within a batch. `scan_and_ingest`
+  deduplicates file-by-file so cross-file overlaps are still
+  caught.
+- **Index-space bug in `Deduplicator.deduplicate()`** — suspected-
+  match exclusion previously trusted the caller-controlled
+  `source_index`; it now uses the internal enumeration index, so
+  custom `source_index` values can no longer exclude the wrong
+  rows.
+
+- **`value_date` no longer silently copies `booking_date`** in the
+  LLM-backed extractor (`hybrid/llm_extractor.py`). LLM payloads that
+  omit `value_date` now produce `Transaction.value_date is None`
+  instead of an incorrect duplicate of `booking_date`. The text and
+  vision prompts have been extended to allow an optional
+  `value_date: "YYYY-MM-DD"|null` field for future model responses.
+- **CAMT `parse_streaming` is now fail-fast on per-row errors**
+  (`camt_parser.py`). Previously the streaming loop logged a warning
+  and `continue`'d, silently dropping malformed transactions and
+  contradicting the R-007 control in
+  `docs/compliance/RISK_REGISTER.md`. Behaviour now matches the
+  equivalent PAIN.001 streaming path and the documented control.
+
+### Security
+
+- **18 Dependabot security alerts closed** (#39–#56). Critical: litellm
+  SQL injection in proxy API key verification (1.81.16–1.83.6) →
+  bumped to 1.88.1. High: urllib3 cross-origin header leak (2.6.x) +
+  decompression-bomb bypass → 2.7.0; lxml `iterparse` / `ETCompatXMLParser`
+  default-config XXE → 6.1.1; litellm sandbox escape (1.81.8–1.83.9),
+  authenticated command exec, SSTI in `/prompts/test` → 1.88.1.
+  Medium: starlette host-header validation → 1.2.1; aiohttp cross-origin
+  cookie + untrusted-data deserialization (<3.14.0) → 3.14.1; idna
+  `idna.encode()` bypass (<3.15) → 3.18; pypdf FlateDecode RAM-exhaust
+  + long-runtime paths (<6.10.2) → 6.13.2; python-dotenv symlink
+  follow in `set_key` (<1.2.2) → 1.2.2; pytest tmpdir vulnerability
+  (<9.0.3) → 9.0.3.
+- **`litellm` is now Python-version-restricted to `<3.14`** in
+  `pyproject.toml`. All security-patched litellm versions (≥1.83.10)
+  declare `python <3.14,>=3.10` upstream, so this restriction is
+  honest disclosure rather than a new limitation. The deterministic
+  core remains supported on Python 3.10–3.14; the optional
+  `[hybrid]`, `[hybrid-plus]`, `[hybrid-vision]`, and `[enrichment]`
+  extras now require Python 3.10–3.13 (matching upstream litellm).
+  Previously the lockfile silently held two litellm versions and
+  installed the vulnerable 1.83.7 on Python 3.12+.
+- **REST API safety floor** (`api.py`). Uploads are streamed in
+  chunks; the request is rejected with HTTP 413 once the cumulative
+  size exceeds `BSP_API_MAX_UPLOAD_BYTES` (default 25 MB). The
+  caller-supplied filename is reduced to its basename and the suffix
+  must match `InputValidator.ALLOWED_INPUT_EXTENSIONS` (HTTP 400
+  otherwise). On parse failure the response carries a UUID
+  `correlation_id`; the raw exception is logged server-side only
+  (HTTP 422) to avoid leaking filesystem paths. Authentication,
+  authorization, and rate limiting remain out of scope — see README
+  for the documented deployment posture.
+- **CAMT recovery-mode parsing is opt-in** — `CamtParser` rejects
+  malformed XML (including entity-amplification payloads such as
+  billion-laughs) at parse time by default; `recover=True` reparse
+  only happens with an explicit `allow_recovery=True` and logs a
+  warning. `SECURITY.md` gains an "XML Parsing: Why lxml" section
+  documenting the hardened parser settings and their mitigations.
+
+### Deprecated
+
+- **`bank_statement_parsers.Pain001Parser` and `Camt053Parser`**
+  compatibility wrappers now emit `DeprecationWarning`; use
+  `pain001_parser.Pain001Parser` and `camt_parser.CamtParser`
+  directly.
+
+### Removed
+
+- **`setup.py`** — stale legacy metadata mirror declaring
+  `version="0.0.4"` (vs. the real `0.0.8`). Modern pip reads
+  `pyproject.toml` directly; `setup.cfg` is retained for the same
+  reason but kept in lock-step.
+- **`tests/integration/test_euxis_dispatch*.py`** (4 files,
+  ~2,500 LOC) and `tests/integration/test_manifests/`. These tested
+  a `MockEuxisDispatcher` defined inside the test file with no
+  corresponding production code in the package. `DI-14` in the
+  traceability matrix has been removed.
+
+### Changed
+
+- **Dependency bumps** — closes the 20 open Dependabot PRs (#53–#78
+  except #57 superseded). Notable: **pytest 8.4.2 → 9.0.3** (constraint
+  widened to `>=8.0.0,<10.0.0` in `pyproject.toml`), **lxml 6.0.2 →
+  6.1.1**, **numpy 1.26.x → 2.4.6** (via pandas), **pydantic-core
+  2.41.5 → 2.46.4**, **hypothesis 6.151.10 → 6.155.2**, **ruff 0.15.9
+  → 0.15.16**, **mypy 1.19.1 → 1.20.2**, **pypdf 6.10.0 → 6.13.2**,
+  **pypdfium2 5.6.0 → 5.9.0**, **litellm 1.83.4 → 1.83.7+**, **starlette
+  1.0.0 → 1.2.1**, **idna 3.11 → 3.18**, **urllib3 2.6.3 → 2.7.0**.
+  GitHub Actions SHA pins refreshed for `actions/checkout`,
+  `github/codeql-action`, `gitleaks/gitleaks-action`,
+  `actions/dependency-review-action`, and `actions/upload-artifact`.
+  Lockfile hash verification (`scripts/verify_locked_hashes.py`)
+  passes against all 113 packages; `requirements.txt` regenerated
+  from `poetry.lock`.
+- **Apache 2.0 license header** added to
+  `bankstatementparser/additional_parsers.py` (license hygiene).
+- **`make clean`** now also removes `coverage.xml`, `.coverage`,
+  `htmlcov/`, `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`,
+  `.hypothesis/`, `.benchmarks/`, and stale `__pycache__/`
+  directories.
+- **CI test selection** is no longer an enumerated list of files
+  (`.github/workflows/quality-gates.yml`). The unit-tests job now
+  runs `pytest tests/ --ignore=…` so newly added test files are
+  picked up automatically. `tests/integration/test_zip_security.py`
+  remains in the coverage run because it exercises
+  `bankstatementparser.zip_security` directly.
+- **LLM response parsing consolidated** — the duplicated
+  markdown-fence stripping / JSON extraction / transaction
+  coercion logic in `LLMExtractor` and `VisionExtractor` now lives
+  in one module, `bankstatementparser/_llm_common.py`.
+- **CLI internals deduplicated** — `parse_camt` and `parse_pain`
+  delegate to a single shared implementation
+  (`BankStatementCLI._parse_statement_file`); behaviour and the
+  public method names are unchanged.
+- **Honest coverage gate** — coverage is gated at 100%, reached
+  with behavioural tests rather than line-arrow chasing: every
+  remaining gap got a test that asserts observable behaviour, and
+  the one genuinely unreachable defensive branch carries an
+  explicit, justified `# pragma: no cover`. Codecov `target: auto`
+  additionally fails any PR that regresses coverage against its
+  base commit. `tests/test_branch_coverage.py` was rewritten as
+  behaviour-framed `tests/test_parser_edge_behavior.py`, and
+  `tests/test_coverage_gaps.py` renamed to
+  `tests/test_error_paths.py` with behavioural docstrings replacing
+  line-number references.
+
 ## [0.0.8] — 2026-04-11
 
 > "Full Platform" — closes every gap identified in the competitive
@@ -453,7 +740,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.8...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.9...HEAD
+[0.0.9]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.9
 [0.0.8]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.8
 [0.0.7]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.7
 [0.0.6]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.6

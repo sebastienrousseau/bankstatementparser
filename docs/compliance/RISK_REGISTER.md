@@ -53,7 +53,7 @@
 | R-004 | Unauthorized code introduction | Unsigned commits, bypassed review, compromised contributor | 5 | 2 | **10** | SSH-signed commits enforced in CI, branch protection, PR review requirement | 5 | 1 | **5** | `commit-signature-verification.yml`, GitHub branch rules |
 | R-005 | Sensitive data exposure (PII leakage) | Raw XML fields containing names, IBANs, or addresses in logs or exports | 4 | 3 | **12** | Column-level PII redaction in parsers and CLI, `--show-pii` opt-in flag with warning, no PII in default log output | 4 | 1 | **4** | `tests/test_pii_redaction.py` |
 | R-006 | Path traversal via crafted file paths | Symlinks, `../` sequences, environment variable injection in file paths | 4 | 3 | **12** | `InputValidator`: dangerous pattern blocklist, symlink resolution check, system directory blocklist | 4 | 1 | **4** | `tests/test_input_validator.py`, `tests/integration/test_security_boundaries.py` |
-| R-007 | Silent financial data loss in streaming mode | Malformed XML element causes parser exception mid-stream | 3 | 2 | **6** | Streaming errors propagate immediately (fail-fast); no silent `continue` | 3 | 1 | **3** | `tests/test_coverage_gaps.py`, `tests/test_enterprise_coverage.py` |
+| R-007 | Silent financial data loss in streaming mode | Malformed XML element causes parser exception mid-stream | 3 | 2 | **6** | Streaming errors propagate immediately (fail-fast); no silent `continue` | 3 | 1 | **3** | `tests/test_error_paths.py`, `tests/test_enterprise_coverage.py` |
 
 ---
 
