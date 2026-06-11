@@ -83,6 +83,23 @@ class TestBankStatementCLI(unittest.TestCase):
                 self.cli.parse_camt(input_path, None)
                 self.assertTrue(mock_print.call_count > 0)
 
+    def test_parse_camt_real_fixture_no_output(self):
+        """Real CAMT stats arrive as a DataFrame, not a list of dicts.
+
+        Regression: list(DataFrame) yields column names, which crashed
+        PII redaction with "'int' object has no attribute 'lower'".
+        """
+        fixture = Path(__file__).parent / "test_data" / "camt.053.001.02.xml"
+
+        with patch("builtins.print") as mock_print:
+            self.cli.parse_camt(fixture, None)
+
+        printed = "\n".join(
+            str(call.args[0]) for call in mock_print.call_args_list
+        )
+        self.assertIn("AccountId", printed)
+        self.assertNotIn("0\n", printed[:5])
+
     @patch("bankstatementparser.cli.CamtParser")
     def test_parse_camt_file_not_found(self, mock_camt_parser):
         """Test CAMT parsing with file not found error."""

@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`verify_transactions()` and `aggregate_verifications()`**
   exported from `bankstatementparser.hybrid` — currency-aware
   Golden Rule dispatch and per-currency result aggregation.
+- **Examples & docs regression suite.** Every shipped example
+  script (`examples/`, `examples/hybrid/`, shell walkthroughs) is
+  now executed end-to-end as a subprocess in CI
+  (`tests/test_regression_examples.py`), and every fenced code
+  block in README.md, FAQ.md, docs/index.md, and docs/MAPPING.md
+  is either executed against the repository fixtures or has its
+  imports verified (`tests/test_regression_docs.py`). New doc
+  blocks must be classified in the suite or the build fails, and
+  every CLI flag mentioned in the docs must exist on the parser.
 
 ### Fixed
 
@@ -37,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   currencies are now verified per currency
   (`verify_balance_multi_currency`) and collapsed into a single
   statement-level verdict.
+- **`--type camt` console output crashed on real statements.** The
+  CLI converted `get_statement_stats()` (a DataFrame) with
+  `list(...)`, yielding column names instead of rows — the display
+  path then crashed in PII redaction (`'int' object has no
+  attribute 'lower'`) and the `--output` path wrote column names
+  as the CSV body. Caught by the new examples regression suite.
 
 ## [0.1.0] — 2026-06-10
 

@@ -331,7 +331,7 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 747 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 781 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
@@ -653,7 +653,7 @@ bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 8 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          747 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          781 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---

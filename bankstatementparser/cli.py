@@ -174,6 +174,9 @@ class BankStatementCLI:
 
         def get_camt_stats(parser: Any) -> list[dict[str, Any]]:
             data = parser.get_statement_stats()
+            if isinstance(data, pd.DataFrame):
+                # list(DataFrame) would yield column names, not rows
+                return [dict(row) for row in data.to_dict(orient="records")]
             if isinstance(data, dict):
                 return [data]
             return list(data)
