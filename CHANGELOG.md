@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+_Nothing yet._
+
+## [0.0.9] — 2026-06-11
+
+> "Audit pass" — addresses the three Critical findings and all eight
+> quick wins from the deep audit, adds a hybrid trust & correctness
+> slice and an examples/docs regression suite, drains all open
+> Dependabot version-bump PRs, resolves all open Dependabot security
+> alerts, and removes the remaining silent-failure paths from the
+> public API. The silent-failure fixes below are breaking changes
+> and are flagged under **Changed — BREAKING** with migration notes;
+> per [SemVer](https://semver.org) anything may change while the
+> version is 0.y.z, and from 1.0.0 breaking changes will require a
+> major release.
+
+### Added (hybrid trust & quick wins)
 
 - **Page provenance for text-LLM rows (`Transaction.source_page`).**
   `extract_text_pages()` keeps per-page text instead of joining the
@@ -55,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   blocks must be classified in the suite or the build fails, and
   every CLI flag mentioned in the docs must exist on the parser.
 
-### Fixed
+### Fixed (hybrid trust)
 
 - **Vision-extracted rows are labelled `source_method="vision"`.**
   Previously rows produced by the vision path were mislabelled
@@ -79,18 +94,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   path then crashed in PII redaction (`'int' object has no
   attribute 'lower'`) and the `--output` path wrote column names
   as the CSV body. Caught by the new examples regression suite.
-
-## [0.0.9] — 2026-06-10
-
-> "Audit pass" — addresses the three Critical findings and six quick
-> wins from the deep audit, drains all open Dependabot version-bump
-> PRs, resolves all open Dependabot security alerts, and removes the
-> remaining silent-failure paths from the public API. The
-> silent-failure fixes below are breaking changes and are flagged
-> under **Changed — BREAKING** with migration notes; per
-> [SemVer](https://semver.org) anything may change while the version
-> is 0.y.z, and from 1.0.0 breaking changes will require a major
-> release.
 
 ### Changed — BREAKING
 
