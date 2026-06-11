@@ -14,6 +14,7 @@ are skipped when those extras are not installed, never silently passed.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from importlib.util import find_spec
@@ -63,6 +64,27 @@ def _run(
 
 def _run_example(script: Path, *args: str, stdin: str | None = None) -> str:
     return _run(sys.executable, str(script), *args, stdin=stdin)
+
+
+def _bash() -> str:
+    """Locate a real bash for the shell-script examples.
+
+    On Windows, plain ``bash`` resolves to the System32 WSL launcher,
+    which exits 1 when no WSL distribution is installed (the GitHub
+    runner default). Git Bash ships with git, so derive its path from
+    ``git.exe`` instead.
+    """
+    if sys.platform != "win32":
+        return "bash"
+    git = shutil.which("git")
+    if git:
+        candidate = Path(git).resolve().parents[1] / "bin" / "bash.exe"
+        if candidate.exists():
+            return str(candidate)
+    found = shutil.which("bash")
+    if found and "system32" not in found.lower():
+        return found
+    pytest.skip("no usable bash on this Windows host")
 
 
 # ----------------------------------------------------------------------
@@ -154,7 +176,7 @@ def test_export_camt_excel() -> None:
 
 
 def test_cli_examples_shell_script() -> None:
-    _run("bash", str(EXAMPLES_DIR / "cli_examples.sh"))
+    _run(_bash(), str(EXAMPLES_DIR / "cli_examples.sh"))
 
 
 # ----------------------------------------------------------------------
@@ -222,7 +244,7 @@ def test_hybrid_03_vision_mock_mode() -> None:
 
 
 def test_hybrid_06_cli_walkthrough_shell() -> None:
-    out = _run("bash", str(HYBRID_DIR / "06_cli_walkthrough.sh"))
+    out = _run(_bash(), str(HYBRID_DIR / "06_cli_walkthrough.sh"))
     assert "Path A" in out
     assert "transaction_hash" in out
     assert (SAMPLE_DATA_DIR / "out.csv").exists()
