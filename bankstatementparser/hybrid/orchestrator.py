@@ -59,7 +59,7 @@ from .pdf_text import extract_text
 from .verification import (
     BalanceVerification,
     VerificationStatus,
-    verify_balance,
+    verify_transactions,
 )
 from .vision import VisionExtractor
 
@@ -332,7 +332,7 @@ def _run_deterministic(
     raw = parser.parse()
     transactions = _coerce_transactions(raw, source=fmt)
     verification = (
-        verify_balance(
+        verify_transactions(
             transactions,
             opening_balance=opening_balance,
             closing_balance=closing_balance,
@@ -429,7 +429,7 @@ def _build_ingest_result(
         else result.closing_balance
     )
 
-    verification = verify_balance(
+    verification = verify_transactions(
         result.transactions,
         opening_balance=effective_opening,
         closing_balance=effective_closing,

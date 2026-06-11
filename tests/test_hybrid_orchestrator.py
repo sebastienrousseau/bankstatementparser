@@ -126,6 +126,51 @@ def test_smart_ingest_runs_balance_check_when_balances_provided(
     assert result.verification.status is VerificationStatus.VERIFIED
 
 
+def test_smart_ingest_multi_currency_avoids_false_discrepancy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mixed-currency statements are verified per currency, not summed."""
+    file_path = tmp_path / "statement.csv"
+    file_path.write_text("placeholder")
+
+    records = [
+        {
+            "account_id": "A",
+            "currency": "GBP",
+            "amount": "100.00",
+            "date": "2026-04-01",
+            "description": "Credit GBP",
+        },
+        {
+            "account_id": "A",
+            "currency": "EUR",
+            "amount": "200.00",
+            "date": "2026-04-02",
+            "description": "Credit EUR",
+        },
+    ]
+    monkeypatch.setattr(
+        orchestrator, "detect_statement_format", lambda _p: "csv"
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "create_parser",
+        lambda _p, _f: _FakeParser(records),
+    )
+
+    result = smart_ingest(
+        file_path,
+        opening_balance=Decimal("0"),
+        closing_balance=Decimal("100"),
+    )
+    assert result.verification is not None
+    # The single balance pair cannot be attributed to one currency,
+    # so the statement reports FAILED (cannot verify) instead of the
+    # false DISCREPANCY the summed single-currency check would give.
+    assert result.verification.status is VerificationStatus.FAILED
+    assert "Multi-currency statement" in result.verification.message
+
+
 def test_smart_ingest_falls_back_to_llm_when_parser_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -354,6 +399,9 @@ def test_smart_ingest_routes_scanned_pdf_to_vision(
     result = smart_ingest(file_path, vision_extractor=vision)
     assert result.source_method == "vision"
     assert result.source_format == "pdf"
+    # Per-row provenance must match the path that produced the row.
+    assert result.transactions[0].source_method == "vision"
+    assert result.transactions[0].source == "vision"
     assert any("LOW_TEXT_DENSITY" in w for w in result.warnings)
     assert result.verification is not None
     assert result.verification.status is VerificationStatus.VERIFIED

@@ -331,7 +331,7 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 728 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 747 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
@@ -436,6 +436,9 @@ bankstatementparser --type ingest --input statement.pdf --output ledger.csv
 # v0.0.6 — interactive review of saved IngestResult JSON
 bankstatementparser --type review --input result.json
 bankstatementparser --type review --input result.json --output reviewed.json
+
+# v0.0.9 — also review rows the LLM was unsure about (confidence < 0.8)
+bankstatementparser --type review --input result.json --review-below 0.8
 ```
 
 Supports `--type camt`, `--type pain001`, `--type ingest`
@@ -650,7 +653,7 @@ bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 8 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          728 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          747 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---

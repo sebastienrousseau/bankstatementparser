@@ -45,6 +45,7 @@ from .._llm_common import (
 )
 from ..transaction_models import (
     BoundingBox,
+    SourceMethod,
     Transaction,
     normalize_description,
 )
@@ -196,7 +197,11 @@ def _slice_source_context(
 
 
 def _build_result(
-    payload: dict[str, Any], raw: str, *, source_text: str = ""
+    payload: dict[str, Any],
+    raw: str,
+    *,
+    source_text: str = "",
+    source_method: SourceMethod = "llm",
 ) -> LLMExtractionResult:
     raw_txs = payload.get("transactions") or []
     if not isinstance(raw_txs, list):
@@ -243,9 +248,9 @@ def _build_result(
                     if item.get("reference") is not None
                     else None
                 ),
-                source="llm",
+                source=source_method,
                 source_index=index,
-                source_method="llm",
+                source_method=source_method,
                 confidence=confidence,
                 raw_source_text=_slice_source_context(
                     description_str, source_text

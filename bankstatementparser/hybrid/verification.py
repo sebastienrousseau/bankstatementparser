@@ -180,3 +180,106 @@ def verify_balance_multi_currency(
             tolerance=tolerance,
         )
     return results
+
+
+def aggregate_verifications(
+    results: dict[str, BalanceVerification],
+) -> BalanceVerification:
+    """Collapse per-currency results into one statement-level verdict.
+
+    The aggregate ``status`` is the worst per-currency outcome:
+    ``DISCREPANCY`` if any currency disagrees, else ``FAILED`` if any
+    currency could not be checked, else ``VERIFIED``.
+
+    ``total_credits``/``total_debits``/``actual_delta`` are raw sums
+    across all currencies — useful as row-count-style magnitudes, not
+    as monetary values. ``opening_balance``, ``closing_balance``,
+    ``expected_delta``, and ``discrepancy`` are ``None`` because they
+    have no single-currency meaning. Per-currency detail is carried
+    in ``message``.
+
+    Args:
+        results: Output of :func:`verify_balance_multi_currency`.
+            Must be non-empty.
+
+    Returns:
+        A single :class:`BalanceVerification` summarizing all
+        currencies.
+
+    Raises:
+        ValueError: If ``results`` is empty.
+    """
+    if not results:
+        raise ValueError("aggregate_verifications requires results")
+
+    statuses = {v.status for v in results.values()}
+    if VerificationStatus.DISCREPANCY in statuses:
+        status = VerificationStatus.DISCREPANCY
+    elif VerificationStatus.FAILED in statuses:
+        status = VerificationStatus.FAILED
+    else:
+        status = VerificationStatus.VERIFIED
+
+    credits = sum((v.total_credits for v in results.values()), Decimal("0"))
+    debits = sum((v.total_debits for v in results.values()), Decimal("0"))
+
+    detail = "; ".join(
+        f"{currency}: {v.status.value} ({v.message})"
+        for currency, v in sorted(results.items())
+    )
+    return BalanceVerification(
+        status=status,
+        opening_balance=None,
+        closing_balance=None,
+        total_credits=credits,
+        total_debits=debits,
+        expected_delta=None,
+        actual_delta=credits - debits,
+        discrepancy=None,
+        message=f"Multi-currency statement — {detail}",
+    )
+
+
+def verify_transactions(
+    transactions: Iterable[Transaction],
+    *,
+    opening_balance: Optional[Decimal],
+    closing_balance: Optional[Decimal],
+    tolerance: Decimal = Decimal("0.01"),
+) -> BalanceVerification:
+    """Run the Golden Rule, currency-aware.
+
+    Single-currency statements (or statements with no currency
+    metadata at all) go through :func:`verify_balance` unchanged.
+    When the transactions span more than one currency, summing them
+    together would always produce a false ``DISCREPANCY``, so each
+    currency is checked independently via
+    :func:`verify_balance_multi_currency` and the per-currency
+    results are collapsed with :func:`aggregate_verifications`.
+
+    The single ``opening_balance``/``closing_balance`` pair cannot
+    be attributed to one currency of a multi-currency statement, so
+    in that case every currency reports ``FAILED`` (cannot verify)
+    rather than a spurious mismatch.
+
+    Args:
+        transactions: Iterable of normalized transactions.
+        opening_balance: Statement opening balance, or ``None``.
+        closing_balance: Statement closing balance, or ``None``.
+        tolerance: Allowed absolute drift. Defaults to one cent.
+
+    Returns:
+        A single statement-level :class:`BalanceVerification`.
+    """
+    txs = tuple(transactions)
+    currencies = {tx.currency for tx in txs if tx.currency}
+    if len(currencies) <= 1:
+        return verify_balance(
+            txs,
+            opening_balance=opening_balance,
+            closing_balance=closing_balance,
+            tolerance=tolerance,
+        )
+    return aggregate_verifications(
+        verify_balance_multi_currency(txs, tolerance=tolerance)
+    )

@@ -141,6 +141,18 @@ class BankStatementCLI:
             action="store_true",
             help="Use streaming XML parsing to keep memory usage under 50MB for large files (default: False).",
         )
+        parser.add_argument(
+            "--review-below",
+            type=float,
+            required=False,
+            default=None,
+            metavar="THRESHOLD",
+            help=(
+                "With --type review: also walk through rows whose "
+                "extraction confidence is below THRESHOLD (0.0-1.0), "
+                "even when statement-level verification passed."
+            ),
+        )
         return parser
 
     def parse_camt(
@@ -424,16 +436,20 @@ class BankStatementCLI:
         self,
         file_path: Path,
         output_path: Optional[Path] = None,
+        review_below: Optional[float] = None,
     ) -> None:
         """Walk through a saved IngestResult JSON and resolve discrepancies.
 
         Reads the file produced by ``--type ingest --output ...``
         (when that file is JSON) or any other source that emits an
         :class:`~bankstatementparser.hybrid.IngestResult` via its
-        ``to_json()`` method. For every transaction whose status is
+        ``to_json()`` method. When the statement-level status is
         :class:`VerificationStatus.DISCREPANCY` or
-        :class:`VerificationStatus.FAILED`, the operator is prompted
-        with a single-character action menu:
+        :class:`VerificationStatus.FAILED`, every transaction is
+        reviewed. Independently, ``review_below`` routes individual
+        low-confidence rows into the same flow even when the
+        statement verified cleanly. The operator is prompted with a
+        single-character action menu:
 
         * ``a`` accept the row as-is
         * ``e`` edit the description and amount
@@ -443,7 +459,17 @@ class BankStatementCLI:
 
         Every action is recorded in the ``audit_trail`` field of
         the saved result, so the audit history is preserved across
-        review sessions.
+        review sessions. After the walk, the Golden Rule is re-run
+        on the kept rows so edits and deletions are reflected in
+        the saved verification verdict.
+
+        Args:
+            file_path: Validated path to the IngestResult JSON.
+            output_path: Optional destination; defaults to
+                rewriting ``file_path`` in place.
+            review_below: Optional confidence threshold (0.0-1.0).
+                Rows with ``confidence`` below this value are
+                reviewed even when verification passed.
 
         The CLI is non-curses (plain stdin/stdout) so it works on
         any terminal and is straightforward to mock in CI.
@@ -452,6 +478,7 @@ class BankStatementCLI:
             from bankstatementparser.hybrid import (
                 IngestResult,
                 VerificationStatus,
+                verify_transactions,
             )
         except ImportError as exc:
             print(
@@ -472,15 +499,41 @@ class BankStatementCLI:
             return  # pragma: no cover
 
         v = result.verification
-        if v is None or v.status is VerificationStatus.VERIFIED:
-            print(
-                "Verification status is "
-                f"{v.status.value.upper() if v else 'absent'}"
-                " — nothing to review."
-            )
+        review_all = v is not None and v.status is not (
+            VerificationStatus.VERIFIED
+        )
+        low_confidence = (
+            {
+                index
+                for index, tx in enumerate(result.transactions)
+                if tx.confidence is not None and tx.confidence < review_below
+            }
+            if review_below is not None
+            else set()
+        )
+
+        if not review_all and not low_confidence:
+            status_label = v.status.value.upper() if v else "absent"
+            if review_below is not None:
+                print(
+                    f"Verification status is {status_label} and no rows "
+                    f"are below confidence {review_below:.2f} — nothing "
+                    "to review."
+                )
+            else:
+                print(
+                    f"Verification status is {status_label}"
+                    " — nothing to review."
+                )
             return
 
-        print(f"Verification: {v.status.value.upper()} - {v.message}")
+        if v is not None:
+            print(f"Verification: {v.status.value.upper()} - {v.message}")
+        if not review_all:
+            print(
+                f"Reviewing {len(low_confidence)} rows below "
+                f"confidence {review_below:.2f}."
+            )
         print(f"Loaded {len(result.transactions)} transactions.")
         print()
 
@@ -488,6 +541,9 @@ class BankStatementCLI:
         audit: list[dict[str, object]] = list(result.audit_trail)
 
         for index, tx in enumerate(result.transactions):
+            if not review_all and index not in low_confidence:
+                kept.append(tx)
+                continue
             self._render_review_row(index, len(result.transactions), tx)
             action = self._prompt_review_action()
 
@@ -532,14 +588,31 @@ class BankStatementCLI:
                     }
                 )
 
-        # Reconstruct the result with the kept transactions and
-        # the appended audit trail. Verification is left untouched
-        # — re-running smart_ingest is the way to recompute it.
+        # Reconstruct the result with the kept transactions, the
+        # appended audit trail, and a verification verdict re-run
+        # against the kept rows so edits and deletions are reflected
+        # in the saved status.
         from dataclasses import replace
+
+        new_verification = result.verification
+        if result.verification is not None:
+            new_verification = verify_transactions(
+                kept,
+                opening_balance=result.verification.opening_balance,
+                closing_balance=result.verification.closing_balance,
+            )
+            audit.append(
+                {
+                    "action": "reverify",
+                    "status_before": result.verification.status.value,
+                    "status_after": new_verification.status.value,
+                }
+            )
 
         updated = replace(
             result,
             transactions=tuple(kept),
+            verification=new_verification,
             audit_trail=tuple(audit),
         )
 
@@ -549,6 +622,11 @@ class BankStatementCLI:
         Path(safe_output).write_text(updated.to_json(), encoding="utf-8")
         print(f"\nReview complete. Wrote {len(kept)} rows -> {safe_output}")
         print(f"Audit trail entries: {len(audit)}")
+        if new_verification is not None:
+            print(
+                f"Re-verified: {new_verification.status.value.upper()} - "
+                f"{new_verification.message}"
+            )
 
     def _render_review_row(
         self,
@@ -755,9 +833,15 @@ class BankStatementCLI:
                     validated_output_path,
                 )
             elif args.type == "review":
+                if args.review_below is not None and not (
+                    0.0 <= args.review_below <= 1.0
+                ):
+                    print("Error: --review-below must be between 0.0 and 1.0")
+                    sys.exit(1)
                 self.run_review(
                     validated_input_path,
                     validated_output_path,
+                    review_below=args.review_below,
                 )
             else:
                 print("Error: The specified type is not supported.")

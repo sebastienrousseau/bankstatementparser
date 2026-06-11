@@ -104,7 +104,7 @@ def _first_value(record: Mapping[str, object], *keys: str) -> object | None:
     return None
 
 
-SourceMethod = Literal["deterministic", "llm"]
+SourceMethod = Literal["deterministic", "llm", "vision"]
 
 
 class BoundingBox(BaseModel):

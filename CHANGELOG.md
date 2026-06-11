@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--review-below THRESHOLD` for `--type review`.** Per-row
+  extraction confidence is now acted on, not just displayed: rows
+  with `confidence` below the threshold (0.0–1.0) are routed into
+  the interactive review walk even when statement-level
+  verification passed. Statement-level `DISCREPANCY`/`FAILED`
+  still reviews every row.
+- **`verify_transactions()` and `aggregate_verifications()`**
+  exported from `bankstatementparser.hybrid` — currency-aware
+  Golden Rule dispatch and per-currency result aggregation.
+
+### Fixed
+
+- **Vision-extracted rows are labelled `source_method="vision"`.**
+  Previously rows produced by the vision path were mislabelled
+  `"llm"`, so per-row provenance disagreed with the
+  `IngestResult.source_method` tag. `SourceMethod` now includes
+  the `"vision"` literal.
+- **Review mode re-runs the Golden Rule after edits.** The saved
+  verification verdict previously stayed stale after rows were
+  edited or deleted; the kept rows are now re-verified and a
+  `reverify` entry (with before/after status) is appended to the
+  audit trail.
+- **Multi-currency statements no longer report a false
+  `DISCREPANCY`.** `smart_ingest` previously summed all currencies
+  into one Golden Rule check; transactions spanning multiple
+  currencies are now verified per currency
+  (`verify_balance_multi_currency`) and collapsed into a single
+  statement-level verdict.
+
 ## [0.1.0] — 2026-06-10
 
 > "Audit pass" — addresses the three Critical findings and six quick

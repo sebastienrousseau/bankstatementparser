@@ -42,8 +42,10 @@ from .scanner import FileFailure, ScanResult, scan_and_ingest
 from .verification import (
     BalanceVerification,
     VerificationStatus,
+    aggregate_verifications,
     verify_balance,
     verify_balance_multi_currency,
+    verify_transactions,
 )
 from .vision import VisionExtractor, VisionExtractorError
 
@@ -60,6 +62,7 @@ __all__ = [
     "VerificationStatus",
     "VisionExtractor",
     "VisionExtractorError",
+    "aggregate_verifications",
     "extract_text",
     "is_ollama_model",
     "ollama_direct_completion",
@@ -67,4 +70,5 @@ __all__ = [
     "smart_ingest",
     "verify_balance",
     "verify_balance_multi_currency",
+    "verify_transactions",
 ]

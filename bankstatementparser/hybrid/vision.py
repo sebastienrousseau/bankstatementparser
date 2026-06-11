@@ -244,7 +244,9 @@ class VisionExtractor:
 
         raw = _extract_message_content(response)
         payload = _parse_json_payload(raw)
-        return _build_result(payload, raw, source_text="")
+        return _build_result(
+            payload, raw, source_text="", source_method="vision"
+        )
 
     def _extract_strip(self, pdf_path: Path) -> LLMExtractionResult:
         """Strip-mode extraction: per-strip LLM calls + merge by hash.

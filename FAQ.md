@@ -12,7 +12,7 @@
 
 ### 3. Is the extraction process deterministic?
 
-**Yes — byte-identical output on every run for the deterministic path.** Given the same input file, `CamtParser`, `Pain001Parser`, `CsvStatementParser`, `OfxParser`, `Mt940Parser`, and `QfxParser` produce the same result every time. No randomness, no model inference, no heuristic sampling. Verify this yourself: run the same file twice and diff the output. CI enforces determinism with 728 tests, including property-based fuzzing via Hypothesis.
+**Yes — byte-identical output on every run for the deterministic path.** Given the same input file, `CamtParser`, `Pain001Parser`, `CsvStatementParser`, `OfxParser`, `Mt940Parser`, and `QfxParser` produce the same result every time. No randomness, no model inference, no heuristic sampling. Verify this yourself: run the same file twice and diff the output. CI enforces determinism with 747 tests, including property-based fuzzing via Hypothesis.
 
 The v0.0.5 hybrid pipeline (`smart_ingest()`) extends this with two LLM fallbacks for PDFs that have no structured equivalent. Those paths are explicitly tagged as non-deterministic via `source_method='llm'` or `'vision'` on every extracted `Transaction` so audit trails can distinguish "facts from source" from "AI-inferred". The deterministic core is unchanged.
 
@@ -184,7 +184,7 @@ Bank Statement Parser is designed for environments where auditability is non-neg
 To verify reproducibility locally:
 
 ```bash
-poetry run pytest                             # 728 tests, coverage gated in CI
+poetry run pytest                             # 747 tests, coverage gated in CI
 poetry run python scripts/verify_locked_hashes.py   # SHA-256 hash verification
 git log --show-signature -1                   # Verify commit signature
 ```
