@@ -650,13 +650,13 @@ versioned companion packages build on it — each is its own repository
 and Python package, so you install only what you need and the core
 stays dependency-light.
 
-| Package | Role | What it adds |
-|---|---|---|
-| [`bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | AI agents | [Model Context Protocol](https://modelcontextprotocol.io) server — exposes detect / parse / validate / summarize as tools for Claude Desktop and other LLM clients |
-| [`bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | Editors | Language Server with live MT940 diagnostics (missing tags, malformed balance / `:61:` lines) over [pygls](https://github.com/openlawlibrary/pygls) |
-| [`bankstatementparser-writer-xlsx`](https://github.com/sebastienrousseau/bankstatementparser-writer-xlsx) | Output | Write parsed transactions (DataFrame, `Transaction` list, or dicts) to a polished Excel `.xlsx` workbook |
-| [`bankstatementparser-loader-mt942`](https://github.com/sebastienrousseau/bankstatementparser-loader-mt942) | Input | Parse SWIFT **MT942** interim transaction reports into `Transaction` objects (a format the core does not read) |
-| [`bankstatementparser-loader-bai2`](https://github.com/sebastienrousseau/bankstatementparser-loader-bai2) | Input | Parse **BAI2** cash-management files into `Transaction` objects (a format the core does not read) |
+| Package | PyPI | Role | What it adds |
+|---|---|---|---|
+| [`bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-mcp.svg)](https://pypi.org/project/bankstatementparser-mcp/) | AI agents | [Model Context Protocol](https://modelcontextprotocol.io) server — exposes detect / parse / validate / summarize as tools for Claude Desktop and other LLM clients |
+| [`bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-lsp.svg)](https://pypi.org/project/bankstatementparser-lsp/) | Editors | Language Server with live MT940 diagnostics (missing tags, malformed balance / `:61:` lines) over [pygls](https://github.com/openlawlibrary/pygls) |
+| [`bankstatementparser-writer-xlsx`](https://github.com/sebastienrousseau/bankstatementparser-writer-xlsx) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-xlsx.svg)](https://pypi.org/project/bankstatementparser-writer-xlsx/) | Output | Write parsed transactions (DataFrame, `Transaction` list, or dicts) to a polished Excel `.xlsx` workbook |
+| [`bankstatementparser-loader-mt942`](https://github.com/sebastienrousseau/bankstatementparser-loader-mt942) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-mt942.svg)](https://pypi.org/project/bankstatementparser-loader-mt942/) | Input | Parse SWIFT **MT942** interim transaction reports into `Transaction` objects (a format the core does not read) |
+| [`bankstatementparser-loader-bai2`](https://github.com/sebastienrousseau/bankstatementparser-loader-bai2) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-bai2.svg)](https://pypi.org/project/bankstatementparser-loader-bai2/) | Input | Parse **BAI2** cash-management files into `Transaction` objects (a format the core does not read) |
 
 Loaders turn an additional source format into the same unified
 `Transaction` model; writers take parsed data back out to another
