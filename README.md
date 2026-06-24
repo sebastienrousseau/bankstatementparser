@@ -56,6 +56,7 @@ services unless they explicitly opt in.
 - [Export](#export) — CSV, JSON, Excel, Polars, hledger, beancount
 - [Examples](#examples) — 22 runnable scripts (14 deterministic + 8 hybrid)
 - [XML Tag Mapping](#xml-tag-mapping) — ISO 20022 tags to DataFrame columns
+- [Ecosystem](#ecosystem) — companion packages (MCP, LSP, writers, loaders)
 
 **Operational**
 
@@ -639,6 +640,37 @@ See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference
 of ISO 20022 XML tags to DataFrame columns across all six formats.
 Use this when integrating with ERP systems or building
 reconciliation pipelines.
+
+---
+
+## Ecosystem
+
+`bankstatementparser` is the core engine. Optional, independently
+versioned companion packages build on it — each is its own repository
+and Python package, so you install only what you need and the core
+stays dependency-light.
+
+| Package | Role | What it adds |
+|---|---|---|
+| [`bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | AI agents | [Model Context Protocol](https://modelcontextprotocol.io) server — exposes detect / parse / validate / summarize as tools for Claude Desktop and other LLM clients |
+| [`bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | Editors | Language Server with live MT940 diagnostics (missing tags, malformed balance / `:61:` lines) over [pygls](https://github.com/openlawlibrary/pygls) |
+| [`bankstatementparser-writer-xlsx`](https://github.com/sebastienrousseau/bankstatementparser-writer-xlsx) | Output | Write parsed transactions (DataFrame, `Transaction` list, or dicts) to a polished Excel `.xlsx` workbook |
+| [`bankstatementparser-loader-mt942`](https://github.com/sebastienrousseau/bankstatementparser-loader-mt942) | Input | Parse SWIFT **MT942** interim transaction reports into `Transaction` objects (a format the core does not read) |
+| [`bankstatementparser-loader-bai2`](https://github.com/sebastienrousseau/bankstatementparser-loader-bai2) | Input | Parse **BAI2** cash-management files into `Transaction` objects (a format the core does not read) |
+
+Loaders turn an additional source format into the same unified
+`Transaction` model; writers take parsed data back out to another
+target. Each companion pins `bankstatementparser` as a dependency and
+ships its own 100%-coverage test suite.
+
+```bash
+# Mix and match: e.g. read an MT942 file, then export to Excel
+pip install bankstatementparser-loader-mt942 bankstatementparser-writer-xlsx
+```
+
+Loaders hand back the same `Transaction` model the core parsers
+produce, so `load_mt942_file(...)` then `write_xlsx(...)` composes
+cleanly — see each companion's README for runnable examples.
 
 ---
 
