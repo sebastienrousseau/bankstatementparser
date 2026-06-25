@@ -33,10 +33,13 @@ from bankstatementparser import Transaction  # noqa: E402
 from bankstatementparser.hybrid import (  # noqa: E402
     VerificationStatus,
     verify_balance,
+    verify_continuity,
+    verify_transactions,
 )
 
 
 def _row(amount: str, day: str, desc: str) -> Transaction:
+    """Build a Transaction from string amount, date, and description."""
     return Transaction(
         amount=Decimal(amount),
         booking_date=day,  # type: ignore[arg-type]
@@ -64,6 +67,7 @@ DROPPED_ROW: list[Transaction] = [
 
 
 def _print(label: str, result: object) -> None:
+    """Print a labelled summary of a balance verification result."""
     print(f"-- {label}")
     print(f"   status:         {result.status.value.upper()}")  # type: ignore[attr-defined]
     print(f"   total credits:  {result.total_credits}")  # type: ignore[attr-defined]
@@ -76,6 +80,7 @@ def _print(label: str, result: object) -> None:
 
 
 def _expect(actual: VerificationStatus, expected: VerificationStatus) -> None:
+    """Raise SystemExit if the actual status differs from expected."""
     if actual is not expected:
         raise SystemExit(
             f"Example contract violated: expected {expected.value}, "
@@ -84,6 +89,7 @@ def _expect(actual: VerificationStatus, expected: VerificationStatus) -> None:
 
 
 def main() -> int:
+    """Demonstrate balance verification across integrity scenarios."""
     print("Scenario 1: clean statement, all transactions captured")
     print()
     result = verify_balance(
@@ -120,7 +126,54 @@ def main() -> int:
     print("     or skip integrity check entirely (LLMs sometimes miss them).")
     print()
 
-    print("All three scenarios behave as expected.")
+    print("Scenario 4: currency-aware Golden Rule (verify_transactions)")
+    print()
+    # verify_transactions delegates to verify_balance for a single
+    # currency, and checks each currency independently when a statement
+    # mixes them — so a multi-currency statement never reports a false
+    # discrepancy from summing GBP and EUR together.
+    result = verify_transactions(
+        HAPPY_PATH,
+        opening_balance=Decimal("1500.00"),
+        closing_balance=Decimal("2676.66"),
+    )
+    _print("VERIFIED expected", result)
+    _expect(result.status, VerificationStatus.VERIFIED)
+
+    print("Scenario 5: cross-statement continuity (verify_continuity)")
+    print()
+    # The closing balance of each statement must equal the opening
+    # balance of the next. A clean chain verifies; a hallucinated or
+    # missing balance shows up as a continuity break.
+    chained = verify_continuity(
+        [
+            ("2026-02", Decimal("1000.00"), Decimal("1500.00")),
+            ("2026-03", Decimal("1500.00"), Decimal("2100.00")),
+            ("2026-04", Decimal("2100.00"), Decimal("2676.66")),
+        ]
+    )
+    print(f"   status:         {chained.status.value.upper()}")
+    print(f"   checked links:  {chained.checked_links}")
+    print(f"   message:        {chained.message}")
+    print()
+    _expect(chained.status, VerificationStatus.VERIFIED)
+
+    broken = verify_continuity(
+        [
+            ("2026-02", Decimal("1000.00"), Decimal("1500.00")),
+            # Gap: previous closed at 1500 but this opens at 1600.
+            ("2026-03", Decimal("1600.00"), Decimal("2100.00")),
+        ]
+    )
+    print(f"   broken chain status: {broken.status.value.upper()}")
+    print(f"   breaks:              {len(broken.breaks)}")
+    print()
+    _expect(broken.status, VerificationStatus.DISCREPANCY)
+    print("  -> Action: a missing month or hallucinated balance breaks")
+    print("     the chain — flag the batch for a human to reconcile.")
+    print()
+
+    print("All five scenarios behave as expected.")
     return 0
 
 

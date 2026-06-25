@@ -118,6 +118,7 @@ CSV_COLUMN_GROUPS = {
 
 
 def _normalized_name(name: str) -> str:
+    """Fold a header name to lowercase ASCII alphanumerics for matching."""
     # NFKD + ASCII-encode folds accented characters to their base
     # letter (é -> e) so French/Spanish headers match their
     # unaccented synonym entries.
@@ -130,6 +131,7 @@ def _normalized_name(name: str) -> str:
 
 
 def _read_validated_text(file_name: str | Path) -> tuple[Path, str]:
+    """Validate the path and read its contents as UTF-8 text."""
     validator = InputValidator()
     path = validator.validate_input_file_path(str(file_name))
     try:
@@ -210,6 +212,7 @@ class CsvStatementParser(BankStatementParser):
         self._parsed_df: pd.DataFrame | None = None
 
     def _find_column(self, df: pd.DataFrame, logical_name: str) -> str | None:
+        """Return the DataFrame column matching a logical name, if any."""
         candidates = CSV_COLUMN_GROUPS[logical_name]
         for column in df.columns:
             column_name = str(column)
@@ -351,6 +354,7 @@ class OfxParser(BankStatementParser):
         self._parsed_df: pd.DataFrame | None = None
 
     def _tag_value(self, source: str, tag: str) -> str | None:
+        """Return the stripped value of an OFX/SGML tag, or None."""
         match = re.search(rf"<{tag}>([^<\r\n]+)", source, flags=re.IGNORECASE)
         if match is None:
             return None

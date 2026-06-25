@@ -20,6 +20,7 @@ NULL_SHA = "0" * 40
 
 
 def github_get_json(url: str, token: str) -> dict[str, Any]:
+    """Fetch and decode JSON from an authenticated GitHub API URL."""
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.netloc != "api.github.com":
         raise RuntimeError(
@@ -49,6 +50,7 @@ def compare_commits(
     head: str,
     token: str,
 ) -> list[dict[str, Any]]:
+    """Return the commits between two refs via the compare API."""
     compare = github_get_json(
         f"{API_ROOT}/repos/{repo}/compare/{base}...{head}",
         token,
@@ -68,6 +70,7 @@ def commits_for_initial_push(
     event: dict[str, Any],
     token: str,
 ) -> list[dict[str, Any]]:
+    """Return the commits introduced by an initial branch push."""
     commits = []
     for commit in cast(list[dict[str, Any]], event.get("commits", [])):
         sha = commit.get("id")
@@ -90,6 +93,7 @@ def commit_range_from_event(
     event_name: str,
     event: dict[str, Any],
 ) -> tuple[str, str]:
+    """Return the base and head SHAs for a GitHub event."""
     if event_name == "pull_request":
         pull_request = event["pull_request"]
         return pull_request["base"]["sha"], pull_request["head"]["sha"]
@@ -107,6 +111,7 @@ def commits_from_event(
     event: dict[str, Any],
     token: str,
 ) -> list[dict[str, Any]]:
+    """Return the commits to verify for the current GitHub event."""
     if event_name == "push" and event.get("before") == NULL_SHA:
         return commits_for_initial_push(repo, event, token)
 
@@ -115,6 +120,7 @@ def commits_from_event(
 
 
 def verify_commits(commits: Iterable[dict[str, Any]]) -> list[str]:
+    """Return failure messages for unsigned or unverified commits."""
     failures = []
     for commit in commits:
         verification = commit.get("commit", {}).get("verification", {})
@@ -128,6 +134,7 @@ def verify_commits(commits: Iterable[dict[str, Any]]) -> list[str]:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for the signature verifier."""
     parser = argparse.ArgumentParser(
         description="Verify that all commits in the current GitHub event are signed."
     )
@@ -147,6 +154,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Verify commit signatures for the event and exit non-zero on failure."""
     args = parse_args()
     if not args.repo or not args.token:
         print(

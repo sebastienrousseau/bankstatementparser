@@ -49,6 +49,7 @@ from bankstatementparser.transaction_models import (  # noqa: E402
 
 
 def _tx(amount: str, day: str, raw_desc: str) -> Transaction:
+    """Build a Transaction with a normalized description."""
     return Transaction(
         amount=Decimal(amount),
         booking_date=day,  # type: ignore[arg-type]
@@ -58,6 +59,7 @@ def _tx(amount: str, day: str, raw_desc: str) -> Transaction:
 
 
 def main() -> int:
+    """Demonstrate description normalization and recurring dedupe."""
     print("=" * 64)
     print("PART 1 — normalize_description() strips noise")
     print("=" * 64)

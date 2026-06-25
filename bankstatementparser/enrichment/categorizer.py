@@ -178,6 +178,7 @@ def _build_messages(
     transactions: list[Transaction],
     schema: tuple[str, ...],
 ) -> list[dict[str, Any]]:
+    """Build the system/user message pair for a categorization call."""
     schema_block = "\n".join(f"  - {c}" for c in schema)
     rows = "\n".join(
         _format_row(idx, tx) for idx, tx in enumerate(transactions)
@@ -218,6 +219,7 @@ def _sanitize_for_prompt(value: str) -> str:
 
 
 def _format_row(index: int, tx: Transaction) -> str:
+    """Render one transaction as a single prompt line."""
     date = tx.booking_date.isoformat() if tx.booking_date else "????-??-??"
     desc = _sanitize_for_prompt(tx.description or "(no description)")
     return f"  [{index}] {date}  {tx.amount:>10}  {desc[:80]}"
@@ -331,6 +333,7 @@ class Categorizer:
         self,
         chunk: list[Transaction],
     ) -> list[EnrichedTransaction]:
+        """Categorize a single chunk of transactions via one LLM call."""
         completion = self._resolve_completion()
         messages = _build_messages(chunk, self.schema)
 
@@ -354,16 +357,17 @@ class Categorizer:
         return _build_enriched(chunk, payload, self._schema_lookup)
 
     def _resolve_completion(self) -> CompletionFn:
+        """Return the injected completion callable or import LiteLLM's."""
         if self.completion_fn is not None:
             return self.completion_fn
-        try:  # pragma: no cover - optional dep
+        try:
             from litellm import completion
-        except ImportError as exc:  # pragma: no cover - optional dep
+        except ImportError as exc:
             raise CategorizerError(
                 "litellm is required for the enrichment module. "
                 "Install with: pip install bankstatementparser[enrichment]"
             ) from exc
-        return completion  # type: ignore[no-any-return]  # pragma: no cover
+        return completion  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------
@@ -377,6 +381,7 @@ def _extract_message_content(response: Any) -> str:
 
 
 def _parse_json_payload(raw: str) -> dict[str, Any]:
+    """Tolerantly parse a JSON object from a model response."""
     return parse_json_payload(raw, error_cls=CategorizerError)
 
 
@@ -385,6 +390,7 @@ def _build_enriched(
     payload: dict[str, Any],
     schema_lookup: dict[str, str],
 ) -> list[EnrichedTransaction]:
+    """Map an LLM results payload back onto the input chunk by index."""
     raw_results = payload.get("results")
     if not isinstance(raw_results, list):
         raise CategorizerError("Enrichment payload missing 'results' list")

@@ -109,6 +109,7 @@ class IngestResult:
         return json.dumps(self._to_dict(), indent=indent, sort_keys=False)
 
     def _to_dict(self) -> dict[str, Any]:
+        """Build the JSON-serializable dict representation."""
         return {
             "schema_version": 1,
             "source_method": self.source_method,
@@ -146,6 +147,7 @@ class IngestResult:
 
     @classmethod
     def _from_dict(cls, data: dict[str, Any]) -> IngestResult:
+        """Reconstruct an instance from a decoded JSON dict, validating fields."""
         version = data.get("schema_version")
         if version not in (None, 1):
             raise ValueError(
@@ -185,6 +187,7 @@ class IngestResult:
 def _verification_to_dict(
     verification: Optional[BalanceVerification],
 ) -> Optional[dict[str, Any]]:
+    """Serialize a :class:`BalanceVerification` to a JSON-safe dict."""
     if verification is None:
         return None
     return {
@@ -203,6 +206,7 @@ def _verification_to_dict(
 def _verification_from_dict(
     data: Any,
 ) -> Optional[BalanceVerification]:
+    """Reconstruct a :class:`BalanceVerification` from a decoded dict."""
     if data is None:
         return None
     if not isinstance(data, dict):
@@ -229,12 +233,14 @@ def _verification_from_dict(
 
 
 def _decimal_to_str(value: Optional[Decimal]) -> Optional[str]:
+    """Encode a ``Decimal`` as a plain string, preserving ``None``."""
     if value is None:
         return None
     return format(value, "f")
 
 
 def _decimal_from_str(value: Any) -> Optional[Decimal]:
+    """Decode a string back into a ``Decimal``, preserving ``None``/empty."""
     if value is None or value == "":
         return None
     return Decimal(str(value))
@@ -313,6 +319,7 @@ def smart_ingest(
 
 
 def _safe_detect(file_path: Path, warnings: list[str]) -> Optional[str]:
+    """Detect the statement format, recording a warning on no match."""
     try:
         return detect_statement_format(str(file_path))
     except Exception as exc:
@@ -337,6 +344,7 @@ def _run_deterministic(
     closing_balance: Optional[Decimal],
     warnings: list[str],
 ) -> IngestResult:
+    """Run the deterministic parser and wrap its output in an IngestResult."""
     parser = create_parser(str(file_path), fmt)
     raw = parser.parse()
     transactions = _coerce_transactions(raw, source=fmt)
@@ -452,6 +460,7 @@ def _run_vision(
     closing_balance: Optional[Decimal],
     warnings: list[str],
 ) -> IngestResult:
+    """Run the vision extractor and wrap its output in an IngestResult."""
     vision_extractor = vision_extractor or VisionExtractor()
     result = vision_extractor.extract(file_path)
     return _build_ingest_result(
@@ -471,6 +480,7 @@ def _build_ingest_result(
     closing_balance: Optional[Decimal],
     warnings: list[str],
 ) -> IngestResult:
+    """Assemble an IngestResult from an LLM result, running verification."""
     effective_opening = (
         opening_balance
         if opening_balance is not None
@@ -507,13 +517,13 @@ def _coerce_transactions(raw: object, *, source: str) -> list[Transaction]:
     if callable(to_dict):
         try:
             records = list(to_dict("records"))
-        except TypeError:  # pragma: no cover - non-DataFrame fallback
+        except TypeError:
             records = []
     elif isinstance(raw, list):
         records = [dict(item) for item in raw if isinstance(item, dict)]
     elif isinstance(raw, dict):
         records = [dict(raw)]
-    else:  # pragma: no cover - defensive
+    else:
         records = []
 
     transactions: list[Transaction] = []

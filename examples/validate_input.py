@@ -20,6 +20,7 @@ from common import CAMT_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Validate a legitimate file path and reject a dangerous one."""
     validator = InputValidator()
 
     # Validate a legitimate file

@@ -85,12 +85,14 @@ def _mock_completion_for(case: EvalCase) -> Any:
     }
 
     def completion(**_kwargs: Any) -> dict[str, Any]:
+        """Return the case's perfect answer as a completion response."""
         return {"choices": [{"message": {"content": json.dumps(payload)}}]}
 
     return completion
 
 
 def _run_case(case: EvalCase, *, args: argparse.Namespace) -> EvalScore:
+    """Extract and score a single eval case using the configured model."""
     if args.mock:
         extractor = LLMExtractor(completion_fn=_mock_completion_for(case))
     else:
@@ -107,12 +109,14 @@ def _run_case(case: EvalCase, *, args: argparse.Namespace) -> EvalScore:
 
 
 def _flag(value: bool | None) -> str:
+    """Render a tri-state correctness flag for printing."""
     if value is None:
         return "-"
     return "ok" if value else "WRONG"
 
 
 def _print_score(score: EvalScore) -> None:
+    """Print the per-case score breakdown to stdout."""
     print(f"\n=== {score.case_name} ===")
     print(
         f"  rows: {score.matched}/{score.expected_count} matched "
@@ -135,6 +139,7 @@ def _print_score(score: EvalScore) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the eval across all cases and report a pass/fail summary."""
     parser = argparse.ArgumentParser(
         description="LLM extraction accuracy eval"
     )

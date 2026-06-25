@@ -21,15 +21,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_toml(path: Path) -> dict[str, Any]:
+    """Parse a TOML file and return its contents as a dictionary."""
     with path.open("rb") as handle:
         return cast(dict[str, Any], tomllib.load(handle))
 
 
 def normalize_distribution_name(name: str) -> str:
+    """Normalize a distribution name to lowercase with hyphens."""
     return name.replace("_", "-").lower()
 
 
 def resolve_license(package_name: str) -> str:
+    """Return the license for an installed package, or "UNKNOWN"."""
     normalized = normalize_distribution_name(package_name)
     try:
         metadata = importlib.metadata.metadata(normalized)
@@ -51,11 +54,13 @@ def resolve_license(package_name: str) -> str:
 
 
 def package_ref(name: str, version: str) -> str:
+    """Build a PyPI package URL (purl) reference for a package."""
     normalized = quote(normalize_distribution_name(name), safe="")
     return f"pkg:pypi/{normalized}@{version}"
 
 
 def cyclonedx_component(package: dict[str, Any]) -> dict[str, Any]:
+    """Build a CycloneDX component entry from a lock package."""
     name = package["name"]
     version = package["version"]
     hashes = []
@@ -97,6 +102,7 @@ def cyclonedx_component(package: dict[str, Any]) -> dict[str, Any]:
 def build_dependency_edges(
     packages: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    """Build CycloneDX dependency edges between locked packages."""
     available_refs = {
         normalize_distribution_name(package["name"]): package_ref(
             package["name"], package["version"]
@@ -125,6 +131,7 @@ def build_sbom(
     pyproject: dict[str, Any],
     lock_data: dict[str, Any],
 ) -> dict[str, Any]:
+    """Assemble a CycloneDX SBOM from pyproject and lock data."""
     poetry = pyproject["tool"]["poetry"]
     packages = lock_data.get("package", [])
     components = [cyclonedx_component(package) for package in packages]
@@ -175,6 +182,7 @@ def write_markdown_report(
     packages: list[dict[str, Any]],
     output_path: Path,
 ) -> None:
+    """Write a Markdown dependency report for the locked packages."""
     lines = [
         "# Dependency Report",
         "",
@@ -200,6 +208,7 @@ def write_markdown_report(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for the SBOM generator."""
     parser = argparse.ArgumentParser(
         description="Generate a CycloneDX-style SBOM and dependency report."
     )
@@ -219,6 +228,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Generate the SBOM JSON and Markdown dependency report files."""
     args = parse_args()
     pyproject = load_toml(ROOT / "pyproject.toml")
     lock_data = load_toml(ROOT / "poetry.lock")

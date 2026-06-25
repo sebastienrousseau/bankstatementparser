@@ -18,6 +18,7 @@ from common import CAMT_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Stream the first few transactions from a CAMT fixture."""
     parser = CamtParser(str(CAMT_FIXTURE))
 
     for index, transaction in enumerate(

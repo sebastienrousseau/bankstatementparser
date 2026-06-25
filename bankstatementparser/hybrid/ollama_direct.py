@@ -91,7 +91,7 @@ def ollama_direct_completion(**kwargs: Any) -> dict[str, Any]:
     """
     try:
         import httpx
-    except ImportError as exc:  # pragma: no cover - optional dep
+    except ImportError as exc:
         raise OllamaDirectError(
             "httpx is required for the direct Ollama bridge. "
             "Install with: pip install bankstatementparser[hybrid]"

@@ -57,6 +57,7 @@ TRANSACTIONS: list[tuple[str, str, Decimal]] = [
 
 
 def closing_balance() -> Decimal:
+    """Return the closing balance derived from the sample transactions."""
     return OPENING_BALANCE + sum(
         (amount for _date, _desc, amount in TRANSACTIONS),
         Decimal("0"),
@@ -64,6 +65,7 @@ def closing_balance() -> Decimal:
 
 
 def _try_import_reportlab() -> object:
+    """Import reportlab helpers or exit with an install hint."""
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import mm
@@ -78,6 +80,7 @@ def _try_import_reportlab() -> object:
 
 
 def _try_import_pypdfium2() -> object:
+    """Import pypdfium2 or exit with an install hint."""
     try:
         import pypdfium2 as pdfium
 
@@ -90,6 +93,7 @@ def _try_import_pypdfium2() -> object:
 
 
 def _try_import_pil() -> object:
+    """Import Pillow's Image or exit with an install hint."""
     try:
         from PIL import Image
 
@@ -187,6 +191,7 @@ def render_scanned_pdf(source: Path, target: Path) -> None:
 
 
 def main() -> None:
+    """Generate the digital and scanned sample PDFs."""
     print(f"Output directory: {OUTPUT_DIR}")
     print()
     print("=" * 60)

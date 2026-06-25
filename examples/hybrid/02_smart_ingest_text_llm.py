@@ -153,6 +153,7 @@ def _mock_completion(**kwargs: Any) -> dict[str, Any]:
 
 
 def main() -> int:
+    """Route a text-based PDF through the text-LLM extraction path."""
     if not SAMPLE_PDF.exists():
         print(
             "Sample PDF not found. Run first:\n"

@@ -34,6 +34,7 @@ CAMT_FIXTURE = REPO_ROOT / "tests" / "test_data" / "camt.053.001.02.xml"
 
 
 def main() -> int:
+    """Run smart ingest over a structured CAMT fixture."""
     if not CAMT_FIXTURE.exists():
         print(f"Fixture not found: {CAMT_FIXTURE}", file=sys.stderr)
         return 1

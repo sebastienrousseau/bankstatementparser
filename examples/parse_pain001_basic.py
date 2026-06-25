@@ -17,6 +17,7 @@ from common import PAIN001_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Parse a pain.001 fixture and print a preview of the payments."""
     parser = Pain001Parser(str(PAIN001_FIXTURE))
     payments = parser.parse()
 

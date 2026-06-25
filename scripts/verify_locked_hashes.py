@@ -16,11 +16,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_lockfile() -> dict[str, Any]:
+    """Parse the repository's poetry.lock file into a dictionary."""
     with (ROOT / "poetry.lock").open("rb") as handle:
         return cast(dict[str, Any], tomllib.load(handle))
 
 
 def verify_packages(packages: list[dict[str, Any]]) -> list[str]:
+    """Return failure messages for packages lacking SHA-256 file hashes."""
     failures = []
     for package in packages:
         package_id = f"{package['name']}=={package['version']}"
@@ -38,6 +40,7 @@ def verify_packages(packages: list[dict[str, Any]]) -> list[str]:
 
 
 def main() -> int:
+    """Verify locked package hashes and exit non-zero on any failure."""
     packages = load_lockfile().get("package", [])
     failures = verify_packages(packages)
     if failures:

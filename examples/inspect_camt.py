@@ -17,6 +17,7 @@ from common import CAMT_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Inspect balances, transactions, and summary stats of a CAMT file."""
     parser = CamtParser(str(CAMT_FIXTURE))
 
     balances = parser.get_account_balances()

@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
 
 
 def main() -> None:
+    """Detect statement formats and parse each sample accordingly."""
     from bankstatementparser import (
         create_parser,
         detect_statement_format,

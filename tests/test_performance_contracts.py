@@ -299,6 +299,55 @@ class TestParallelParsing(unittest.TestCase):
         results = parse_files_parallel([])
         self.assertEqual(results, [])
 
+    def test_parallel_worker_crash_is_captured(self) -> None:
+        """A future that raises (e.g. a dead worker) becomes a FAILED result."""
+        from unittest import mock
+
+        from bankstatementparser import parallel
+
+        class _DeadFuture:
+            """Stand-in future whose result() raises like a crashed worker."""
+
+            def result(self) -> object:
+                """Raise as if the worker process had died."""
+                raise RuntimeError("worker process died")
+
+        class _FakeExecutor:
+            """Context-manager executor that hands back dead futures."""
+
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                """Accept and ignore any executor configuration."""
+
+            def __enter__(self) -> _FakeExecutor:
+                """Enter the executor context."""
+                return self
+
+            def __exit__(self, *exc: object) -> bool:
+                """Exit the executor context without suppressing errors."""
+                return False
+
+            def submit(
+                self, _fn: object, path: str, *_args: object
+            ) -> _DeadFuture:
+                """Return a dead future for the given path."""
+                self._path = path
+                return _DeadFuture()
+
+        with (
+            mock.patch.object(parallel, "ProcessPoolExecutor", _FakeExecutor),
+            mock.patch.object(
+                parallel, "as_completed", lambda mapping: list(mapping)
+            ),
+        ):
+            results = parallel.parse_files_parallel(
+                ["/a.xml", "/b.xml"], format_name="camt"
+            )
+
+        self.assertEqual(len(results), 2)
+        for r in results:
+            self.assertEqual(r.status, "FAILED")
+            self.assertIn("RuntimeError", r.error)
+
     def test_parallel_preserves_order(self) -> None:
         """Results maintain input order."""
         from bankstatementparser.parallel import (

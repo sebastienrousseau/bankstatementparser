@@ -34,6 +34,7 @@ from pydantic import (
 
 
 def _coerce_decimal(value: object) -> Decimal:
+    """Coerce a value into a Decimal amount, raising if empty."""
     text = str(value).strip()
     if not text:
         raise ValueError("amount is required")
@@ -41,6 +42,7 @@ def _coerce_decimal(value: object) -> Decimal:
 
 
 def _parse_date(value: object) -> date | None:
+    """Parse a value into a date across common formats, or None."""
     if value in (None, ""):
         return None
     if isinstance(value, date) and not isinstance(value, datetime):
@@ -98,6 +100,7 @@ def normalize_description(value: str | None) -> str:
 
 
 def _first_value(record: Mapping[str, object], *keys: str) -> object | None:
+    """Return the first non-empty value among the given keys, or None."""
     for key in keys:
         if key in record and record[key] not in (None, ""):
             return record[key]
@@ -136,6 +139,7 @@ class BoundingBox(BaseModel):
 
     @model_validator(mode="after")
     def _check_non_inverted(self) -> BoundingBox:
+        """Validate that the box corners are not inverted."""
         if self.x0 > self.x1:
             raise ValueError(
                 f"BoundingBox x0 ({self.x0}) must be <= x1 ({self.x1})"

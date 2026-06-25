@@ -104,6 +104,7 @@ def _mock_vision_completion(**kwargs: Any) -> dict[str, Any]:
 
 
 def main() -> int:
+    """Route a scanned PDF through the vision extraction path."""
     if not SAMPLE_PDF.exists():
         print(
             "Sample scan not found. Run first:\n"
@@ -209,18 +210,30 @@ def _install_fake_pdfium() -> None:
     fake = types.ModuleType("pypdfium2")
 
     class _Bitmap:
+        """Stand-in for a rendered pypdfium2 bitmap."""
+
         def to_pil(self) -> Any:
+            """Return a minimal PIL-like image object."""
+
             class _PilLike:
+                """Stand-in for a PIL image exposing only ``save``."""
+
                 def save(self, buffer: Any, format: str) -> None:
+                    """Write placeholder PNG bytes to the buffer."""
                     buffer.write(b"PNG_BYTES")
 
             return _PilLike()
 
     class _Page:
+        """Stand-in for a pypdfium2 page."""
+
         def render(self, scale: float) -> _Bitmap:
+            """Return a fake rendered bitmap for the page."""
             return _Bitmap()
 
     class _PdfDocument:
+        """Stand-in for a single-page pypdfium2 document."""
+
         def __init__(self, _path: str) -> None:
             pass
 
