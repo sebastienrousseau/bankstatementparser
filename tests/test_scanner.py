@@ -180,12 +180,15 @@ def test_scan_continuity_none_for_single_file(tmp_path: Path) -> None:
     assert result.continuity is None
 
 
-def test_scan_continuity_failed_without_balances(tmp_path: Path) -> None:
+def test_scan_continuity_unverifiable_without_balances(
+    tmp_path: Path,
+) -> None:
     # Real fixtures ingested without balances: links exist but none
-    # can be checked, so the chain reports FAILED (cannot verify).
+    # can be checked, so the chain reports UNVERIFIABLE (cannot
+    # verify).
     shutil.copy(CAMT_FIXTURE, tmp_path / "a.xml")
     shutil.copy(CAMT_FIXTURE, tmp_path / "b.xml")
     result = scan_and_ingest(tmp_path)
     assert result.continuity is not None
-    assert result.continuity.status is VerificationStatus.FAILED
+    assert result.continuity.status is VerificationStatus.UNVERIFIABLE
     assert result.continuity.unchecked_links == 1

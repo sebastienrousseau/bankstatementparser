@@ -12,7 +12,7 @@
 
 ### 3. Is the extraction process deterministic?
 
-**Yes — byte-identical output on every run for the deterministic path.** Given the same input file, `CamtParser`, `Pain001Parser`, `CsvStatementParser`, `OfxParser`, `Mt940Parser`, and `QfxParser` produce the same result every time. No randomness, no model inference, no heuristic sampling. Verify this yourself: run the same file twice and diff the output. CI enforces determinism with 818 tests, including property-based fuzzing via Hypothesis.
+**Yes — byte-identical output on every run for the deterministic path.** Given the same input file, `CamtParser`, `Pain001Parser`, `CsvStatementParser`, `OfxParser`, `Mt940Parser`, and `QfxParser` produce the same result every time. No randomness, no model inference, no heuristic sampling. Verify this yourself: run the same file twice and diff the output. CI enforces determinism with 820 tests, including property-based fuzzing via Hypothesis.
 
 The v0.0.5 hybrid pipeline (`smart_ingest()`) extends this with two LLM fallbacks for PDFs that have no structured equivalent. Those paths are explicitly tagged as non-deterministic via `source_method='llm'` or `'vision'` on every extracted `Transaction` so audit trails can distinguish "facts from source" from "AI-inferred". The deterministic core is unchanged.
 
@@ -168,7 +168,7 @@ The full smoke-test results table is in `examples/hybrid/README.md` under "Smoke
 3. **You're passing manual balance overrides that don't match the file's actual balances.** Drop the overrides and let the LLM read them from the document.
 4. **Currency mismatch on a multi-currency statement.** The Golden Rule sums all amounts as if they were in the same currency. Multi-currency statements need per-currency verification — out of scope for v0.0.5; deferred to v0.0.6 (see [#46](https://github.com/sebastienrousseau/bankstatementparser/issues/46)).
 
-When in doubt, switch the verification status to `FAILED` (don't import) and queue the statement for human review. The v0.0.6 review-mode UI ([#45](https://github.com/sebastienrousseau/bankstatementparser/issues/45)) will surface these cases via the `raw_source_text` field that v0.0.5 already populates.
+When in doubt, switch the verification status to `UNVERIFIABLE` (don't import) and queue the statement for human review. The v0.0.6 review-mode UI ([#45](https://github.com/sebastienrousseau/bankstatementparser/issues/45)) will surface these cases via the `raw_source_text` field that v0.0.5 already populates.
 
 ---
 
@@ -184,7 +184,7 @@ Bank Statement Parser is designed for environments where auditability is non-neg
 To verify reproducibility locally:
 
 ```bash
-poetry run pytest                             # 818 tests, coverage gated in CI
+poetry run pytest                             # 820 tests, coverage gated in CI
 poetry run python scripts/verify_locked_hashes.py   # SHA-256 hash verification
 git log --show-signature -1                   # Verify commit signature
 ```

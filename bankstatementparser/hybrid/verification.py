@@ -16,7 +16,7 @@
 """Golden Rule balance verification.
 
 If ``opening + credits - debits != closing`` the statement is flagged
-as ``Discrepancy`` (or ``Failed`` when balances are missing). This is
+as ``Discrepancy`` (or ``Unverifiable`` when balances are missing). This is
 the single most important integrity check in the hybrid pipeline.
 """
 
@@ -34,10 +34,25 @@ from ..transaction_models import Transaction
 
 
 class VerificationStatus(str, Enum):
-    """Verification outcome for a parsed statement."""
+    """Verification outcome for a parsed statement.
+
+    Members:
+        VERIFIED: The rule was applied and the books balance.
+        DISCREPANCY: The rule was applied and the books do **not**
+            balance.
+        UNVERIFIABLE: The rule could **not** be applied — e.g. a
+            missing opening/closing balance or fewer than two
+            statements for a continuity check. The statement is not
+            wrong; it simply cannot be checked, so it is routed to
+            human review.
+        FAILED: Reserved for a genuine verification error — the check
+            itself could not run. No current code path emits this; it
+            remains for forward compatibility and (de)serialization.
+    """
 
     VERIFIED = "verified"
     DISCREPANCY = "discrepancy"
+    UNVERIFIABLE = "unverifiable"
     FAILED = "failed"
 
 
@@ -76,7 +91,7 @@ def verify_balance(
 
     Returns:
         A :class:`BalanceVerification` describing the outcome. The
-        ``status`` is ``FAILED`` only when the rule cannot be applied
+        ``status`` is ``UNVERIFIABLE`` when the rule cannot be applied
         (missing balances), not when it disagrees.
     """
     credits = Decimal("0")
@@ -91,7 +106,7 @@ def verify_balance(
 
     if opening_balance is None or closing_balance is None:
         return BalanceVerification(
-            status=VerificationStatus.FAILED,
+            status=VerificationStatus.UNVERIFIABLE,
             opening_balance=opening_balance,
             closing_balance=closing_balance,
             total_credits=credits,
@@ -152,10 +167,10 @@ def verify_balance_multi_currency(
     Args:
         transactions: Iterable of normalized transactions.
         balances: Optional ``{currency: (opening, closing)}`` dict.
-            When ``None``, verification runs with ``FAILED`` status
-            for every currency (no balances provided). When a
+            When ``None``, verification runs with ``UNVERIFIABLE``
+            status for every currency (no balances provided). When a
             currency appears in the transactions but not in this
-            dict, its verification is also ``FAILED``.
+            dict, its verification is also ``UNVERIFIABLE``.
         tolerance: Per-currency tolerance. Defaults to one cent.
 
     Returns:
@@ -188,9 +203,11 @@ def aggregate_verifications(
 ) -> BalanceVerification:
     """Collapse per-currency results into one statement-level verdict.
 
-    The aggregate ``status`` is the worst per-currency outcome:
-    ``DISCREPANCY`` if any currency disagrees, else ``FAILED`` if any
-    currency could not be checked, else ``VERIFIED``.
+    The aggregate ``status`` is the worst per-currency outcome
+    (worst-first): ``DISCREPANCY`` if any currency disagrees, else
+    ``FAILED`` if any currency hit a genuine verification error, else
+    ``UNVERIFIABLE`` if any currency could not be checked, else
+    ``VERIFIED``.
 
     ``total_credits``/``total_debits``/``actual_delta`` are raw sums
     across all currencies — useful as row-count-style magnitudes, not
@@ -218,6 +235,8 @@ def aggregate_verifications(
         status = VerificationStatus.DISCREPANCY
     elif VerificationStatus.FAILED in statuses:
         status = VerificationStatus.FAILED
+    elif VerificationStatus.UNVERIFIABLE in statuses:
+        status = VerificationStatus.UNVERIFIABLE
     else:
         status = VerificationStatus.VERIFIED
 
@@ -286,13 +305,13 @@ def verify_continuity(
 
     Returns:
         A :class:`ContinuityResult`. ``status`` is ``DISCREPANCY``
-        if any link has a gap beyond tolerance, else ``FAILED`` if
-        any link could not be checked (missing balance on either
+        if any link has a gap beyond tolerance, else ``UNVERIFIABLE``
+        if any link could not be checked (missing balance on either
         side, or fewer than two statements), else ``VERIFIED``.
     """
     if len(statements) < 2:
         return ContinuityResult(
-            status=VerificationStatus.FAILED,
+            status=VerificationStatus.UNVERIFIABLE,
             breaks=(),
             checked_links=0,
             unchecked_links=0,
@@ -337,7 +356,7 @@ def verify_continuity(
         )
     if unchecked:
         return ContinuityResult(
-            status=VerificationStatus.FAILED,
+            status=VerificationStatus.UNVERIFIABLE,
             breaks=(),
             checked_links=checked,
             unchecked_links=unchecked,
@@ -374,8 +393,8 @@ def verify_transactions(
 
     The single ``opening_balance``/``closing_balance`` pair cannot
     be attributed to one currency of a multi-currency statement, so
-    in that case every currency reports ``FAILED`` (cannot verify)
-    rather than a spurious mismatch.
+    in that case every currency reports ``UNVERIFIABLE`` (cannot
+    verify) rather than a spurious mismatch.
 
     Args:
         transactions: Iterable of normalized transactions.

@@ -316,7 +316,16 @@ def _safe_detect(file_path: Path, warnings: list[str]) -> Optional[str]:
     try:
         return detect_statement_format(str(file_path))
     except Exception as exc:
-        warnings.append(f"Format detection failed: {exc}")
+        logger.debug(
+            "Deterministic format detection did not match for %s: %s",
+            file_path,
+            exc,
+        )
+        warnings.append(
+            "No deterministic statement format matched "
+            "(not XML/CSV/OFX/QFX/MT940); routing to the hybrid "
+            "LLM/vision extraction pipeline"
+        )
         return None
 
 

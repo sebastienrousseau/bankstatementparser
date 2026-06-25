@@ -9,7 +9,7 @@ the verifier can return:
 
   VERIFIED       arithmetic checks out within tolerance
   DISCREPANCY    arithmetic disagrees beyond tolerance
-  FAILED         the source did not provide both balances
+  UNVERIFIABLE   the source did not provide both balances
 
 Run from the repository root:
 
@@ -114,8 +114,8 @@ def main() -> int:
         opening_balance=None,
         closing_balance=None,
     )
-    _print("FAILED expected", result)
-    _expect(result.status, VerificationStatus.FAILED)
+    _print("UNVERIFIABLE expected", result)
+    _expect(result.status, VerificationStatus.UNVERIFIABLE)
     print("  -> Action: ask the operator to supply balances manually,")
     print("     or skip integrity check entirely (LLMs sometimes miss them).")
     print()

@@ -450,9 +450,11 @@ class BankStatementCLI:
         (when that file is JSON) or any other source that emits an
         :class:`~bankstatementparser.hybrid.IngestResult` via its
         ``to_json()`` method. When the statement-level status is
-        :class:`VerificationStatus.DISCREPANCY` or
-        :class:`VerificationStatus.FAILED`, every transaction is
-        reviewed. Independently, ``review_below`` routes individual
+        :class:`VerificationStatus.DISCREPANCY`,
+        :class:`VerificationStatus.UNVERIFIABLE`, or
+        :class:`VerificationStatus.FAILED` (i.e. anything other than
+        ``VERIFIED``), every transaction is reviewed. Independently,
+        ``review_below`` routes individual
         low-confidence rows into the same flow even when the
         statement verified cleanly. The operator is prompted with a
         single-character action menu:

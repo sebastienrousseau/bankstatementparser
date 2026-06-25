@@ -52,23 +52,23 @@ def test_verify_balance_flags_discrepancy() -> None:
     assert "mismatch" in result.message
 
 
-def test_verify_balance_failed_when_balances_missing() -> None:
+def test_verify_balance_unverifiable_when_balances_missing() -> None:
     result = verify_balance(
         [_tx("10.00")],
         opening_balance=None,
         closing_balance=Decimal("10.00"),
     )
-    assert result.status is VerificationStatus.FAILED
+    assert result.status is VerificationStatus.UNVERIFIABLE
     assert "missing" in result.message.lower()
 
 
-def test_verify_balance_failed_when_closing_missing() -> None:
+def test_verify_balance_unverifiable_when_closing_missing() -> None:
     result = verify_balance(
         [_tx("10.00")],
         opening_balance=Decimal("0"),
         closing_balance=None,
     )
-    assert result.status is VerificationStatus.FAILED
+    assert result.status is VerificationStatus.UNVERIFIABLE
 
 
 def test_verify_continuity_verified_when_chain_matches() -> None:
@@ -119,21 +119,21 @@ def test_verify_continuity_break_takes_precedence_over_missing() -> None:
     assert len(result.breaks) == 1
 
 
-def test_verify_continuity_failed_when_balance_missing() -> None:
+def test_verify_continuity_unverifiable_when_balance_missing() -> None:
     result = verify_continuity(
         [
             ("jan.xml", Decimal("100"), Decimal("250")),
             ("feb.xml", None, Decimal("300")),
         ]
     )
-    assert result.status is VerificationStatus.FAILED
+    assert result.status is VerificationStatus.UNVERIFIABLE
     assert result.unchecked_links == 1
     assert "1 of 1 links missing a balance" in result.message
 
 
 def test_verify_continuity_needs_at_least_two_statements() -> None:
     result = verify_continuity([("jan.xml", Decimal("1"), Decimal("2"))])
-    assert result.status is VerificationStatus.FAILED
+    assert result.status is VerificationStatus.UNVERIFIABLE
     assert result.checked_links == 0
     assert "at least two statements" in result.message
 
