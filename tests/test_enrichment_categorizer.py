@@ -23,6 +23,7 @@ from bankstatementparser.enrichment import (
     EnrichedTransaction,
 )
 from bankstatementparser.enrichment.categorizer import (
+    CategorizerError,
     _build_messages,
     _format_row,
 )
@@ -548,3 +549,30 @@ def test_build_messages_includes_schema() -> None:
     assert "Food and Drink" in messages[0]["content"]
     assert messages[1]["role"] == "user"
     assert "Coffee" in messages[1]["content"]
+
+
+def test_resolve_completion_defaults_to_litellm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With no injected callable, the LiteLLM completion is returned."""
+    import sys
+    import types
+
+    fake_litellm = types.ModuleType("litellm")
+    fake_litellm.completion = lambda **_: None  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    cat = Categorizer()
+    assert cat._resolve_completion() is fake_litellm.completion
+
+
+def test_resolve_completion_missing_litellm_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing LiteLLM dependency raises a clear CategorizerError."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "litellm", None)
+    cat = Categorizer()
+    with pytest.raises(CategorizerError, match="litellm is required"):
+        cat._resolve_completion()

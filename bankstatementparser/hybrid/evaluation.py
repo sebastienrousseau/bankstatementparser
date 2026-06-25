@@ -102,6 +102,7 @@ class EvalSummary:
 
 
 def _to_decimal(value: object, *, context: str) -> Decimal:
+    """Coerce a value to ``Decimal``, raising on malformed input."""
     try:
         return Decimal(str(value))
     except InvalidOperation as exc:
@@ -109,12 +110,14 @@ def _to_decimal(value: object, *, context: str) -> Decimal:
 
 
 def _optional_decimal(value: object, *, context: str) -> Optional[Decimal]:
+    """Coerce a value to ``Decimal``, returning ``None`` when empty."""
     if value is None or value == "":
         return None
     return _to_decimal(value, context=context)
 
 
 def _optional_date(value: object, *, context: str) -> Optional[date]:
+    """Parse an ISO date, returning ``None`` when empty and raising on bad input."""
     if value is None or value == "":
         return None
     try:
@@ -243,6 +246,7 @@ def _match_rows(
 def _description_matches(
     expected: Optional[str], actual: Optional[str]
 ) -> bool:
+    """Return whether two descriptions match after normalization."""
     if not expected:
         return not actual
     if not actual:
@@ -253,6 +257,7 @@ def _description_matches(
 
 
 def _ratio(numerator: int, denominator: int) -> float:
+    """Return ``numerator / denominator``, or 1.0 when the denominator is zero."""
     return numerator / denominator if denominator else 1.0
 
 
@@ -315,6 +320,7 @@ def score_extraction(
         )
 
     def _check(expected_value: object, actual_value: object) -> Optional[bool]:
+        """Compare values, returning ``None`` when nothing is pinned."""
         if expected_value is None:
             return None
         return expected_value == actual_value

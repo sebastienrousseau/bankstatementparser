@@ -18,6 +18,7 @@ from common import PAIN001_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Stream the first few payments from a pain.001 fixture."""
     parser = Pain001Parser(str(PAIN001_FIXTURE))
 
     for index, payment in enumerate(

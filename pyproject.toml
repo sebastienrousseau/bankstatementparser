@@ -34,6 +34,7 @@ ruff = "^0.15.7"
 mypy = ">=1.5,<3"
 bandit = "^1.7.0"
 hypothesis = ">=6.82,<7"
+interrogate = "^1.7.0"
 
 [tool.poetry.group.docs]
 optional = true
@@ -162,6 +163,28 @@ markers = [
     "slow: marks tests as slow-running performance or regression checks",
 ]
 
+[tool.interrogate]
+# Documentation coverage is enforced at 100% across the package, the
+# developer/CI helper scripts, and the runnable examples. Test modules
+# and the local virtualenv are excluded; everything else — including
+# private and nested helpers — must carry a docstring.
+fail-under = 100
+ignore-init-method = true
+ignore-magic = true
+ignore-module = false
+ignore-private = false
+ignore-nested-functions = false
+ignore-semiprivate = false
+exclude = [
+    ".venv",
+    "build",
+    "dist",
+    "tests",
+    "setup.py",
+    "docs",
+]
+verbose = 1
+
 [tool.coverage.run]
 source = ["bankstatementparser"]
 branch = true
@@ -170,5 +193,4 @@ branch = true
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
-    "raise NotImplementedError",
 ]

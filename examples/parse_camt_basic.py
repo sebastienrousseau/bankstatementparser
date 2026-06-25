@@ -17,6 +17,7 @@ from common import CAMT_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Parse a CAMT fixture and print a preview of the transactions."""
     parser = CamtParser(str(CAMT_FIXTURE))
     transactions = parser.parse()
 

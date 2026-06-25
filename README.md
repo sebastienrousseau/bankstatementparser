@@ -54,7 +54,7 @@ services unless they explicitly opt in.
 - [Command Line](#command-line) — console script and REST API
 - [Deduplication](#deduplication) — exact hashes + suspected matches
 - [Export](#export) — CSV, JSON, Excel, Polars, hledger, beancount
-- [Examples](#examples) — 22 runnable scripts (14 deterministic + 8 hybrid)
+- [Examples](#examples) — 23 runnable scripts (14 deterministic + 9 hybrid)
 - [XML Tag Mapping](#xml-tag-mapping) — ISO 20022 tags to DataFrame columns
 - [Ecosystem](#ecosystem) — companion packages (MCP, LSP, writers, loaders)
 
@@ -332,7 +332,7 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 820 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 844 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
@@ -593,8 +593,8 @@ for currency, v in results.items():
 
 ## Examples
 
-See [`examples/`](examples/README.md) for 22 runnable scripts
-(14 deterministic + 8 hybrid):
+See [`examples/`](examples/README.md) for 23 runnable scripts
+(14 deterministic + 9 hybrid):
 
 ### Deterministic parsers
 
@@ -623,9 +623,11 @@ See [`examples/`](examples/README.md) for 22 runnable scripts
 | `hybrid/01_smart_ingest_deterministic.py` | Path A — `smart_ingest()` against a CAMT.053 fixture, $0 cost |
 | `hybrid/02_smart_ingest_text_llm.py` | Path B — text-LLM extraction from a digital PDF (mock or live Ollama) |
 | `hybrid/03_smart_ingest_vision.py` | Path C — multimodal vision extraction with `LOW_TEXT_DENSITY` auto-routing |
-| `hybrid/04_golden_rule.py` | All three `verify_balance()` outcomes |
+| `hybrid/04_golden_rule.py` | `verify_balance()`, `verify_transactions()`, and `verify_continuity()` across `VERIFIED` / `DISCREPANCY` / `UNVERIFIABLE` outcomes |
 | `hybrid/05_dedupe_recurring.py` | `normalize_description()` + `dedupe_by_hash()` for idempotent batching |
 | `hybrid/06_cli_walkthrough.sh` | Four flavours of the new `--type ingest` CLI subcommand |
+| `hybrid/06_cli_walkthrough.ps1` | PowerShell sibling of the bash walkthrough (native Windows) |
+| `hybrid/07_scan_and_ingest.py` | Bulk directory ingest with `scan_and_ingest()` — cross-file dedup + continuity check |
 
 See [`examples/hybrid/README.md`](examples/hybrid/README.md) for
 the full walkthrough including a Mermaid flow diagram, the
@@ -683,9 +685,9 @@ bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
 bankstatementparser/export/     hledger + beancount journal export
 bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
-examples/                       14 deterministic + 8 hybrid runnable example scripts
+examples/                       14 deterministic + 9 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          820 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          844 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---

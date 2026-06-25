@@ -18,6 +18,7 @@ from common import PAIN001_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Export a pain.001 fixture to the supported output formats."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", default="example-output/pain001")
     args = parser.parse_args()

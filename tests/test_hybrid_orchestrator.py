@@ -341,6 +341,21 @@ def test_coerce_transactions_handles_none() -> None:
     assert orchestrator._coerce_transactions(None, source="csv") == []
 
 
+def test_coerce_transactions_to_dict_typeerror_falls_back() -> None:
+    """Objects whose ``to_dict`` raises ``TypeError`` yield no records."""
+
+    class _BadToDict:
+        def to_dict(self, *_args: object) -> object:
+            raise TypeError("not a DataFrame")
+
+    assert orchestrator._coerce_transactions(_BadToDict(), source="csv") == []
+
+
+def test_coerce_transactions_unsupported_type_yields_empty() -> None:
+    """Inputs that are neither dict/list nor DataFrame-like yield no rows."""
+    assert orchestrator._coerce_transactions(42, source="csv") == []
+
+
 def test_smart_ingest_routes_scanned_pdf_to_vision(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

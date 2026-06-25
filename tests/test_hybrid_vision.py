@@ -604,3 +604,29 @@ def test_build_strip_messages_header_vs_body_prompt() -> None:
     assert body[1]["content"][1]["image_url"]["url"].startswith(
         "data:image/png;base64,"
     )
+
+
+def test_render_pages_missing_pypdfium2_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``_render_pages`` raises a clear error when pypdfium2 is absent."""
+    pdf_path = tmp_path / "scan.pdf"
+    pdf_path.write_bytes(b"%PDF stub")
+    monkeypatch.setitem(sys.modules, "pypdfium2", None)
+    extractor = VisionExtractor(completion_fn=lambda **_: None)
+    with pytest.raises(VisionExtractorError, match="pypdfium2 is required"):
+        extractor._render_pages(pdf_path)
+
+
+def test_render_strips_missing_pypdfium2_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``_render_strips`` raises a clear error when pypdfium2 is absent."""
+    pdf_path = tmp_path / "scan.pdf"
+    pdf_path.write_bytes(b"%PDF stub")
+    monkeypatch.setitem(sys.modules, "pypdfium2", None)
+    extractor = VisionExtractor(
+        completion_fn=lambda **_: None, strip_rows=True
+    )
+    with pytest.raises(VisionExtractorError, match="pypdfium2 is required"):
+        extractor._render_strips(pdf_path)

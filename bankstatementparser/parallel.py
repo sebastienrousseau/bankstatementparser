@@ -110,7 +110,7 @@ def parse_files_parallel(
             path = future_to_path[future]
             try:
                 results[path] = future.result()
-            except Exception as exc:  # pragma: no cover
+            except Exception as exc:
                 results[path] = FileResult(
                     path=path,
                     status="FAILED",

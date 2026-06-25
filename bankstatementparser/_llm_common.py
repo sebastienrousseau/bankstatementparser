@@ -56,6 +56,7 @@ _warned_destinations: set[tuple[str, str]] = set()
 
 
 def _is_local_api_base(api_base: Optional[str]) -> bool:
+    """Return whether an API base URL points at the local machine."""
     if not api_base:
         return True
     host = urlparse(api_base).hostname or ""

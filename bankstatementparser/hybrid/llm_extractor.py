@@ -127,6 +127,7 @@ class LLMExtractor:
         return _build_result(payload, raw, source_text=statement_text)
 
     def _resolve_completion(self) -> CompletionFn:
+        """Return the injected completion callable or import a backend."""
         if self._completion_fn is not None:
             return self._completion_fn
         # Auto-select the direct Ollama bridge for any ollama/* model
@@ -141,14 +142,14 @@ class LLMExtractor:
 
         if is_ollama_model(self.model):
             return ollama_direct_completion
-        try:  # pragma: no cover - optional dep
+        try:
             from litellm import completion
-        except ImportError as exc:  # pragma: no cover - optional dep
+        except ImportError as exc:
             raise LLMExtractorError(
                 "litellm is required for LLM extraction. "
                 "Install with: pip install bankstatementparser[hybrid]"
             ) from exc
-        return completion  # type: ignore[no-any-return]  # pragma: no cover
+        return completion  # type: ignore[no-any-return]
 
 
 def _extract_message_content(response: Any) -> str:
@@ -162,6 +163,7 @@ def _parse_json_payload(raw: str) -> dict[str, Any]:
 
 
 def _to_decimal(value: Any) -> Optional[Decimal]:
+    """Coerce a value to ``Decimal``, returning ``None`` when empty."""
     if value in (None, ""):
         return None
     try:
@@ -203,6 +205,7 @@ def _build_result(
     source_text: str = "",
     source_method: SourceMethod = "llm",
 ) -> LLMExtractionResult:
+    """Convert a parsed LLM payload into an :class:`LLMExtractionResult`."""
     raw_txs = payload.get("transactions") or []
     if not isinstance(raw_txs, list):
         raise LLMExtractorError("LLM 'transactions' field must be a list")

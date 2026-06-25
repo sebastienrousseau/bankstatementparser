@@ -89,6 +89,7 @@ class APIError(RuntimeError):
 
 
 def _resolve_max_upload_bytes() -> int:
+    """Resolve the max upload size from the environment or default."""
     raw = os.environ.get(ENV_MAX_UPLOAD_BYTES)
     if not raw:
         return DEFAULT_MAX_UPLOAD_BYTES
@@ -121,6 +122,7 @@ def _safe_basename(filename: Optional[str]) -> str:
 
 
 def _allowed_suffix(name: str) -> bool:
+    """Return whether a filename has an allowed input extension."""
     suffix = Path(name).suffix
     if not suffix:
         return False
@@ -170,7 +172,7 @@ def create_app(
     _file_field = File(...)
 
     @app.post("/ingest")  # type: ignore[untyped-decorator]
-    async def ingest(  # pragma: no cover - async endpoint needs ASGI server
+    async def ingest(
         file: UploadFile = _file_field,
     ) -> JSONResponse:
         """Upload a bank statement and get structured JSON back.
@@ -277,6 +279,7 @@ def _result_to_dict(result: Any) -> dict[str, Any]:
 
 
 def _verification_dict(v: Any) -> Optional[dict[str, Any]]:
+    """Serialize a verification result to a JSON-safe dict, or None."""
     if v is None:
         return None
     return {
@@ -319,5 +322,5 @@ def main() -> None:
             "Install with: pip install 'bankstatementparser[api]'"
         ) from exc
 
-    app = create_app()  # pragma: no cover - server entrypoint
-    uvicorn.run(app, host=args.host, port=args.port)  # pragma: no cover
+    app = create_app()
+    uvicorn.run(app, host=args.host, port=args.port)

@@ -18,6 +18,7 @@ from common import CAMT_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Export a CAMT fixture to the supported output formats."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", default="example-output/camt")
     args = parser.parse_args()

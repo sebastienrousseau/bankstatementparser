@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- New `examples/hybrid/07_scan_and_ingest.py` example demonstrating
+  `scan_and_ingest()` over a directory of statements: cross-file
+  `transaction_hash` deduplication, the `ScanResult` summary, and the
+  cross-statement `verify_continuity()` integrity check.
+- `examples/hybrid/04_golden_rule.py` now also demonstrates
+  `verify_transactions()` (currency-aware Golden Rule) and
+  `verify_continuity()` (cross-statement chaining) alongside
+  `verify_balance()`.
+- `[tool.interrogate]` configuration enforcing **100% docstring
+  coverage** across the package, the helper `scripts/`, and the
+  runnable `examples/` (private and nested helpers included).
+- `tests/test_regression_examples.py::test_every_example_script_is_exercised`
+  asserts that every runnable script on disk is exercised by the
+  regression suite, so no example can be added without coverage.
+
+### Changed
+
+- Documentation-coverage audit: added docstrings to every previously
+  undocumented function, method, class, and nested helper (115 symbols
+  across the package, scripts, and examples) to reach 100% interrogate
+  coverage repo-wide.
+- Coverage-integrity audit: removed 27 of 29 `# pragma: no cover`
+  pragmas (and the unused `raise NotImplementedError` coverage
+  exclusion) by making the guarded behaviour genuinely testable and
+  adding the corresponding tests — covering the `/ingest` REST
+  endpoint, the API server entrypoint, the `pdfplumber` engine path,
+  the optional-dependency `ImportError` guards, the parallel
+  worker-crash path, and the `_coerce_transactions` fallbacks. The two
+  remaining pragmas are a provably-unreachable JSON guard and the
+  standard `if __name__ == "__main__"` entrypoint.
 - New `VerificationStatus.UNVERIFIABLE` member for statements that
   **cannot** be checked (missing opening/closing balance, fewer than
   two statements for a continuity check, or multi-currency balances

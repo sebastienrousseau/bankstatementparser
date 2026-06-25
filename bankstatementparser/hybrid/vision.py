@@ -314,9 +314,10 @@ class VisionExtractor:
         )
 
     def _render_pages(self, pdf_path: Path) -> list[bytes]:
+        """Render each PDF page (up to :attr:`max_pages`) as a PNG."""
         try:
             import pypdfium2 as pdfium
-        except ImportError as exc:  # pragma: no cover - optional dep
+        except ImportError as exc:
             raise VisionExtractorError(
                 "pypdfium2 is required for vision extraction. "
                 "Install with: "
@@ -358,7 +359,7 @@ class VisionExtractor:
         """
         try:
             import pypdfium2 as pdfium
-        except ImportError as exc:  # pragma: no cover - optional dep
+        except ImportError as exc:
             raise VisionExtractorError(
                 "pypdfium2 is required for vision extraction. "
                 "Install with: "
@@ -407,6 +408,7 @@ class VisionExtractor:
         return all_strips
 
     def _resolve_completion(self) -> CompletionFn:
+        """Return the injected completion callable or import a backend."""
         if self._completion_fn is not None:
             return self._completion_fn
         # Auto-select the direct Ollama bridge for any ollama/* model
@@ -421,15 +423,15 @@ class VisionExtractor:
 
         if is_ollama_model(self.model):
             return ollama_direct_completion
-        try:  # pragma: no cover - optional dep
+        try:
             from litellm import completion
-        except ImportError as exc:  # pragma: no cover - optional dep
+        except ImportError as exc:
             raise VisionExtractorError(
                 "litellm is required for vision extraction. "
                 "Install with: "
                 "pip install bankstatementparser[hybrid-vision]"
             ) from exc
-        return completion  # type: ignore[no-any-return]  # pragma: no cover
+        return completion  # type: ignore[no-any-return]
 
 
 STRIP_HEADER_SYSTEM_PROMPT = """You are a meticulous Financial Data

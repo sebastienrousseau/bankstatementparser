@@ -315,6 +315,18 @@ def test_skips_unknown_content_blocks(
 # ---------------------------------------------------------------------------
 
 
+def test_raises_when_httpx_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing httpx dependency raises a clear OllamaDirectError."""
+    monkeypatch.setitem(sys.modules, "httpx", None)
+    with pytest.raises(OllamaDirectError, match="httpx is required"):
+        ollama_direct_completion(
+            model="ollama/llava",
+            messages=[{"role": "user", "content": "hi"}],
+        )
+
+
 def test_raises_when_model_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -434,3 +446,48 @@ def test_extractors_skip_direct_bridge_for_non_ollama(
     ext = LLMExtractor(model="anthropic/claude-3-haiku")
     fn = ext._resolve_completion()
     assert fn is fake_litellm.completion
+
+
+def test_vision_extractor_defaults_to_litellm_for_non_ollama(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-Ollama vision model resolves to the LiteLLM completion."""
+    from bankstatementparser.hybrid.vision import VisionExtractor
+
+    fake_litellm = types.ModuleType("litellm")
+    fake_litellm.completion = lambda **_: None  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    ext = VisionExtractor(model="anthropic/claude-3-haiku")
+    fn = ext._resolve_completion()
+    assert fn is fake_litellm.completion
+
+
+def test_vision_extractor_missing_litellm_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing LiteLLM dependency raises a clear VisionExtractorError."""
+    from bankstatementparser.hybrid.vision import (
+        VisionExtractor,
+        VisionExtractorError,
+    )
+
+    monkeypatch.setitem(sys.modules, "litellm", None)
+    ext = VisionExtractor(model="anthropic/claude-3-haiku")
+    with pytest.raises(VisionExtractorError, match="litellm is required"):
+        ext._resolve_completion()
+
+
+def test_llm_extractor_missing_litellm_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing LiteLLM dependency raises a clear LLMExtractorError."""
+    from bankstatementparser.hybrid.llm_extractor import (
+        LLMExtractor,
+        LLMExtractorError,
+    )
+
+    monkeypatch.setitem(sys.modules, "litellm", None)
+    ext = LLMExtractor(model="anthropic/claude-3-haiku")
+    with pytest.raises(LLMExtractorError, match="litellm is required"):
+        ext._resolve_completion()

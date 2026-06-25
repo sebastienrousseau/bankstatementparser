@@ -173,6 +173,7 @@ class BankStatementCLI:
         """
 
         def get_camt_stats(parser: Any) -> list[dict[str, Any]]:
+            """Return parser statistics as a list of dict rows."""
             data = parser.get_statement_stats()
             if isinstance(data, pd.DataFrame):
                 # list(DataFrame) would yield column names, not rows
@@ -375,7 +376,6 @@ class BankStatementCLI:
             )
             logger.error(f"Hybrid import failed: {exc}")
             sys.exit(1)
-            return  # pragma: no cover
 
         try:
             result = smart_ingest(str(file_path))
@@ -388,12 +388,10 @@ class BankStatementCLI:
             )
             logger.error(f"Hybrid runtime import failed: {exc}")
             sys.exit(1)
-            return  # pragma: no cover
         except Exception as exc:
             logger.error(f"Hybrid ingest failed: {exc}")
             print(f"Error: hybrid ingest failed - {exc}")
             sys.exit(1)
-            return  # pragma: no cover
 
         rows = [
             {
@@ -495,7 +493,6 @@ class BankStatementCLI:
             )
             logger.error(f"Hybrid import failed: {exc}")
             sys.exit(1)
-            return  # pragma: no cover
 
         try:
             payload = file_path.read_text(encoding="utf-8")
@@ -504,7 +501,6 @@ class BankStatementCLI:
             logger.error(f"Failed to load IngestResult: {exc}")
             print(f"Error: cannot load IngestResult JSON - {exc}")
             sys.exit(1)
-            return  # pragma: no cover
 
         v = result.verification
         review_all = v is not None and v.status is not (
@@ -758,10 +754,13 @@ class BankStatementCLI:
         try:
             args = self.parser.parse_args()
         except SystemExit:
-            # argparse failed, which means required arguments are missing
+            # argparse failed, which means required arguments are missing.
+            # The explicit return keeps the function from falling through
+            # to the (now unbound) ``args`` reference when ``sys.exit`` is
+            # patched in tests; in production ``sys.exit`` raises first.
             print("Error: Missing required arguments")
             sys.exit(1)
-            return  # pragma: no cover
+            return
 
         # Check if required arguments are present (safety check)
         if (

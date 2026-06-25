@@ -17,6 +17,7 @@ from common import CAMT_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Parse CAMT XML supplied as an in-memory string."""
     xml_text = CAMT_FIXTURE.read_text(encoding="utf-8")
     parser = CamtParser.from_string(xml_text)
     transactions = parser.parse()

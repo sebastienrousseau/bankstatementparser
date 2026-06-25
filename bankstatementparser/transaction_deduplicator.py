@@ -31,12 +31,14 @@ from .transaction_models import Transaction
 
 
 def _days_between(left: date | None, right: date | None) -> int | None:
+    """Return the absolute day gap between two dates, or None."""
     if left is None or right is None:
         return None
     return abs((left - right).days)
 
 
 def _description_similarity(left: Transaction, right: Transaction) -> float:
+    """Return the 0.0-1.0 similarity of two normalized descriptions."""
     if not left.normalized_description or not right.normalized_description:
         return 0.0
     return SequenceMatcher(
@@ -76,6 +78,8 @@ class DeduplicationResult(BaseModel):
 
 @dataclass(frozen=True)
 class _Candidate:
+    """A transaction paired with its source index and primary hash."""
+
     index: int
     transaction: Transaction
     primary_hash: str
@@ -247,6 +251,7 @@ class Deduplicator:
     def _candidate_groups_by_primary(
         self, candidates: list[_Candidate]
     ) -> dict[str, list[_Candidate]]:
+        """Group candidates by their primary hash."""
         groups: dict[str, list[_Candidate]] = defaultdict(list)
         for candidate in candidates:
             groups[candidate.primary_hash].append(candidate)
@@ -255,6 +260,7 @@ class Deduplicator:
     def _find_exact_duplicates(
         self, candidates: list[_Candidate]
     ) -> list[ExactDuplicateGroup]:
+        """Return groups of candidates sharing a primary hash."""
         groups = self._candidate_groups_by_primary(candidates)
         exact_groups = []
         for primary_hash, bucket in sorted(groups.items()):
@@ -281,6 +287,7 @@ class Deduplicator:
         *,
         excluded_indices: set[int],
     ) -> tuple[list[MatchGroup], set[int]]:
+        """Find probable and temporal match groups for operator review."""
         probable_groups, probable_indices = self._find_probable_matches(
             candidates
         )
@@ -299,6 +306,7 @@ class Deduplicator:
     def _find_probable_matches(
         self, candidates: list[_Candidate]
     ) -> tuple[list[MatchGroup], set[int]]:
+        """Match candidates by hash collision and description similarity."""
         groups = []
         matched_indices: set[int] = set()
         for bucket in self._candidate_groups_by_primary(candidates).values():
@@ -343,6 +351,7 @@ class Deduplicator:
     def _find_temporal_matches(
         self, candidates: list[_Candidate]
     ) -> tuple[list[MatchGroup], set[int]]:
+        """Match candidates with equal amounts but shifted value dates."""
         buckets: dict[tuple[str, str, str], list[_Candidate]] = defaultdict(
             list
         )
@@ -363,6 +372,7 @@ class Deduplicator:
             component: list[_Candidate],
             similarities: list[float],
         ) -> None:
+            """Record a matched component as a temporal match group."""
             matched_indices.update(candidate.index for candidate in component)
             groups.append(self._temporal_group(component, similarities))
 
@@ -413,6 +423,7 @@ class Deduplicator:
         component: list[_Candidate],
         similarities: list[float],
     ) -> MatchGroup:
+        """Build a temporal MatchGroup with a confidence and reason."""
         max_delta = (
             _days_between(
                 component[0].transaction.value_date,

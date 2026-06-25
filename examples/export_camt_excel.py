@@ -18,6 +18,7 @@ from common import CAMT_FIXTURE  # noqa: E402
 
 
 def main() -> None:
+    """Export a CAMT fixture to an Excel workbook."""
     parser = CamtParser(str(CAMT_FIXTURE))
     output = Path(tempfile.gettempdir()) / "camt_export.xlsx"
     parser.camt_to_excel(str(output))

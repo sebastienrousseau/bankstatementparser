@@ -88,6 +88,48 @@ def _bash() -> str:
 
 
 # ----------------------------------------------------------------------
+# Completeness guard — no example may be silently omitted
+# ----------------------------------------------------------------------
+
+# ``common.py`` is a shared import-only helper (CLI/path utilities used
+# by the other scripts); it is not a standalone, runnable demo and so is
+# deliberately excluded from end-to-end execution.
+_NON_RUNNABLE_EXAMPLES = frozenset({"common.py"})
+
+
+def _discovered_example_scripts() -> set[str]:
+    """Return every runnable example script path, relative to examples/."""
+    found: set[str] = set()
+    for pattern in ("*.py", "*.sh", "*.ps1"):
+        for path in EXAMPLES_DIR.rglob(pattern):
+            if "__pycache__" in str(path):
+                continue
+            rel = path.relative_to(EXAMPLES_DIR).as_posix()
+            if path.name in _NON_RUNNABLE_EXAMPLES:
+                continue
+            found.add(rel)
+    return found
+
+
+def test_every_example_script_is_exercised() -> None:
+    """Each runnable example on disk is referenced by this suite.
+
+    Guards against an example being added to ``examples/`` without a
+    matching regression test — the discovered set on disk must equal
+    the set this module exercises.
+    """
+    suite_source = Path(__file__).read_text(encoding="utf-8")
+    discovered = _discovered_example_scripts()
+    missing = sorted(
+        rel for rel in discovered if Path(rel).name not in suite_source
+    )
+    assert not missing, (
+        "These example scripts exist on disk but are not exercised by "
+        f"tests/test_regression_examples.py: {missing}"
+    )
+
+
+# ----------------------------------------------------------------------
 # Deterministic examples (no optional extras required)
 # ----------------------------------------------------------------------
 
@@ -199,6 +241,13 @@ def test_hybrid_04_golden_rule() -> None:
 def test_hybrid_05_dedupe_recurring() -> None:
     out = _run_example(HYBRID_DIR / "05_dedupe_recurring.py")
     assert "normalize_description() strips noise" in out
+
+
+def test_hybrid_07_scan_and_ingest() -> None:
+    out = _run_example(HYBRID_DIR / "07_scan_and_ingest.py")
+    assert "Files ingested:" in out
+    assert "Unique transactions:" in out
+    assert "Continuity status:" in out
 
 
 _PDF_GEN_DEPS = ("reportlab", "pypdfium2", "PIL")

@@ -21,6 +21,7 @@ from common import CAMT_FIXTURE, PAIN001_FIXTURE
 
 
 def main() -> None:
+    """Demonstrate the backward-compatible parser class wrappers."""
     camt = Camt053Parser(str(CAMT_FIXTURE), redact_pii=True)
     pain = Pain001Parser(str(PAIN001_FIXTURE), redact_pii=True)
 

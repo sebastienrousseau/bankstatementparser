@@ -90,17 +90,18 @@ def extract_text_pages(
 
     if engine == "pypdf":
         pages = _extract_with_pypdf(pdf_path)
-    elif engine == "pdfplumber":  # pragma: no cover - opt-in extra
+    elif engine == "pdfplumber":
         pages = _extract_with_pdfplumber(pdf_path)
-    else:  # pragma: no cover - guarded by Literal
+    else:
         raise PDFExtractionError(f"Unknown PDF engine: {engine}")
     return [_strip_noise(page) for page in pages]
 
 
 def _extract_with_pypdf(pdf_path: Path) -> list[str]:
+    """Extract per-page text using the ``pypdf`` engine."""
     try:
         from pypdf import PdfReader
-    except ImportError as exc:  # pragma: no cover - optional dep
+    except ImportError as exc:
         raise PDFExtractionError(
             "pypdf is required for PDF extraction. "
             "Install with: pip install bankstatementparser[hybrid]"
@@ -109,7 +110,7 @@ def _extract_with_pypdf(pdf_path: Path) -> list[str]:
     try:
         reader = PdfReader(str(pdf_path))
         return [page.extract_text() or "" for page in reader.pages]
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception as exc:
         raise PDFExtractionError(
             f"Failed to read PDF {pdf_path}: {exc}"
         ) from exc
@@ -117,7 +118,8 @@ def _extract_with_pypdf(pdf_path: Path) -> list[str]:
 
 def _extract_with_pdfplumber(
     pdf_path: Path,
-) -> list[str]:  # pragma: no cover - opt-in extra
+) -> list[str]:
+    """Extract per-page text using the ``pdfplumber`` engine."""
     try:
         import pdfplumber
     except ImportError as exc:

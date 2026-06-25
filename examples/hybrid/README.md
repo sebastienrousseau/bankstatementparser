@@ -97,6 +97,7 @@ python examples/hybrid/03_smart_ingest_vision.py       # mock mode
 python examples/hybrid/04_golden_rule.py
 python examples/hybrid/05_dedupe_recurring.py
 bash   examples/hybrid/06_cli_walkthrough.sh
+python examples/hybrid/07_scan_and_ingest.py
 ```
 
 The text-LLM and vision examples both default to **mock mode** so
@@ -111,10 +112,11 @@ above to switch to the live path.
 | [`01_smart_ingest_deterministic.py`](01_smart_ingest_deterministic.py) | A | nothing | `smart_ingest()` against a CAMT.053 fixture, `source_method='deterministic'`, `transaction_hash` per row, $0 cost |
 | [`02_smart_ingest_text_llm.py`](02_smart_ingest_text_llm.py) | B | `BSP_HYBRID_MODEL` | Digital PDF → `pypdf` text → LiteLLM → `Transaction` rows. Mock mode shipped for offline runs. |
 | [`03_smart_ingest_vision.py`](03_smart_ingest_vision.py) | C | `BSP_HYBRID_VISION_MODEL` | Scan → `pypdfium2` render → multimodal LLM → rows. Demonstrates `LOW_TEXT_DENSITY_THRESHOLD` automatic handover and a `DISCREPANCY` outcome. |
-| [`04_golden_rule.py`](04_golden_rule.py) | n/a | nothing | All three `verify_balance()` outcomes (`VERIFIED`, `DISCREPANCY`, `FAILED`) on the same dataset. |
+| [`04_golden_rule.py`](04_golden_rule.py) | n/a | nothing | `verify_balance()`, `verify_transactions()`, and `verify_continuity()` across the `VERIFIED`, `DISCREPANCY`, and `UNVERIFIABLE` outcomes on the same dataset. |
 | [`05_dedupe_recurring.py`](05_dedupe_recurring.py) | n/a | nothing | `normalize_description()` noise stripping, `transaction_hash` stability, idempotent batching with `Deduplicator.dedupe_by_hash()`. |
 | [`06_cli_walkthrough.sh`](06_cli_walkthrough.sh) | A/B/C | `BSP_HYBRID_*` env vars | Four flavours of the new `--type ingest` CLI subcommand (bash, for macOS / Linux / WSL). |
 | [`06_cli_walkthrough.ps1`](06_cli_walkthrough.ps1) | A/B/C | `BSP_HYBRID_*` env vars | PowerShell sibling of the bash walkthrough — runs identically on native Windows (PowerShell 7+) without WSL. |
+| [`07_scan_and_ingest.py`](07_scan_and_ingest.py) | A | nothing | `scan_and_ingest()` over a directory of statements: cross-file `transaction_hash` dedup, `ScanResult` summary, and the cross-statement `verify_continuity()` check. |
 
 ## Mock vs. live mode — what to expect
 
