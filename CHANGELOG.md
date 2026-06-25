@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.0.10] — 2026-06-25
+
 ### Added
 
 - New `examples/hybrid/07_scan_and_ingest.py` example demonstrating
