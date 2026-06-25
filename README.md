@@ -192,7 +192,7 @@ print(result.source_method)         # "deterministic"
 # Path B — text-LLM for digital PDFs (set BSP_HYBRID_MODEL=ollama/llama3)
 result = smart_ingest("statement.pdf")
 print(result.source_method)         # "llm"
-print(result.verification.status)   # VERIFIED | DISCREPANCY | FAILED
+print(result.verification.status)   # VERIFIED | DISCREPANCY | UNVERIFIABLE | FAILED
 
 # Path C — multimodal vision for scanned PDFs (set BSP_HYBRID_VISION_MODEL)
 # auto-routed when pypdf cannot extract enough text
@@ -273,7 +273,7 @@ flowchart TD
     Z --> V[verify_balance<br/>Golden Rule]
     Y --> V
     X --> V
-    V --> R[VERIFIED / DISCREPANCY / FAILED]
+    V --> R[VERIFIED / DISCREPANCY / UNVERIFIABLE / FAILED]
 ```
 
 Every extracted row carries an immutable `transaction_hash`, an
@@ -311,7 +311,7 @@ for the full surface.
 
 | Feature | Description |
 |---|---|
-| **Golden Rule verification** *(v0.0.5)* | Every result carries `opening + credits − debits == closing` status: `VERIFIED`, `DISCREPANCY`, or `FAILED`. |
+| **Golden Rule verification** *(v0.0.5)* | Every result carries `opening + credits − debits == closing` status: `VERIFIED`, `DISCREPANCY`, `UNVERIFIABLE`, or `FAILED`. |
 | **Multi-currency verification** *(v0.0.8)* | `verify_balance_multi_currency()` groups transactions by currency and runs the Golden Rule independently per group — no more false `DISCREPANCY` on multi-currency statements. |
 | **Idempotent dedup** *(v0.0.5)* | Every `Transaction` carries a stable `transaction_hash` (MD5 of date + normalized description + amount). `Deduplicator.dedupe_by_hash()` makes incremental ingestion safe to re-run. |
 | **Interactive review** *(v0.0.6)* | `--type review` CLI walks through discrepancies with accept/edit/skip/delete/quit. `IngestResult.to_json()` / `.from_json()` for stable round-trip with embedded audit trail. |
@@ -332,7 +332,7 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 818 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 820 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
@@ -685,7 +685,7 @@ bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 8 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          818 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          820 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---

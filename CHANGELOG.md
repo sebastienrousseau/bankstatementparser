@@ -7,7 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- New `VerificationStatus.UNVERIFIABLE` member for statements that
+  **cannot** be checked (missing opening/closing balance, fewer than
+  two statements for a continuity check, or multi-currency balances
+  that cannot be attributed to one currency). It sits between
+  `DISCREPANCY` and `FAILED` in the aggregate worst-first precedence:
+  `DISCREPANCY` > `FAILED` > `UNVERIFIABLE` > `VERIFIED`.
+
+### Changed
+
+- **Behavior change.** The "cannot apply the rule" cases that
+  previously reported `FAILED` now report `UNVERIFIABLE`:
+  `verify_balance`/`verify_transactions` with a missing
+  opening/closing balance, `verify_balance_multi_currency` with no (or
+  partial) per-currency balances, and `verify_continuity` with fewer
+  than two statements or a missing balance on a link. `FAILED` is now
+  reserved for a genuine verification error — no current code path
+  emits it. **Migration:** code that matched `status == FAILED` for
+  the missing-balance / cannot-verify case must now match
+  `status == UNVERIFIABLE`.
+- Review mode (`--type review`) now also routes `UNVERIFIABLE`
+  statements to human review, not only `DISCREPANCY`/`FAILED` — a
+  statement we could not verify should still be reviewed.
+- Reworded the hybrid orchestrator's deterministic-detection warning.
+  Instead of the misleading "Format detection failed: ..." (which read
+  like an error for every PDF), it now emits a clear routing message —
+  "No deterministic statement format matched (not XML/CSV/OFX/QFX/
+  MT940); routing to the hybrid LLM/vision extraction pipeline" — and
+  demotes the raw detector detail to `DEBUG` logging.
 
 ## [0.0.9] — 2026-06-11
 

@@ -165,9 +165,10 @@ def test_smart_ingest_multi_currency_avoids_false_discrepancy(
     )
     assert result.verification is not None
     # The single balance pair cannot be attributed to one currency,
-    # so the statement reports FAILED (cannot verify) instead of the
-    # false DISCREPANCY the summed single-currency check would give.
-    assert result.verification.status is VerificationStatus.FAILED
+    # so the statement reports UNVERIFIABLE (cannot verify) instead of
+    # the false DISCREPANCY the summed single-currency check would
+    # give.
+    assert result.verification.status is VerificationStatus.UNVERIFIABLE
     assert "Multi-currency statement" in result.verification.message
 
 
@@ -232,7 +233,11 @@ def test_smart_ingest_warns_when_detection_raises(
     )
     result = smart_ingest(file_path, extractor=extractor)
     assert result.source_method == "llm"
-    assert any("detection failed" in w for w in result.warnings)
+    assert any(
+        "No deterministic statement format matched" in w
+        for w in result.warnings
+    )
+    assert any("routing to the hybrid" in w for w in result.warnings)
 
 
 def test_smart_ingest_uses_llm_for_pdf_directly(
@@ -668,10 +673,43 @@ def test_ingest_result_round_trip_with_none_balance_fields() -> None:
     payload = original.to_json()
     restored = orchestrator.IngestResult.from_json(payload)
     assert restored.verification is not None
+    assert restored.verification.status is VerificationStatus.FAILED
     assert restored.verification.opening_balance is None
     assert restored.verification.closing_balance is None
     assert restored.verification.expected_delta is None
     assert restored.verification.discrepancy is None
+
+
+def test_ingest_result_round_trip_unverifiable_status() -> None:
+    """The UNVERIFIABLE status must round-trip through JSON."""
+    from bankstatementparser import Transaction
+    from bankstatementparser.hybrid.verification import (
+        BalanceVerification,
+        VerificationStatus,
+    )
+
+    verification = BalanceVerification(
+        status=VerificationStatus.UNVERIFIABLE,
+        opening_balance=None,
+        closing_balance=Decimal("10.00"),
+        total_credits=Decimal("10.00"),
+        total_debits=Decimal("0.00"),
+        expected_delta=None,
+        actual_delta=Decimal("10.00"),
+        discrepancy=None,
+        message="Cannot verify: missing opening or closing balance",
+    )
+    original = orchestrator.IngestResult(
+        source_method="llm",
+        source_format="pdf",
+        transactions=[Transaction(amount=Decimal("10.00"))],
+        verification=verification,
+    )
+
+    payload = original.to_json()
+    restored = orchestrator.IngestResult.from_json(payload)
+    assert restored.verification is not None
+    assert restored.verification.status is VerificationStatus.UNVERIFIABLE
 
 
 def test_ingest_result_from_json_skips_non_dict_audit_entries() -> None:

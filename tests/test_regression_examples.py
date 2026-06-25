@@ -193,7 +193,7 @@ def test_hybrid_04_golden_rule() -> None:
     out = _run_example(HYBRID_DIR / "04_golden_rule.py")
     assert "VERIFIED" in out
     assert "DISCREPANCY" in out
-    assert "FAILED" in out
+    assert "UNVERIFIABLE" in out
 
 
 def test_hybrid_05_dedupe_recurring() -> None:
