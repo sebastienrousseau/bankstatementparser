@@ -7,7 +7,7 @@ description = "Happy Eyeballs for asyncio"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "aiohappyeyeballs-2.6.2-py3-none-any.whl", hash = "sha256:4708045e2d7a6c6bdf8aafa8ed39649eaf926a4543b54560659129e3365953c4"},
     {file = "aiohappyeyeballs-2.6.2.tar.gz", hash = "sha256:e202810ee718bd01fc6ef49e8ea53d023d5cb6b581076d7925aa499fa55dbe64"},
@@ -20,7 +20,7 @@ description = "Async http client/server framework (asyncio)"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "aiohttp-3.14.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:8f6bb621e5863cfe8fe5ff5468002d200ec31f30f1280b259dc505b02595099e"},
     {file = "aiohttp-3.14.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:4f7215cb3933784f79ed20e5f050e15984f390424339b22375d5a53c933a0491"},
@@ -164,7 +164,7 @@ description = "aiosignal: a list of registered asynchronous callbacks"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "aiosignal-1.4.0-py3-none-any.whl", hash = "sha256:053243f8b92b990551949e63930a839ff0cf0b0ebbe0597b0f3fb19e1a0fe82e"},
     {file = "aiosignal-1.4.0.tar.gz", hash = "sha256:f47eecd9468083c2029cc99945502cb7708b082c232f9aca65da147157b251c7"},
@@ -181,7 +181,7 @@ description = "Document parameters, class attributes, return types, and variable
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\" or extra == \"api\")"
+markers = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"
 files = [
     {file = "annotated_doc-0.0.4-py3-none-any.whl", hash = "sha256:571ac1dc6991c450b25a9c2d84a3705e2ae7a53467b5d111c24fa8baabbed320"},
     {file = "annotated_doc-0.0.4.tar.gz", hash = "sha256:fbcda96e87e9c92ad167c2e53839e57503ecfda18804ea28102353485033faa4"},
@@ -206,7 +206,7 @@ description = "High-level concurrency and networking framework on top of asyncio
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\" or extra == \"api\")"
+markers = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"
 files = [
     {file = "anyio-4.13.0-py3-none-any.whl", hash = "sha256:08b310f9e24a9594186fd75b4f73f4a4152069e3853f1ed8bfbf58369f4ad708"},
     {file = "anyio-4.13.0.tar.gz", hash = "sha256:334b70e641fd2221c1505b3890c69882fe4a2df910cba14d97019b90b24439dc"},
@@ -270,7 +270,7 @@ description = "Timeout context manager for asyncio programs"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "python_version == \"3.10\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version == \"3.10\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c"},
     {file = "async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3"},
@@ -287,7 +287,7 @@ files = [
     {file = "attrs-26.1.0-py3-none-any.whl", hash = "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309"},
     {file = "attrs-26.1.0.tar.gz", hash = "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [[package]]
 name = "babel"
@@ -359,7 +359,7 @@ files = [
     {file = "certifi-2026.5.20-py3-none-any.whl", hash = "sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897"},
     {file = "certifi-2026.5.20.tar.gz", hash = "sha256:69dea482ab64caa7b9f6aba1c6bf48bb6a5448d1c0f1b17ab42ad8c763a5344d"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [[package]]
 name = "cffi"
@@ -597,7 +597,7 @@ files = [
     {file = "charset_normalizer-3.4.7-py3-none-any.whl", hash = "sha256:3dce51d0f5e7951f8bb4900c257dad282f49190fdbebecd4ba99bcc41fef404d"},
     {file = "charset_normalizer-3.4.7.tar.gz", hash = "sha256:ae89db9e5f98a11a4bf50407d4363e7b09b31e55bc117b4f7d80aab97ba009e5"},
 ]
-markers = {main = "(extra == \"hybrid-plus\" or python_version < \"3.14\") and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "(extra == \"hybrid-plus\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [[package]]
 name = "click"
@@ -610,7 +610,7 @@ files = [
     {file = "click-8.4.1-py3-none-any.whl", hash = "sha256:482be17c6991b8c19c5429a1e995d9b0efdbb63172824c41f99965dc0ade8ec2"},
     {file = "click-8.4.1.tar.gz", hash = "sha256:918b5633eddf6b41c32d4f454bf0de810065c74e3f7dbf8ee5452f8be88d3e96"},
 ]
-markers = {main = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\" or extra == \"api\")"}
+markers = {main = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
 
 [package.dependencies]
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
@@ -626,7 +626,7 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "platform_system == \"Windows\" and (extra == \"api\" or python_version < \"3.14\") and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\" or extra == \"api\")"}
+markers = {main = "platform_system == \"Windows\" and (extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
 
 [[package]]
 name = "coverage"
@@ -836,7 +836,7 @@ description = "Distro - an OS platform information API"
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2"},
     {file = "distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed"},
@@ -866,7 +866,7 @@ files = [
     {file = "exceptiongroup-1.3.1-py3-none-any.whl", hash = "sha256:a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598"},
     {file = "exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219"},
 ]
-markers = {main = "python_version == \"3.10\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\" or extra == \"api\")", dev = "python_version == \"3.10\""}
+markers = {main = "python_version == \"3.10\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")", dev = "python_version == \"3.10\""}
 
 [package.dependencies]
 typing-extensions = {version = ">=4.6.0", markers = "python_version < \"3.13\""}
@@ -876,15 +876,15 @@ test = ["pytest (>=6)"]
 
 [[package]]
 name = "fastapi"
-version = "0.138.0"
+version = "0.139.0"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
 markers = "extra == \"api\""
 files = [
-    {file = "fastapi-0.138.0-py3-none-any.whl", hash = "sha256:b6f54fd1bd72c80b0f899f172c61a600f6f7af9b43d4d772a018f35624048cb0"},
-    {file = "fastapi-0.138.0.tar.gz", hash = "sha256:d445a4877636ad191e7053e08c9bf98cb921a6756776848400bb773d1740c061"},
+    {file = "fastapi-0.139.0-py3-none-any.whl", hash = "sha256:cf15e1e9e667ddb0ad63811e60bd11390d1aac838ca4a7a23f421807b2308189"},
+    {file = "fastapi-0.139.0.tar.gz", hash = "sha256:99ab7b2d92223c76d6cf10757ab3f89d45b38267fc20b2a136cf02f6beac3145"},
 ]
 
 [package.dependencies]
@@ -906,7 +906,7 @@ description = "Python bindings to Rust's UUID library."
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "fastuuid-0.14.0-cp310-cp310-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:6e6243d40f6c793c3e2ee14c13769e341b90be5ef0c23c82fa6515a96145181a"},
     {file = "fastuuid-0.14.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:13ec4f2c3b04271f62be2e1ce7e95ad2dd1cf97e94503a3760db739afbd48f00"},
@@ -995,7 +995,7 @@ description = "A platform independent file lock."
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "filelock-3.29.3-py3-none-any.whl", hash = "sha256:e58333029cc9b925f39aad59b1d8f0a1ad836af4e60d7217f4a4dba87461261d"},
     {file = "filelock-3.29.3.tar.gz", hash = "sha256:7fc1b3f39cf172fd8203812043c57b8a65aef9969f38b6704f628b881f761a84"},
@@ -1008,7 +1008,7 @@ description = "A list-like structure which implements collections.abc.MutableSeq
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "frozenlist-1.8.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:b37f6d31b3dcea7deb5e9696e529a6aa4a898adc33db82da12e4c60a7c4d2011"},
     {file = "frozenlist-1.8.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:ef2b7b394f208233e471abc541cc6991f907ffd47dc72584acee3147899d6565"},
@@ -1149,7 +1149,7 @@ description = "File-system specification"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "fsspec-2026.4.0-py3-none-any.whl", hash = "sha256:11ef7bb35dab8a394fde6e608221d5cf3e8499401c249bebaeaad760a1a8dec2"},
     {file = "fsspec-2026.4.0.tar.gz", hash = "sha256:301d8ac70ae90ef3ad05dcf94d6c3754a097f9b5fe4667d2787aa359ec7df7e4"},
@@ -1223,7 +1223,7 @@ description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\" or extra == \"api\")"
+markers = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"
 files = [
     {file = "h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"},
     {file = "h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1"},
@@ -1236,7 +1236,7 @@ description = "Fast transfer of large files with the Hugging Face Hub."
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\") and (platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"arm64\" or platform_machine == \"aarch64\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\") and (platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"arm64\" or platform_machine == \"aarch64\")"
 files = [
     {file = "hf_xet-1.5.1-cp313-cp313t-macosx_10_12_x86_64.whl", hash = "sha256:dbf48c0d02cf0b2e568944330c60d9120c272dabe013bd892d48e25bc6797577"},
     {file = "hf_xet-1.5.1-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:e78e4e5192ad2b674c2e1160b651cb9134db974f8ae1835bdfbfb0166b894a43"},
@@ -1275,7 +1275,7 @@ description = "A minimal low-level HTTP client."
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "httpcore-1.0.9-py3-none-any.whl", hash = "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"},
     {file = "httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8"},
@@ -1298,7 +1298,7 @@ description = "The next generation HTTP client."
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad"},
     {file = "httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc"},
@@ -1324,7 +1324,7 @@ description = "Client library to download and publish models, datasets and other
 optional = true
 python-versions = ">=3.10.0"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "huggingface_hub-1.18.0-py3-none-any.whl", hash = "sha256:729be4a976fb706dcc02d176bcda8a3f32bdf21a294e8f4b3dda6fbcbc9c1ab1"},
     {file = "huggingface_hub-1.18.0.tar.gz", hash = "sha256:f0c5ecd1ef8c6a60f86f61ee278f2c1570ba9e279c9f54de9094210723b3613b"},
@@ -1400,7 +1400,7 @@ files = [
     {file = "idna-3.18-py3-none-any.whl", hash = "sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2"},
     {file = "idna-3.18.tar.gz", hash = "sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848"},
 ]
-markers = {main = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\" or extra == \"api\")"}
+markers = {main = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
 
 [package.extras]
 all = ["mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
@@ -1412,7 +1412,7 @@ description = "Read metadata from Python packages"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "importlib_metadata-8.9.0-py3-none-any.whl", hash = "sha256:e0f761b6ea91ced3b0844c14c9d955224d538105921f8e6754c00f6ca79fba7f"},
     {file = "importlib_metadata-8.9.0.tar.gz", hash = "sha256:58850626cef4bd2df100378b0f2aea9724a7b92f10770d547725b047078f99ee"},
@@ -1479,7 +1479,7 @@ files = [
     {file = "jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67"},
     {file = "jinja2-3.1.6.tar.gz", hash = "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [package.dependencies]
 MarkupSafe = ">=2.0"
@@ -1494,7 +1494,7 @@ description = "Fast iterable JSON parser."
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "jiter-0.15.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:edebcf7d1f601199084bb6e844d7dc67e03e04f6ac786b0332d616635c4ff7a4"},
     {file = "jiter-0.15.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:9f924585cdacf631cd382b657966847bb537bf9ed0a6f9b991da5f05a631480f"},
@@ -1614,7 +1614,7 @@ description = "An implementation of JSON Schema validation for Python"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "jsonschema-4.26.0-py3-none-any.whl", hash = "sha256:d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce"},
     {file = "jsonschema-4.26.0.tar.gz", hash = "sha256:0c26707e2efad8aa1bfc5b7ce170f3fccc2e4918ff85989ba9ffa9facb2be326"},
@@ -1637,7 +1637,7 @@ description = "The JSON Schema meta-schemas and vocabularies, exposed as a Regis
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "jsonschema_specifications-2025.9.1-py3-none-any.whl", hash = "sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe"},
     {file = "jsonschema_specifications-2025.9.1.tar.gz", hash = "sha256:b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d"},
@@ -1754,7 +1754,7 @@ description = "Library to easily interface with LLM API providers"
 optional = true
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "litellm-1.89.3-py3-none-any.whl", hash = "sha256:414ef5aee504b2b3eb1b219d39f1c11902db399cbdbc06e5fb550c15d731abeb"},
     {file = "litellm-1.89.3.tar.gz", hash = "sha256:8fcdb2b7a0ef3381d41adf164443842e31ef9f0cd5bcda6fc3c0bd8bc2959510"},
@@ -1963,7 +1963,7 @@ files = [
     {file = "markdown_it_py-4.2.0-py3-none-any.whl", hash = "sha256:9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a"},
     {file = "markdown_it_py-4.2.0.tar.gz", hash = "sha256:04a21681d6fbb623de53f6f364d352309d4094dd4194040a10fd51833e418d49"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [package.dependencies]
 mdurl = ">=0.1,<1.0"
@@ -2075,7 +2075,7 @@ files = [
     {file = "markupsafe-3.0.3-cp39-cp39-win_arm64.whl", hash = "sha256:38664109c14ffc9e7437e86b4dceb442b0096dfe3541d7864d9cbe1da4cf36c8"},
     {file = "markupsafe-3.0.3.tar.gz", hash = "sha256:722695808f4b6457b320fdc131280796bdceb04ab50fe1795cd540799ebe1698"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [[package]]
 name = "mdurl"
@@ -2088,7 +2088,7 @@ files = [
     {file = "mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"},
     {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [[package]]
 name = "mergedeep"
@@ -2260,7 +2260,7 @@ description = "multidict implementation"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "multidict-6.7.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:c93c3db7ea657dd4637d57e74ab73de31bccefe144d3d4ce370052035bc85fb5"},
     {file = "multidict-6.7.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:974e72a2474600827abaeda71af0c53d9ebbc3c2eb7da37b37d7829ae31232d8"},
@@ -2653,7 +2653,7 @@ description = "The official Python library for the openai API"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "openai-2.41.1-py3-none-any.whl", hash = "sha256:a939565f350cb7443cb843b801b88c716ac8024b492fb94ca269d5f6b1bbefd6"},
     {file = "openai-2.41.1.tar.gz", hash = "sha256:23d617a0432457ad844973bee8f540be9da90894f7c5686852d2d365da058f57"},
@@ -2702,7 +2702,7 @@ files = [
     {file = "packaging-26.2-py3-none-any.whl", hash = "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e"},
     {file = "packaging-26.2.tar.gz", hash = "sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [[package]]
 name = "paginate"
@@ -3085,7 +3085,7 @@ description = "Accelerated property cache"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "propcache-0.5.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:d5a81be28596d6559f6131ef33e10200de6e17643b3c74ce03f9eb103be6ae8b"},
     {file = "propcache-0.5.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:29cbaac5ea0212663e6845e04b5e188d5a6ae6dd919810ac835bf1d3b42c3f4c"},
@@ -3413,7 +3413,7 @@ files = [
     {file = "pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176"},
     {file = "pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [package.extras]
 windows-terminal = ["colorama (>=0.4.6)"]
@@ -3582,7 +3582,7 @@ description = "Read key-value pairs from a .env file and set them as environment
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a"},
     {file = "python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3"},
@@ -3685,7 +3685,7 @@ files = [
     {file = "pyyaml-6.0.3-cp39-cp39-win_amd64.whl", hash = "sha256:2e71d11abed7344e42a8849600193d15b6def118602c4c176f748e4583246007"},
     {file = "pyyaml-6.0.3.tar.gz", hash = "sha256:d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [[package]]
 name = "pyyaml-env-tag"
@@ -3709,7 +3709,7 @@ description = "JSON Referencing + Python"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "referencing-0.37.0-py3-none-any.whl", hash = "sha256:381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231"},
     {file = "referencing-0.37.0.tar.gz", hash = "sha256:44aefc3142c5b842538163acb373e24cce6632bd54bdb01b21ad5863489f50d8"},
@@ -3727,7 +3727,7 @@ description = "Alternative regular expression module, to replace re."
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "regex-2026.5.9-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:a9e1328e17c84c1a5d22ec9f785ecef4a967fab9a42b6a8dc3bcbebd0a0c9e44"},
     {file = "regex-2026.5.9-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:bfe1ce50cbfb569d74e1e4337da6468961f31dbea55fd85aa5de59c0947a805a"},
@@ -3856,7 +3856,7 @@ files = [
     {file = "requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"},
     {file = "requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [package.dependencies]
 certifi = ">=2023.5.7"
@@ -3879,7 +3879,7 @@ files = [
     {file = "rich-15.0.0-py3-none-any.whl", hash = "sha256:33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb"},
     {file = "rich-15.0.0.tar.gz", hash = "sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [package.dependencies]
 markdown-it-py = ">=2.2.0"
@@ -3895,7 +3895,7 @@ description = "Python bindings to Rust's persistent data structures (rpds)"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version == \"3.10\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version == \"3.10\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "rpds_py-0.30.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:679ae98e00c0e8d68a7fda324e16b90fd5260945b45d3b824c892cec9eea3288"},
     {file = "rpds_py-0.30.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:4cc2206b76b4f576934f0ed374b10d7ca5f457858b157ca52064bdfc26b9fc00"},
@@ -4021,7 +4021,7 @@ description = "Python bindings to Rust's persistent data structures (rpds)"
 optional = true
 python-versions = ">=3.11"
 groups = ["main"]
-markers = "python_version < \"3.14\" and python_version >= \"3.11\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and python_version >= \"3.11\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "rpds_py-2026.5.1-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:3397a5ed7174dc2786bb214030232fc36fe8e5584fec43a9952cc542b1a12036"},
     {file = "rpds_py-2026.5.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:99ab6ba7bfa2cb0f96a04e3652355bf04e3f51aceb1e943b8541dab7ba4828cc"},
@@ -4190,7 +4190,7 @@ description = "Tool to Detect Surrounding Shell"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "shellingham-1.5.4-py2.py3-none-any.whl", hash = "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686"},
     {file = "shellingham-1.5.4.tar.gz", hash = "sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de"},
@@ -4215,7 +4215,7 @@ description = "Sniff out which async library your code is running under"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "sniffio-1.3.1-py3-none-any.whl", hash = "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2"},
     {file = "sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc"},
@@ -4287,7 +4287,7 @@ description = "tiktoken is a fast BPE tokeniser for use with OpenAI's models"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "tiktoken-0.13.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:47b1df8d73390a24f94980c75158cdd5c56d256f16d55f30cb49c230caba9ba4"},
     {file = "tiktoken-0.13.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:7d40c6c5aab171dcd6eb8455bc567bde404bb9def60cdb8c1299cc782b242bb9"},
@@ -4362,7 +4362,7 @@ description = ""
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "tokenizers-0.23.1-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:e03d6ffcbe0d56ee9c1ccd070e70a13fa750727c0277e138152acbc0252c2224"},
     {file = "tokenizers-0.23.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:e0948bbb1ac1d7cdfc9fb6d62c596e3b7550036ad60ecd654a66ad273326324e"},
@@ -4456,7 +4456,7 @@ description = "Fast, Extensible Progress Meter"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "tqdm-4.68.2-py3-none-any.whl", hash = "sha256:d4240441fb5353290b87d6a85968c9decc131a99b8c7faa28269d829de669ede"},
     {file = "tqdm-4.68.2.tar.gz", hash = "sha256:89c230e8dbc67c7615c142487111222f878c77427ea09549960f62389e258add"},
@@ -4479,7 +4479,7 @@ description = "Typer, build great CLIs. Easy to code. Based on Python type hints
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "typer-0.25.1-py3-none-any.whl", hash = "sha256:75caa44ed46a03fb2dab8808753ffacdbfea88495e74c85a28c5eefcf5f39c89"},
     {file = "typer-0.25.1.tar.gz", hash = "sha256:9616eb8853a09ffeabab1698952f33c6f29ffdbceb4eaeecf571880e8d7664cc"},
@@ -4542,7 +4542,7 @@ files = [
     {file = "urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"},
     {file = "urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c"},
 ]
-markers = {main = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"}
+markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [package.extras]
 brotli = ["brotli (>=1.2.0) ; platform_python_implementation == \"CPython\"", "brotlicffi (>=1.2.0.0) ; platform_python_implementation != \"CPython\""]
@@ -4621,7 +4621,7 @@ description = "Yet another URL library"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "yarl-1.24.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:5249a113065c2b7a958bc699759e359cd61cfc81e3069662208f48f191b7ed12"},
     {file = "yarl-1.24.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:7f4425fa244fbf530b006d0c5f79ce920114cfff5b4f5f6056e669f8e160fdc0"},
@@ -4741,7 +4741,7 @@ description = "Backport of pathlib-compatible object wrapper for zip files"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version < \"3.14\" and (extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"enrichment\")"
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
     {file = "zipp-4.1.0-py3-none-any.whl", hash = "sha256:25ad4e16390cd314347dd8f1de67a2ac538ae658ed4ab9db16029c07c188e97f"},
     {file = "zipp-4.1.0.tar.gz", hash = "sha256:4cb57381f544315db7688e976e922a2b18cdb513d21cc194eb42232ba2a3e602"},
