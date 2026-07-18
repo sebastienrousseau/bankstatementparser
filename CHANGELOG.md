@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _Nothing yet._
 
+## [0.0.11] — 2026-07-18
+
+### Changed
+
+- **chore(deps): fold all open Dependabot updates.** Refreshed the
+  Python dependency tree via `poetry update` and regenerated the
+  hash-pinned `requirements.txt`: fastapi 0.139.2, litellm 1.92.0,
+  polars 1.42.1, pypdfium2 5.12.1, typing-extensions 4.16.0,
+  ast-serialize 0.6.0, coverage 7.15.2, hypothesis 6.156.7, mypy 2.3.0,
+  and ruff 0.15.22.
+- **CI:** bumped the SHA-pinned GitHub Actions —
+  `github/codeql-action` (init/autobuild/analyze) to 4.37.0,
+  `actions/cache` (save/restore) to v6.1.0,
+  `actions/attest-build-provenance` to 4.1.1, and
+  `actions/setup-python` to 6.3.0.
+
 ## [0.0.10] — 2026-06-25
 
 ### Added
@@ -803,7 +819,9 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.9...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.11...HEAD
+[0.0.11]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.11
+[0.0.10]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.10
 [0.0.9]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.9
 [0.0.8]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.8
 [0.0.7]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.7
