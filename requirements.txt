@@ -1004,6 +1004,6 @@ typing-extensions==4.16.0 ; python_version >= "3.10" and python_version < "4.0" 
 typing-inspection==0.4.2 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7 \
     --hash=sha256:ba561c48a67c5958007083d386c3295464928b01faa735ab8547c5692e87f464
-tzdata==2026.2 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:9173fde7d80d9018e02a662e168e5a2d04f87c41ea174b139fbef642eda62d10 \
-    --hash=sha256:bbe9af844f658da81a5f95019480da3a89415801f6cc966806612cc7169bffe7
+tzdata==2026.3 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:4a1518b8993086a7982523e071643f3c0e5f213e75b21318e78bcabfff9d1415 \
+    --hash=sha256:dc096730c87af6cab1b171c9d532be840741ff5d459015e7f6947bd7d7e54931
