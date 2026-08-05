@@ -13,12 +13,26 @@ _Nothing yet._
 
 ### Changed
 
-- **chore(deps): fold all open Dependabot updates.** Bumped `aiohttp`
-  3.14.1 → 3.14.3 (#152) via `poetry update`, preserving its
+- **chore(deps): fold all open Dependabot updates.** Relocked via
+  `poetry update`: aiohttp 3.14.1 → 3.14.3, fastapi 0.139.2 → 0.141.1,
+  litellm 1.93.0 → 1.95.0, uvicorn 0.51.0 → 0.52.1, hypothesis
+  6.156.7 → 6.165.1, pytz 2026.2 → 2026.3.post1, annotated-types
+  0.7.0 → 0.8.0, ruff 0.15.22 → 0.16.1. `aiohttp` keeps its
   `optional = true` flag and extras markers.
 - **chore(deps): move off yanked `polars`.** The lock pinned polars
   and polars-runtime-32 at 1.43.0, which has since been yanked from
   PyPI; both now resolve to 1.43.2.
+- **chore(ci): refresh pinned actions.** `github/codeql-action`
+  `init`/`autobuild`/`analyze` → v4.37.4 and
+  `pypa/gh-action-pypi-publish` → 1.14.2.
+
+### Fixed
+
+- **`to_polars()` typing.** `polars` is resolved via
+  `importlib.import_module`, so `from_pandas` returned `Any` and
+  tripped mypy's `no-any-return` against the declared `pl.DataFrame`.
+- **Dropped two stale `# type: ignore[untyped-decorator]` comments**
+  in `api.py`; fastapi 0.141 types its route decorators.
 
 ## [0.0.11] — 2026-07-18
 

@@ -171,7 +171,7 @@ def create_app(
 
     _file_field = File(...)
 
-    @app.post("/ingest")  # type: ignore[untyped-decorator]
+    @app.post("/ingest")
     async def ingest(
         file: UploadFile = _file_field,
     ) -> JSONResponse:
@@ -256,7 +256,7 @@ def create_app(
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
-    @app.get("/health")  # type: ignore[untyped-decorator]
+    @app.get("/health")
     async def health() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "ok", "version": version}
