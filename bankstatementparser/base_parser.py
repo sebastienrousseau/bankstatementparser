@@ -23,7 +23,7 @@ import importlib
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, cast
 
 import pandas as pd
 
@@ -157,7 +157,9 @@ class BankStatementParser(ABC):
                 "Run 'pip install bankstatementparser[polars]' to use this feature."
             ) from exc
 
-        return polars.from_pandas(self.parse())
+        # `polars` is resolved through importlib, so it is untyped and
+        # `from_pandas` returns Any; cast back to the declared type.
+        return cast("pl.DataFrame", polars.from_pandas(self.parse()))
 
     def to_polars_lazy(self) -> "pl.LazyFrame":
         """Convert parsed transaction data to a Polars LazyFrame.

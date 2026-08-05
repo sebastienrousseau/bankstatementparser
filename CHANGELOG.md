@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _Nothing yet._
 
+## [0.0.12] — 2026-08-04
+
+### Changed
+
+- **chore(deps): fold all open Dependabot updates.** Bumped `aiohttp`
+  3.14.1 → 3.14.3 (#152) via `poetry update`, preserving its
+  `optional = true` flag and extras markers.
+- **chore(deps): move off yanked `polars`.** The lock pinned polars
+  and polars-runtime-32 at 1.43.0, which has since been yanked from
+  PyPI; both now resolve to 1.43.2.
+
 ## [0.0.11] — 2026-07-18
 
 ### Changed
@@ -819,7 +830,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.11...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.12...HEAD
+[0.0.12]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.12
 [0.0.11]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.11
 [0.0.10]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.10
 [0.0.9]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.9
