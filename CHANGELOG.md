@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _Nothing yet._
 
+## [0.0.12] — 2026-08-04
+
+### Changed
+
+- **chore(deps): fold all open Dependabot updates.** Relocked via
+  `poetry update`: aiohttp 3.14.1 → 3.14.3, fastapi 0.139.2 → 0.141.1,
+  litellm 1.93.0 → 1.95.0, uvicorn 0.51.0 → 0.52.1, hypothesis
+  6.156.7 → 6.165.1, pytz 2026.2 → 2026.3.post1, annotated-types
+  0.7.0 → 0.8.0, ruff 0.15.22 → 0.16.1. `aiohttp` keeps its
+  `optional = true` flag and extras markers.
+- **chore(deps): move off yanked `polars`.** The lock pinned polars
+  and polars-runtime-32 at 1.43.0, which has since been yanked from
+  PyPI; both now resolve to 1.43.2.
+- **chore(ci): refresh pinned actions.** `github/codeql-action`
+  `init`/`autobuild`/`analyze` → v4.37.4 and
+  `pypa/gh-action-pypi-publish` → 1.14.2.
+
+### Fixed
+
+- **`to_polars()` typing.** `polars` is resolved via
+  `importlib.import_module`, so `from_pandas` returned `Any` and
+  tripped mypy's `no-any-return` against the declared `pl.DataFrame`.
+- **Dropped two stale `# type: ignore[untyped-decorator]` comments**
+  in `api.py`; fastapi 0.141 types its route decorators.
+
 ## [0.0.11] — 2026-07-18
 
 ### Changed
@@ -819,7 +844,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.11...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.12...HEAD
+[0.0.12]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.12
 [0.0.11]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.11
 [0.0.10]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.10
 [0.0.9]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.9
