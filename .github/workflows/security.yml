@@ -46,7 +46,7 @@ jobs:
         uses: github/codeql-action/autobuild@e0647621c2984b5ed2f768cb892365bf2a616ad1
 
       - name: Analyze
-        uses: github/codeql-action/analyze@e0647621c2984b5ed2f768cb892365bf2a616ad1
+        uses: github/codeql-action/analyze@f205ea1c3313d32999d8d6a48b4f6530d4437b38
 
   secret-scanning:
     name: Secret Scanning
