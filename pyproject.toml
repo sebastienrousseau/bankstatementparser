@@ -146,6 +146,15 @@ ignore_missing_imports = true
 module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*", "httpx", "httpx.*", "fastapi", "fastapi.*", "uvicorn", "uvicorn.*"]
 ignore_missing_imports = true
 
+# fastapi is an optional extra. When it is installed its route
+# decorators are typed and the `untyped-decorator` ignores in api.py
+# are redundant; when it is not (CI's lint job installs no extras)
+# they are required. Allow both rather than making the file correct
+# for only one of the two environments.
+[[tool.mypy.overrides]]
+module = ["bankstatementparser.api"]
+warn_unused_ignores = false
+
 [[tool.mypy.overrides]]
 module = ["tomli", "tomllib"]
 ignore_missing_imports = true
