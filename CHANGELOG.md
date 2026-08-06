@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _Nothing yet._
 
+## [0.0.13] — 2026-08-06
+
+### Changed
+
+- Bumped `cryptography` to 50.0.0 in the hashed build and SBOM
+  requirement sets.
+
 ## [0.0.12] — 2026-08-04
 
 ### Changed
@@ -844,7 +851,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.12...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.13...HEAD
+[0.0.13]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.13
 [0.0.12]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.12
 [0.0.11]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.11
 [0.0.10]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.10
