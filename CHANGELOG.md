@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _Nothing yet._
 
+## [0.0.14] — 2026-08-09
+
+### Changed
+
+- Bumped `pypdf` to 6.15.0 and `pymdown-extensions` to 11.0.1 in the
+  locked dependency set.
+
 ## [0.0.13] — 2026-08-06
 
 ### Changed
@@ -851,7 +858,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.13...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.14...HEAD
+[0.0.14]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.14
 [0.0.13]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.13
 [0.0.12]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.12
 [0.0.11]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.11
