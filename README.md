@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- SPDX-License-Identifier: Apache-2.0 OR MIT>
 
 <h1 align="center">Bank Statement Parser</h1>
 
