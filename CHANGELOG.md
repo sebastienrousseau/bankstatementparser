@@ -5,6 +5,39 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.18] - 2026-08-29
+
+Aligns the `bankstatementparser` suite on one version number, and adds
+the benchmark and drift check this repository was missing.
+
+### Added
+
+- `benches/bench_deduplicate.py`. Deduplication is measured on two axes
+  because they behave differently: cost is **linear in the number of
+  transactions** (~10-12 µs each), and **quadratic in the size of the
+  largest duplicate group**. Holding a batch at 4,000 rows, 200 identical
+  transactions inside it cost ~165 ms and 800 cost ~2.0 s — four times
+  the group, sixteen times the work.
+
+  That input is reachable: a repeated standing order, a failed batch
+  re-submitted, an export concatenated with itself. The benchmark reports
+  per-segment exponents rather than one across the range, because
+  averaging the quadratic tail with the flat head gives about 1.0, which
+  reads as linear and is wrong.
+- `__version__` on the package, read from the installed metadata rather
+  than hard-coded so it cannot drift from `pyproject.toml`.
+- `scripts/check_suite_consistency.py` and a scheduled `Suite
+  Consistency` workflow comparing this tree, and every published member,
+  against PyPI.
+- `tests/test_suite_conformance.py`, the shared suite conformance gate.
+
+### Changed
+
+- Version aligned to `0.0.18` across all six `bankstatementparser`
+  packages, which had drifted to `0.0.14`, `0.0.15`, `0.0.17`, `0.0.16`,
+  `0.0.16` and `0.0.15`. This repository was the furthest behind, and had
+  three releases in the tree that were never tagged.
+
 ## [Unreleased]
 
 _Nothing yet._

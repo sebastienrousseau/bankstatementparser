@@ -1,0 +1,38 @@
+name: Suite Consistency
+
+# The suite ships one version number across every package, and nothing
+# breaks when that slips: a member left behind still installs, still
+# imports, still passes its own tests. The only way to notice is to go and
+# look. This does the looking.
+#
+# It also catches the version bumped in the tree and never released, which
+# has happened three times in this suite and each time stranded a security
+# floor that reached nobody.
+on:
+  schedule:
+    - cron: "59 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: suite-consistency
+  cancel-in-progress: true
+
+jobs:
+  consistency:
+    name: Published versions agree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Queries pypi.org and exits non-zero when the suite disagrees with
+      # itself, so a schedule becomes a notification rather than a report
+      # nobody opens.
+      - name: Check suite consistency
+        run: python3 scripts/check_suite_consistency.py

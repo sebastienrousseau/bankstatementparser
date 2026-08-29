@@ -51,6 +51,13 @@ from .zip_security import (
     iter_secure_xml_entries,
 )
 
+#: The package version, restated here as every other package in the
+#: suite does. It is a literal rather than an importlib.metadata lookup
+#: so the conformance gate can compare it statically against
+#: pyproject.toml -- that comparison is the thing that catches drift, and
+#: a runtime lookup would make the two trivially equal and check nothing.
+__version__ = "0.0.18"
+
 __all__ = [
     "BankStatementParser",
     "BankStatementParserError",
@@ -74,6 +81,7 @@ __all__ = [
     "ValidationError",
     "ZipSecurityError",
     "ZipXMLSource",
+    "__version__",
     "create_parser",
     "detect_statement_format",
     "iter_secure_xml_entries",
