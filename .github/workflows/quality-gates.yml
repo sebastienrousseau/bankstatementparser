@@ -36,7 +36,7 @@ jobs:
         run: poetry install --with dev -E excel
 
       - name: Ruff
-        run: poetry run ruff check bankstatementparser tests examples scripts
+        run: poetry run ruff check bankstatementparser tests examples scripts benches
 
       - name: Ruff format
         run: poetry run ruff format --check bankstatementparser tests examples scripts
@@ -127,6 +127,13 @@ jobs:
       - name: Run integration regression suite
         run: |
           poetry run pytest --no-cov tests/integration tests/test_enterprise_coverage.py
+
+      # Not a timing gate -- wall-clock is not comparable between
+      # runners. This proves the benchmark still runs against the
+      # current API rather than rotting into a file that reads as
+      # verified and is not.
+      - name: Run the benchmark
+        run: poetry run python benches/bench_deduplicate.py --quick
 
       - name: Run performance contracts (slow suite)
         # Timing-sensitive tests are excluded from the coverage run

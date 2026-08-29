@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.14"
+version = "0.0.18"
 description = "BankStatementParser is your essential tool for easy bank statement management. Designed with finance and treasury experts in mind, it offers a simple way to handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from your financial data and spend less time on processing. It's the smart, hassle-free way to stay on top of your transactions."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache-2.0 OR MIT"
@@ -61,6 +61,9 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
+# The vendored conformance test carries a digest of its own bytes,
+# so reformatting it would invalidate the check it exists to make.
+extend-exclude = "tests/test_suite_conformance\\.py"
 line-length = 72
 target-version = ["py310"]
 
@@ -74,6 +77,11 @@ combine_as_imports = true
 known_first_party = "bankstatementparser"
 
 [tool.ruff]
+# The vendored conformance test carries a sha256 of its own bytes.
+# It is maintained centrally and linted there; letting ruff rewrite
+# it here -- even to drop a noqa this repository does not need --
+# invalidates the very check it exists to make.
+extend-exclude = ["tests/test_suite_conformance.py"]
 target-version = "py310"
 line-length = 79
 src = ["bankstatementparser", "tests", "examples", "scripts"]
@@ -108,6 +116,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# A standalone benchmark has to put the repository on sys.path
+# before importing the package it measures, so its imports cannot
+# come first.
+"benches/*.py" = ["E402"]
 # Tests legitimately use assert, hardcoded temp paths, and pickle-free
 # mock data; S-rules target production code. SIM117: nested
 # `with patch(...)` blocks are the established unittest idiom here.
