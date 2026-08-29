@@ -35,6 +35,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import quote
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -58,9 +59,22 @@ TIMEOUT = 30
 
 def published_version(distribution: str) -> str | None:
     """The newest version of ``distribution`` on PyPI, or None."""
-    url = f"https://pypi.org/pypi/{distribution}/json"
+    # The name is quoted and the scheme is checked before the request.
+    # Both are belt-and-braces here -- MEMBERS is a literal tuple in this
+    # file -- but urlopen honours file:// and custom schemes, so a URL
+    # reaching it unchecked is worth refusing on principle rather than on
+    # the argument that today's input happens to be safe.
+    url = "https://pypi.org/pypi/" + quote(distribution, safe="") + "/json"
+    if not url.startswith("https://pypi.org/"):  # pragma: no cover
+        raise ValueError(f"refusing to fetch a non-PyPI URL: {url}")
     try:
-        with urllib.request.urlopen(url, timeout=TIMEOUT) as response:
+        # B310 is satisfied by the scheme check above. Only bandit's
+        # suppression is used: ruff's S rules are not enabled in most of
+        # these repositories, and an unused noqa is itself a lint error
+        # (RUF100). The reason sits here rather than inline because
+        # bandit parses words following "nosec" as test ids.
+        opened = urllib.request.urlopen(url, timeout=TIMEOUT)  # nosec B310
+        with opened as response:
             return str(json.load(response)["info"]["version"])
     except (urllib.error.URLError, KeyError, ValueError, TimeoutError):
         return None
