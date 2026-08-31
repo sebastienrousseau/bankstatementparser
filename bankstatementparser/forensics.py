@@ -137,7 +137,7 @@ def _extract_pdf_metadata(pdf_bytes: bytes) -> dict[str, Any]:
                 str(doc_info.get("/CreationDate", "") or "") or None
             )
             meta["mod_date"] = str(doc_info.get("/ModDate", "") or "") or None
-    except Exception:  # noqa: S110
+    except Exception:  # noqa: S110 # nosec B110
         pass
 
     # Fallback / augment with raw byte regex scanning
