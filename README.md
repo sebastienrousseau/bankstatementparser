@@ -1,5 +1,14 @@
 <!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
 
+<p align="center">
+  <img
+    src="https://cloudcdn.pro/bankstatementparser/v1/logos/bankstatementparser.svg"
+    alt="bankstatementparser logo"
+    width="120"
+    height="120"
+  />
+</p>
+
 <h1 align="center">Bank Statement Parser</h1>
 
 <p align="center">
@@ -257,23 +266,23 @@ Gemini, …).
 
 ```mermaid
 flowchart TD
-    A[smart_ingest&lpar;path&rpar;] --> B{detect_statement_format}
-    B -- CAMT/PAIN/OFX/MT940/CSV --> C[Path A: deterministic parser<br/>$0, fastest]
-    C --> Z[IngestResult<br/>source_method='deterministic']
+    A["smart_ingest(path)"] --> B{"detect_statement_format"}
+    B -->|CAMT/PAIN/OFX/MT940/CSV| C["Path A: deterministic parser<br/>$0, fastest"]
+    C --> Z["IngestResult<br/>source_method='deterministic'"]
 
-    B -- pdf or unknown --> D[pypdf extract_text]
-    D --> E{text len &gt;= 50?}
+    B -->|pdf or unknown| D["pypdf extract_text"]
+    D --> E{"text length >= 50?"}
 
-    E -- yes --> F[Path B: text-LLM<br/>default ollama/llama3]
-    F --> Y[IngestResult<br/>source_method='llm']
+    E -->|yes| F["Path B: text-LLM<br/>default ollama/llama3"]
+    F --> Y["IngestResult<br/>source_method='llm'"]
 
-    E -- no --> G[Path C: vision-LLM<br/>opt-in via BSP_HYBRID_VISION_MODEL]
-    G --> X[IngestResult<br/>source_method='vision']
+    E -->|no| G["Path C: vision-LLM<br/>opt-in via BSP_HYBRID_VISION_MODEL"]
+    G --> X["IngestResult<br/>source_method='vision'"]
 
-    Z --> V[verify_balance<br/>Golden Rule]
+    Z --> V["verify_balance<br/>Golden Rule"]
     Y --> V
     X --> V
-    V --> R[VERIFIED / DISCREPANCY / UNVERIFIABLE / FAILED]
+    V --> R["VERIFIED / DISCREPANCY / UNVERIFIABLE / FAILED"]
 ```
 
 Every extracted row carries an immutable `transaction_hash`, an

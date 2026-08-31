@@ -25,23 +25,23 @@ running on your own data.
 
 ```mermaid
 flowchart TD
-    A[smart_ingest&lpar;path&rpar;] --> B{detect_statement_format}
-    B -- CAMT/PAIN/OFX/MT940/CSV --> C[Path A: deterministic parser]
-    C --> Z[IngestResult<br/>source_method='deterministic']
+    A["smart_ingest(path)"] --> B{"detect_statement_format"}
+    B -->|CAMT/PAIN/OFX/MT940/CSV| C["Path A: deterministic parser"]
+    C --> Z["IngestResult<br/>source_method='deterministic'"]
 
-    B -- pdf or unknown --> D[pypdf extract_text]
-    D --> E{text len &gt;= 50?}
+    B -->|pdf or unknown| D["pypdf extract_text"]
+    D --> E{"text length >= 50?"}
 
-    E -- yes --> F[Path B: LLMExtractor<br/>BSP_HYBRID_MODEL<br/>default ollama/llama3]
-    F --> Y[IngestResult<br/>source_method='llm']
+    E -->|yes| F["Path B: LLMExtractor<br/>BSP_HYBRID_MODEL<br/>default ollama/llama3"]
+    F --> Y["IngestResult<br/>source_method='llm'"]
 
-    E -- no --> G[Path C: VisionExtractor<br/>BSP_HYBRID_VISION_MODEL<br/>opt-in, no default]
-    G --> X[IngestResult<br/>source_method='vision']
+    E -->|no| G["Path C: VisionExtractor<br/>BSP_HYBRID_VISION_MODEL<br/>opt-in, no default"]
+    G --> X["IngestResult<br/>source_method='vision'"]
 
-    Z --> V[verify_balance<br/>Golden Rule]
+    Z --> V["verify_balance<br/>Golden Rule"]
     Y --> V
     X --> V
-    V --> R[VERIFIED<br/>DISCREPANCY<br/>FAILED]
+    V --> R["VERIFIED<br/>DISCREPANCY<br/>FAILED"]
 ```
 
 ## Prerequisites
