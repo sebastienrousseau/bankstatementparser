@@ -332,7 +332,7 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 869 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 876 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
@@ -679,7 +679,7 @@ cleanly — see each companion's README for runnable examples.
 ## Project Layout
 
 ```text
-bankstatementparser/            Source code (32 modules)
+bankstatementparser/            Source code (33 modules)
 bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
 bankstatementparser/export/     hledger + beancount journal export
@@ -687,7 +687,7 @@ bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 9 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          869 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          876 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---

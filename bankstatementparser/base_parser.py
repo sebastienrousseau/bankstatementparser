@@ -157,9 +157,14 @@ class BankStatementParser(ABC):
                 "Run 'pip install bankstatementparser[polars]' to use this feature."
             ) from exc
 
-        # `polars` is resolved through importlib, so it is untyped and
-        # `from_pandas` returns Any; cast back to the declared type.
-        return cast("pl.DataFrame", polars.from_pandas(self.parse()))
+        df = self.parse()
+        try:
+            return cast("pl.DataFrame", polars.from_pandas(df))
+        except Exception:
+            return cast(
+                "pl.DataFrame",
+                polars.DataFrame(df.to_dict(orient="records")),
+            )
 
     def to_polars_lazy(self) -> "pl.LazyFrame":
         """Convert parsed transaction data to a Polars LazyFrame.

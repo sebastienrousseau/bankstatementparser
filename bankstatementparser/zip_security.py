@@ -68,17 +68,63 @@ def iter_secure_xml_entries(
     This helper is intentionally strict because ZIP archives may come from
     untrusted banks, middleware, or user uploads.
     """
-    for entry in iter_secure_statement_entries(
-        zip_path,
-        allowed_extensions=(".xml",),
-        max_entry_size=max_entry_size,
-        max_total_uncompressed_size=max_total_uncompressed_size,
-        max_compression_ratio=max_compression_ratio,
-    ):
-        yield ZipXMLSource(
-            source_name=entry.source_name,
-            xml_bytes=entry.content_bytes,
+    if max_entry_size <= 0:
+        raise ZipSecurityError("max_entry_size must be greater than zero")
+    if max_total_uncompressed_size <= 0:
+        raise ZipSecurityError(
+            "max_total_uncompressed_size must be greater than zero"
         )
+    if max_compression_ratio <= 0:
+        raise ZipSecurityError(
+            "max_compression_ratio must be greater than zero"
+        )
+
+    archive_path = Path(zip_path)
+    total_uncompressed_size = 0
+    validator = InputValidator(max_file_size=max_entry_size)
+
+    try:
+        with ZipFile(archive_path) as zf:
+            members = zf.infolist()
+            if not members:
+                raise ZipSecurityError(
+                    "ZIP archive does not contain any entries"
+                )
+
+            for member in members:
+                if member.is_dir():
+                    continue
+                if not member.filename.lower().endswith(".xml"):
+                    continue
+
+                _validate_zip_member(
+                    member,
+                    max_entry_size=max_entry_size,
+                    max_compression_ratio=max_compression_ratio,
+                )
+
+                total_uncompressed_size += member.file_size
+                if total_uncompressed_size > max_total_uncompressed_size:
+                    raise ZipSecurityError(
+                        "ZIP archive exceeds the total allowed uncompressed XML size"
+                    )
+
+                xml_bytes = zf.read(member)
+                try:
+                    (
+                        xml_bytes,
+                        safe_name,
+                    ) = validator.validate_xml_content(
+                        xml_bytes, source_name=member.filename
+                    )
+                except ValidationError as exc:
+                    raise ZipSecurityError(str(exc)) from exc
+                yield ZipXMLSource(
+                    source_name=safe_name,
+                    xml_bytes=xml_bytes,
+                )
+    except BadZipFile as exc:
+        raise ZipSecurityError(f"Invalid ZIP archive: {archive_path}") from exc
 
 
 def iter_secure_statement_entries(

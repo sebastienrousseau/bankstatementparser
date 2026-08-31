@@ -54,6 +54,10 @@ class InputValidator:
         ".MT940",
         ".sta",
         ".STA",
+        ".bai2",
+        ".BAI2",
+        ".mt942",
+        ".MT942",
         ".pdf",
         ".PDF",
         ".json",
@@ -378,13 +382,17 @@ class InputValidator:
 
     def _validate_input_extension(self, path: Path) -> None:
         """Validate input file extension."""
-        if path.suffix.lower() not in {
-            ext.lower() for ext in self.ALLOWED_INPUT_EXTENSIONS
-        }:
-            allowed = ", ".join(sorted(self.ALLOWED_INPUT_EXTENSIONS))
+        allowed = {ext.lower() for ext in self.ALLOWED_INPUT_EXTENSIONS}
+        from .plugins import get_registered_loaders
+
+        for name in get_registered_loaders():
+            allowed.add(f".{name.lower()}")
+
+        if path.suffix.lower() not in allowed:
+            allowed_str = ", ".join(sorted(self.ALLOWED_INPUT_EXTENSIONS))
             raise ValidationError(
                 f"Invalid input file extension '{path.suffix}'. "
-                f"Allowed extensions: {allowed}"
+                f"Allowed extensions: {allowed_str}"
             )
 
     def _validate_output_extension(self, path: Path) -> None:

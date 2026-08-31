@@ -504,11 +504,15 @@ class CamtParser(BankStatementParser):
 
                     ref_elems = (
                         tx_dtls.xpath(".//Ustrd")
-                        or tx_dtls.xpath(".//Strd//Ref")
-                        or tx_dtls.xpath(".//CdtrRefInf/Ref")
-                        or entry.xpath(".//Ustrd")
-                        or entry.xpath(".//Strd//Ref")
+                        + tx_dtls.xpath(".//Strd//Ref")
+                        + tx_dtls.xpath(".//CdtrRefInf/Ref")
                     )
+                    if not ref_elems:
+                        ref_elems = (
+                            entry.xpath(".//Ustrd")
+                            + entry.xpath(".//Strd//Ref")
+                            + entry.xpath(".//CdtrRefInf/Ref")
+                        )
                     reference = " ".join([r.text for r in ref_elems if r.text])
 
                     tx_val_elems = (
@@ -575,7 +579,11 @@ class CamtParser(BankStatementParser):
                 creditor_elems = entry.xpath(".//Cdtr/Nm")
                 creditor = creditor_elems[0].text if creditor_elems else ""
 
-                ref_elems = entry.xpath(".//Ustrd") or entry.xpath(".//Strd//Ref")
+                ref_elems = (
+                    entry.xpath(".//Ustrd")
+                    + entry.xpath(".//Strd//Ref")
+                    + entry.xpath(".//CdtrRefInf/Ref")
+                )
                 reference = " ".join([ref.text for ref in ref_elems if ref.text])
 
                 debtor_addr_elems = entry.xpath(".//Dbtr/PstlAdr/AdrLine") or entry.xpath(".//Dbtr/PstlAdr/StrtNm")
