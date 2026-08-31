@@ -208,9 +208,7 @@ class TestCamtParserCoverage(unittest.TestCase):
         """An unreadable file raises PermissionError/ValidationError."""
         # chmod(0o000) is ineffective on Windows; mock open() instead.
         # Pass as Path to bypass input validator, hit open() directly.
-        with patch(
-            "builtins.open", side_effect=PermissionError("denied")
-        ):
+        with patch("builtins.open", side_effect=PermissionError("denied")):
             with self.assertRaises((PermissionError, ValidationError)):
                 CamtParser(Path(self.camt_file))
 
@@ -303,9 +301,7 @@ class TestCamtParserCoverage(unittest.TestCase):
             if "DebtorAddress" in tx:
                 self.assertEqual(tx["DebtorAddress"], "***REDACTED***")
             if "CreditorAddress" in tx:
-                self.assertEqual(
-                    tx["CreditorAddress"], "***REDACTED***"
-                )
+                self.assertEqual(tx["CreditorAddress"], "***REDACTED***")
 
     def test_streaming_malformed_transaction_propagates(self):
         """R-007: streaming must fail-fast on per-row parse errors.
@@ -339,9 +335,7 @@ class TestCamtParserCoverage(unittest.TestCase):
     def test_streaming_permission_error(self):
         """Streaming should not reopen the original file."""
         parser = CamtParser(self.camt_file)
-        with patch(
-            "builtins.open", side_effect=PermissionError("no access")
-        ):
+        with patch("builtins.open", side_effect=PermissionError("no access")):
             transactions = list(parser.parse_streaming())
             self.assertGreater(len(transactions), 0)
 
@@ -379,19 +373,15 @@ class TestCamtParserCoverage(unittest.TestCase):
     def test_entity_error_recovery_parsing(self):
         """Undeclared entities are rejected unless allow_recovery=True."""
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-        xml += "<Document>\n<BkToCstmrStmt>\n<GrpHdr><MsgId>M1</MsgId></GrpHdr>\n"
+        xml += (
+            "<Document>\n<BkToCstmrStmt>\n<GrpHdr><MsgId>M1</MsgId></GrpHdr>\n"
+        )
         xml += "<Stmt><Id>S1</Id><CreDtTm>2024-01-01</CreDtTm>"
-        xml += (
-            "<Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>"
-        )
-        xml += (
-            '<Ntry><Amt Ccy="EUR">10</Amt><CdtDbtInd>CRDT</CdtDbtInd>'
-        )
+        xml += "<Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>"
+        xml += '<Ntry><Amt Ccy="EUR">10</Amt><CdtDbtInd>CRDT</CdtDbtInd>'
         xml += "<Sts>BOOK</Sts><BookgDt><Dt>2024-01-01</Dt></BookgDt>"
         xml += "<ValDt><Dt>2024-01-01</Dt></ValDt>"
-        xml += (
-            "<NtryDtls><TxDtls><Refs><EndToEndId>R1</EndToEndId></Refs>"
-        )
+        xml += "<NtryDtls><TxDtls><Refs><EndToEndId>R1</EndToEndId></Refs>"
         xml += "<RltdPties><Dbtr><Nm>D</Nm></Dbtr></RltdPties>"
         xml += "</TxDtls></NtryDtls></Ntry>"
         xml += "</Stmt>\n</BkToCstmrStmt>\n</Document>"
@@ -411,9 +401,7 @@ class TestCamtParserCoverage(unittest.TestCase):
     def test_recovery_mode_non_entity_syntax_error_still_raises(self):
         """Recovery only retries entity errors; other syntax errors raise."""
         with self.assertRaises(etree.XMLSyntaxError):
-            CamtParser.from_string(
-                "<Document><bad", allow_recovery=True
-            )
+            CamtParser.from_string("<Document><bad", allow_recovery=True)
 
     def test_general_xml_parse_exception(self):
         """Non-XMLSyntaxError parse exceptions propagate unchanged."""
@@ -450,13 +438,9 @@ class TestCamtParserCoverage(unittest.TestCase):
 
         elem = et.fromstring("<Root><Child>hello</Child></Root>")
         # Existing element
-        self.assertEqual(
-            parser._get_element_text(elem, "./Child"), "hello"
-        )
+        self.assertEqual(parser._get_element_text(elem, "./Child"), "hello")
         # Non-existing element
-        self.assertEqual(
-            parser._get_element_text(elem, "./Missing"), ""
-        )
+        self.assertEqual(parser._get_element_text(elem, "./Missing"), "")
 
     def test_streaming_valdt_datetime_fallback(self):
         """ValDt falls back to DtTm when Dt is absent."""
@@ -508,9 +492,7 @@ class TestPain001ParserCoverage(unittest.TestCase):
         """An unreadable file raises PermissionError/ValidationError."""
         # chmod(0o000) is ineffective on Windows; mock open() instead.
         # Pass Path to bypass validator, hit open() directly.
-        with patch(
-            "builtins.open", side_effect=PermissionError("denied")
-        ):
+        with patch("builtins.open", side_effect=PermissionError("denied")):
             with self.assertRaises((PermissionError, ValidationError)):
                 Pain001Parser(Path(self.pain_file))
 
@@ -593,9 +575,7 @@ class TestPain001ParserCoverage(unittest.TestCase):
         """Streaming wraps PermissionError as ValidationError."""
         parser = Pain001Parser(self.pain_file)
         parser.file_name = 42  # Not a string, skip validation
-        with patch(
-            "builtins.open", side_effect=PermissionError("no access")
-        ):
+        with patch("builtins.open", side_effect=PermissionError("no access")):
             with self.assertRaises(ValidationError):
                 list(parser.parse_streaming())
 
@@ -735,9 +715,7 @@ class TestBankStatementParsersCoverage(unittest.TestCase):
             parser = BankPain001Parser(f, redact_pii=True)
             for payment in parser.payments:
                 if payment.get("Address"):
-                    self.assertEqual(
-                        payment["Address"], "***REDACTED***"
-                    )
+                    self.assertEqual(payment["Address"], "***REDACTED***")
         finally:
             os.unlink(f)
 
@@ -775,9 +753,7 @@ class TestBankStatementParsersCoverage(unittest.TestCase):
         ):
             with self.assertRaises(FileParserError) as ctx:
                 Camt053Parser(self.camt_file)
-            self.assertIn(
-                "Not a valid CAMT.053 file", str(ctx.exception)
-            )
+            self.assertIn("Not a valid CAMT.053 file", str(ctx.exception))
 
     def test_camt053_file_not_found(self):
         """Wrapper raises FileNotFoundError for a missing path."""
@@ -848,9 +824,7 @@ class TestBaseParserCoverage(unittest.TestCase):
                 Path(f"{output_path}.tmp").touch()
                 raise RuntimeError("parse error")
 
-            with patch.object(
-                parser, "parse", side_effect=failing_parse
-            ):
+            with patch.object(parser, "parse", side_effect=failing_parse):
                 with self.assertRaises(IOError):
                     parser.export_csv(output_path)
             # Temp file should be cleaned up
@@ -891,9 +865,7 @@ class TestBaseParserCoverage(unittest.TestCase):
                 Path(f"{output_path}.tmp").touch()
                 raise RuntimeError("parse error")
 
-            with patch.object(
-                parser, "parse", side_effect=failing_parse
-            ):
+            with patch.object(parser, "parse", side_effect=failing_parse):
                 with self.assertRaises(IOError):
                     parser.export_json(output_path)
             self.assertFalse(os.path.exists(f"{output_path}.tmp"))
@@ -974,9 +946,7 @@ class TestInputValidatorCoverage(unittest.TestCase):
         f = _write_xml(CAMT_XML)
         try:
             path = Path(f)
-            with patch.object(
-                Path, "stat", side_effect=OSError("stat error")
-            ):
+            with patch.object(Path, "stat", side_effect=OSError("stat error")):
                 with self.assertRaises(ValidationError):
                     validator._validate_file_size(path)
         finally:
@@ -1041,9 +1011,7 @@ class TestCLICoverage(unittest.TestCase):
                 or os.path.exists(
                     str(
                         output_path.parent
-                        / cli.validator.get_safe_filename(
-                            output_path.name
-                        )
+                        / cli.validator.get_safe_filename(output_path.name)
                     )
                 )
             )
@@ -1094,9 +1062,7 @@ class TestCLICoverage(unittest.TestCase):
         """show_pii=True prints an unredacted-PII warning."""
         cli = BankStatementCLI()
         with patch("builtins.print") as mock_print:
-            cli.parse_camt(
-                Path(self.camt_file), show_pii=True, streaming=True
-            )
+            cli.parse_camt(Path(self.camt_file), show_pii=True, streaming=True)
             calls = [str(c) for c in mock_print.call_args_list]
             self.assertTrue(any("WARNING" in c for c in calls))
 
@@ -1120,9 +1086,7 @@ class TestCLICoverage(unittest.TestCase):
             )
         finally:
             # Clean up
-            safe_name = cli.validator.get_safe_filename(
-                output_path.name
-            )
+            safe_name = cli.validator.get_safe_filename(output_path.name)
             safe_path = str(output_path.parent / safe_name)
             for f in [output_file, safe_path, f"{safe_path}.tmp"]:
                 if os.path.exists(f):
@@ -1138,9 +1102,7 @@ class TestCLICoverage(unittest.TestCase):
         """parse_pain streaming with show_pii=True warns about unredacted output."""
         cli = BankStatementCLI()
         with patch("builtins.print") as mock_print:
-            cli.parse_pain(
-                Path(self.pain_file), show_pii=True, streaming=True
-            )
+            cli.parse_pain(Path(self.pain_file), show_pii=True, streaming=True)
             calls = [str(c) for c in mock_print.call_args_list]
             self.assertTrue(any("WARNING" in c for c in calls))
 
@@ -1269,9 +1231,7 @@ class TestCLICoverage(unittest.TestCase):
                 "sys.argv",
                 ["prog", "--type", "camt", "--input", self.camt_file],
             ),
-            patch.object(
-                cli, "parse_camt", side_effect=RuntimeError("fail")
-            ),
+            patch.object(cli, "parse_camt", side_effect=RuntimeError("fail")),
             patch.object(
                 cli.validator,
                 "validate_input_file_path",
@@ -1291,9 +1251,7 @@ class TestCLICoverage(unittest.TestCase):
     def test_run_missing_required_args_safety_check(self):
         """run() exits if required args are somehow missing post-parse."""
         cli = BankStatementCLI()
-        with patch(
-            "sys.argv", ["prog", "--type", "camt", "--input", "dummy"]
-        ):
+        with patch("sys.argv", ["prog", "--type", "camt", "--input", "dummy"]):
             with patch.object(cli.parser, "parse_args") as mock_parse:
                 mock_args = MagicMock()
                 mock_args.input = None
@@ -1411,9 +1369,7 @@ class TestCamtToExcelMissingOpenpyxl(unittest.TestCase):
             with patch.dict(sys.modules, {"openpyxl": None}):
                 with self.assertRaises(ImportError) as ctx:
                     parser.camt_to_excel("unused.xlsx")
-            self.assertIn(
-                "bankstatementparser[excel]", str(ctx.exception)
-            )
+            self.assertIn("bankstatementparser[excel]", str(ctx.exception))
         finally:
             os.unlink(f)
 

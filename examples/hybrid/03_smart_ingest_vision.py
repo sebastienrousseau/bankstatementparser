@@ -186,25 +186,15 @@ def main() -> int:
     print("Extracted rows:")
     for tx in result.transactions:
         booking = tx.booking_date.isoformat() if tx.booking_date else ""
-        conf = (
-            f"{tx.confidence:.2f}" if tx.confidence is not None else ""
-        )
-        flag = (
-            " <-- LOW CONFIDENCE"
-            if (tx.confidence or 1.0) < 0.6
-            else ""
-        )
+        conf = f"{tx.confidence:.2f}" if tx.confidence is not None else ""
+        flag = " <-- LOW CONFIDENCE" if (tx.confidence or 1.0) < 0.6 else ""
         print(
             f"  {booking}  {tx.amount!s:>10}  conf={conf}  "
             f"{(tx.description or '')[:36]}{flag}"
         )
     print()
-    print(
-        "Notice the discrepancy + the low-confidence row. In production"
-    )
-    print(
-        "this is your cue to flag the statement 'Unverified' and queue"
-    )
+    print("Notice the discrepancy + the low-confidence row. In production")
+    print("this is your cue to flag the statement 'Unverified' and queue")
     print("it for human review (the v0.0.6 review mode UI).")
     return 0
 

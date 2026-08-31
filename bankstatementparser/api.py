@@ -126,9 +126,7 @@ def _allowed_suffix(name: str) -> bool:
     suffix = Path(name).suffix
     if not suffix:
         return False
-    allowed = {
-        ext.lower() for ext in InputValidator.ALLOWED_INPUT_EXTENSIONS
-    }
+    allowed = {ext.lower() for ext in InputValidator.ALLOWED_INPUT_EXTENSIONS}
     return suffix.lower() in allowed
 
 
@@ -215,9 +213,7 @@ def create_app(
         suffix = Path(safe_name).suffix
         # ``delete=False`` so we can close, hand the path to
         # ``smart_ingest``, then unlink in the ``finally`` block.
-        with tempfile.NamedTemporaryFile(
-            suffix=suffix, delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp_path = tmp.name
             total = 0
             try:
@@ -252,9 +248,7 @@ def create_app(
             # the client gets a correlation id, not the message —
             # preventing accidental disclosure of filesystem paths
             # or upstream service URLs.
-            logger.exception(
-                "Ingest failed [%s]: %s", correlation_id, exc
-            )
+            logger.exception("Ingest failed [%s]: %s", correlation_id, exc)
             return JSONResponse(
                 content={
                     "error": "ingest failed",
@@ -294,14 +288,10 @@ def _verification_dict(v: Any) -> Optional[dict[str, Any]]:
     return {
         "status": v.status.value,
         "opening_balance": (
-            str(v.opening_balance)
-            if v.opening_balance is not None
-            else None
+            str(v.opening_balance) if v.opening_balance is not None else None
         ),
         "closing_balance": (
-            str(v.closing_balance)
-            if v.closing_balance is not None
-            else None
+            str(v.closing_balance) if v.closing_balance is not None else None
         ),
         "total_credits": str(v.total_credits),
         "total_debits": str(v.total_debits),

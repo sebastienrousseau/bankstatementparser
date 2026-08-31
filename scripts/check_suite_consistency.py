@@ -64,11 +64,7 @@ def published_version(distribution: str) -> str | None:
     # file -- but urlopen honours file:// and custom schemes, so a URL
     # reaching it unchecked is worth refusing on principle rather than on
     # the argument that today's input happens to be safe.
-    url = (
-        "https://pypi.org/pypi/"
-        + quote(distribution, safe="")
-        + "/json"
-    )
+    url = "https://pypi.org/pypi/" + quote(distribution, safe="") + "/json"
     if not url.startswith("https://pypi.org/"):  # pragma: no cover
         raise ValueError(f"refusing to fetch a non-PyPI URL: {url}")
     try:
@@ -77,9 +73,7 @@ def published_version(distribution: str) -> str | None:
         # these repositories, and an unused noqa is itself a lint error
         # (RUF100). The reason sits here rather than inline because
         # bandit parses words following "nosec" as test ids.
-        opened = urllib.request.urlopen(
-            url, timeout=TIMEOUT
-        )  # nosec B310
+        opened = urllib.request.urlopen(url, timeout=TIMEOUT)  # nosec B310
         with opened as response:
             return str(json.load(response)["info"]["version"])
     except (urllib.error.URLError, KeyError, ValueError, TimeoutError):

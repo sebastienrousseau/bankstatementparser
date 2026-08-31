@@ -34,15 +34,11 @@ class TestCamtParser(unittest.TestCase):
 
     def test_from_bytes_supports_zip_loaded_xml(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        zip_path = os.path.join(
-            current_dir, "test_data", "camt_bundle.zip"
-        )
+        zip_path = os.path.join(current_dir, "test_data", "camt_bundle.zip")
 
         with zipfile.ZipFile(zip_path, "w") as zf:
             with open(self.parser.file_name, "rb") as xml_file:
-                zf.writestr(
-                    "nested/camt.053.001.02.xml", xml_file.read()
-                )
+                zf.writestr("nested/camt.053.001.02.xml", xml_file.read())
 
         try:
             with zipfile.ZipFile(zip_path) as zf:

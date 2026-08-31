@@ -94,9 +94,7 @@ def test_plugin_registration_and_creation(tmp_path: Path) -> None:
     assert summary["account_id"] == "DUMMY"
 
     # Unsupported format error
-    with pytest.raises(
-        ValidationError, match="Unsupported statement format"
-    ):
+    with pytest.raises(ValidationError, match="Unsupported statement format"):
         create_parser(test_file, "nonexistent_format_xyz")
 
     # Unmatched plugin in detect_statement_format (valid extension, unknown format)
@@ -146,9 +144,7 @@ def test_writer_registration_and_discovery(
         def get(self, group, default=None):
             return [FailingEP(), WorkingEP()]
 
-    monkeypatch.setattr(
-        "importlib.metadata.entry_points", lambda: FakeEPs()
-    )
+    monkeypatch.setattr("importlib.metadata.entry_points", lambda: FakeEPs())
     discovered_l = discover_loaders()
     assert "bad_loader" not in discovered_l
     assert "good_loader" in discovered_l
@@ -404,17 +400,11 @@ def test_categorizer_concurrency_and_currency(
     assert all(r.category == "Groceries" for r in results)
 
     # Invalid configuration validation
-    with pytest.raises(
-        ValueError, match="schema must be a non-empty tuple"
-    ):
+    with pytest.raises(ValueError, match="schema must be a non-empty tuple"):
         Categorizer(schema=())
-    with pytest.raises(
-        ValueError, match="batch_size must be at least 1"
-    ):
+    with pytest.raises(ValueError, match="batch_size must be at least 1"):
         Categorizer(batch_size=0)
-    with pytest.raises(
-        ValueError, match="max_concurrency must be at least 1"
-    ):
+    with pytest.raises(ValueError, match="max_concurrency must be at least 1"):
         Categorizer(max_concurrency=0)
 
     # Test error handling when chunk fails
@@ -458,28 +448,20 @@ def test_zip_security_multi_format_and_errors(tmp_path: Path) -> None:
     # Test invalid parameter validation
     with pytest.raises(ZipSecurityError, match="max_entry_size"):
         list(iter_secure_statement_entries(zip_file, max_entry_size=0))
-    with pytest.raises(
-        ZipSecurityError, match="max_total_uncompressed_size"
-    ):
+    with pytest.raises(ZipSecurityError, match="max_total_uncompressed_size"):
         list(
             iter_secure_statement_entries(
                 zip_file, max_total_uncompressed_size=0
             )
         )
     with pytest.raises(ZipSecurityError, match="max_compression_ratio"):
-        list(
-            iter_secure_statement_entries(
-                zip_file, max_compression_ratio=0
-            )
-        )
+        list(iter_secure_statement_entries(zip_file, max_compression_ratio=0))
 
     # Test empty zip
     empty_zip = tmp_path / "empty.zip"
     with zipfile.ZipFile(empty_zip, "w"):
         pass
-    with pytest.raises(
-        ZipSecurityError, match="does not contain any entries"
-    ):
+    with pytest.raises(ZipSecurityError, match="does not contain any entries"):
         list(iter_secure_statement_entries(empty_zip))
 
     # Test uncompressed size exceeding limit
@@ -512,9 +494,7 @@ def test_zip_security_multi_format_and_errors(tmp_path: Path) -> None:
 
     zinfo.file_size = 50
     zinfo.compress_size = 0
-    with pytest.raises(
-        ZipSecurityError, match="invalid compressed size"
-    ):
+    with pytest.raises(ZipSecurityError, match="invalid compressed size"):
         _validate_zip_member(
             zinfo, max_entry_size=100, max_compression_ratio=10
         )

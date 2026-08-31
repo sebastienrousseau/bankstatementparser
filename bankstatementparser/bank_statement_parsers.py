@@ -74,9 +74,7 @@ class Pain001Parser:
         self._redact_pii = redact_pii
 
         # Delegate to the standalone parser for file I/O and XML parsing
-        self._standalone_parser = StandalonePain001Parser(
-            str(file_name)
-        )
+        self._standalone_parser = StandalonePain001Parser(str(file_name))
         tree = self._standalone_parser.tree
 
         # Extract payment batches from the already-parsed XML tree.
@@ -106,9 +104,7 @@ class Pain001Parser:
         debtor_elems = batch.xpath(".//Dbtr/Nm")
         debtor_name: str = debtor_elems[0].text if debtor_elems else ""
         debtor_account: str = (
-            batch.xpath(".//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id")[
-                0
-            ].text
+            batch.xpath(".//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id")[0].text
             if batch.xpath(".//DbtrAcct/Id/IBAN|.//DbtrAcct/Id/Othr/Id")
             else ""
         )
@@ -159,12 +155,8 @@ class Pain001Parser:
         currency: str = payment.xpath(".//InstdAmt/@Ccy")[0]
         name: str = payment.xpath(".//Cdtr/Nm")[0].text
         account: str = (
-            payment.xpath(".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id")[
-                0
-            ].text
-            if payment.xpath(
-                ".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id"
-            )
+            payment.xpath(".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id")[0].text
+            if payment.xpath(".//CdtrAcct/Id/IBAN|.//CdtrAcct/Id/Othr/Id")
             else ""
         )
         country: str = (
@@ -256,15 +248,11 @@ class Camt053Parser:
             transactions_df = self._parser.get_transactions(
                 redact_pii=redact_pii
             )
-            stats_df = self._parser.get_statement_stats(
-                redact_pii=redact_pii
-            )
+            stats_df = self._parser.get_statement_stats(redact_pii=redact_pii)
 
             # Convert to original format
             self.statements = (
-                stats_df.to_dict("records")
-                if not stats_df.empty
-                else []
+                stats_df.to_dict("records") if not stats_df.empty else []
             )
             self.transactions = (
                 transactions_df.to_dict("records")
@@ -274,12 +262,8 @@ class Camt053Parser:
 
             # Add balance information to statements if available
             if not balances_df.empty:
-                balances_by_account: dict[
-                    str, dict[str, dict[str, str]]
-                ] = {}
-                for account_id, group in balances_df.groupby(
-                    "AccountId"
-                ):
+                balances_by_account: dict[str, dict[str, dict[str, str]]] = {}
+                for account_id, group in balances_df.groupby("AccountId"):
                     balances_by_account[account_id] = {
                         str(row["Code"]): {
                             "Amount": str(row["Amount"]),
@@ -296,9 +280,7 @@ class Camt053Parser:
         except ValidationError as e:
             raise FileParserError("Not a valid CAMT.053 file") from e
         except FileNotFoundError as e:
-            raise FileNotFoundError(
-                f"File {file_name} not found!"
-            ) from e
+            raise FileNotFoundError(f"File {file_name} not found!") from e
         except Exception as e:
             raise FileParserError("Not a valid CAMT.053 file") from e
 
@@ -345,9 +327,7 @@ def process_camt053_folder(
                 )
 
                 # Append parsed data to the respective DataFrames.
-                statement_rows: list[dict[str, Any]] = list(
-                    parser.statements
-                )
+                statement_rows: list[dict[str, Any]] = list(parser.statements)
                 statements_df = pd.concat(
                     [statements_df, pd.DataFrame(statement_rows)]
                 )

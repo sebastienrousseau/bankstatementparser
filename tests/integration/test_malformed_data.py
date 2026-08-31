@@ -95,9 +95,7 @@ class TestMalformedDataHandling:
 
     def test_binary_file_disguised_as_xml(self, temp_dir):
         """Test handling of binary files with XML extension."""
-        binary_content = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
-        )
+        binary_content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
         file_path = temp_dir / "fake.xml"
         file_path.write_bytes(binary_content)
 
@@ -190,9 +188,7 @@ class TestMalformedDataHandling:
     def test_permission_denied_file(self, temp_dir):
         """Test handling of files with restricted permissions."""
         if os.name != "posix":
-            pytest.skip(
-                "Permission test only relevant on POSIX systems"
-            )
+            pytest.skip("Permission test only relevant on POSIX systems")
 
         file_path = self.create_test_file(
             temp_dir,

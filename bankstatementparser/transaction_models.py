@@ -71,9 +71,7 @@ def _parse_date(value: object) -> date | None:
 # embedded in otherwise-stable merchant strings (e.g.
 # "AMZN MKTPLACE 2026-04-01 #A1B2C3").
 _DATE_PATTERNS = (
-    re.compile(
-        r"\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b"
-    ),  # 2026-04-01, 2026/4/1
+    re.compile(r"\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b"),  # 2026-04-01, 2026/4/1
     re.compile(r"\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b"),  # 01/04/2026
     re.compile(r"\b\d{1,2}[-/]\d{1,2}\b"),  # 01/04
     re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b"),  # 12:49, 12:49:01
@@ -101,9 +99,7 @@ def normalize_description(value: str | None) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
-def _first_value(
-    record: Mapping[str, object], *keys: str
-) -> object | None:
+def _first_value(record: Mapping[str, object], *keys: str) -> object | None:
     """Return the first non-empty value among the given keys, or None."""
     for key in keys:
         if key in record and record[key] not in (None, ""):
@@ -280,12 +276,8 @@ class Transaction(BaseModel):
         currency = _first_value(record, "Currency", "currency")
 
         return cls(
-            account_id=(
-                str(account_id) if account_id is not None else None
-            ),
-            currency=(
-                str(currency).upper() if currency is not None else None
-            ),
+            account_id=(str(account_id) if account_id is not None else None),
+            currency=(str(currency).upper() if currency is not None else None),
             amount=amount,
             booking_date=_parse_date(
                 _first_value(record, "BookgDt", "booking_date", "date")

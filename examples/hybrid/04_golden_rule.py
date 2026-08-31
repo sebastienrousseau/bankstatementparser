@@ -79,9 +79,7 @@ def _print(label: str, result: object) -> None:
     print()
 
 
-def _expect(
-    actual: VerificationStatus, expected: VerificationStatus
-) -> None:
+def _expect(actual: VerificationStatus, expected: VerificationStatus) -> None:
     """Raise SystemExit if the actual status differs from expected."""
     if actual is not expected:
         raise SystemExit(
@@ -111,9 +109,7 @@ def main() -> int:
     )
     _print("DISCREPANCY expected", result)
     _expect(result.status, VerificationStatus.DISCREPANCY)
-    print(
-        "  -> Action: flag statement 'Unverified', do not auto-import."
-    )
+    print("  -> Action: flag statement 'Unverified', do not auto-import.")
     print(f"  -> Hint: missing debit of {abs(result.discrepancy or 0)}")
     print()
 
@@ -127,14 +123,10 @@ def main() -> int:
     _print("UNVERIFIABLE expected", result)
     _expect(result.status, VerificationStatus.UNVERIFIABLE)
     print("  -> Action: ask the operator to supply balances manually,")
-    print(
-        "     or skip integrity check entirely (LLMs sometimes miss them)."
-    )
+    print("     or skip integrity check entirely (LLMs sometimes miss them).")
     print()
 
-    print(
-        "Scenario 4: currency-aware Golden Rule (verify_transactions)"
-    )
+    print("Scenario 4: currency-aware Golden Rule (verify_transactions)")
     print()
     # verify_transactions delegates to verify_balance for a single
     # currency, and checks each currency independently when a statement

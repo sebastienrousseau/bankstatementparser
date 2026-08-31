@@ -71,9 +71,7 @@ class TestPIIRedaction(unittest.TestCase):
 
     def test_redact_dataframe_basic_functionality(self):
         """Test that _redact_dataframe correctly identifies and redacts PII columns."""
-        redacted_df = self.cli._redact_dataframe(
-            self.test_data_with_pii
-        )
+        redacted_df = self.cli._redact_dataframe(self.test_data_with_pii)
 
         # Ensure original data is not modified
         self.assertIsNot(redacted_df, self.test_data_with_pii)
@@ -114,17 +112,11 @@ class TestPIIRedaction(unittest.TestCase):
             redacted_df["Account_Number"].iloc[0], "***REDACTED***"
         )
         self.assertEqual(redacted_df["IBAN"].iloc[0], "***REDACTED***")
-        self.assertEqual(
-            redacted_df["Name_Debtor"].iloc[0], "***REDACTED***"
-        )
-        self.assertEqual(
-            redacted_df["ADDRESS_LINE"].iloc[0], "***REDACTED***"
-        )
+        self.assertEqual(redacted_df["Name_Debtor"].iloc[0], "***REDACTED***")
+        self.assertEqual(redacted_df["ADDRESS_LINE"].iloc[0], "***REDACTED***")
 
         # Non-PII should remain unchanged
-        self.assertEqual(
-            redacted_df["Safe_Column"].iloc[0], "Safe Data"
-        )
+        self.assertEqual(redacted_df["Safe_Column"].iloc[0], "Safe Data")
 
     def test_redact_dataframe_empty_dataframe(self):
         """Test redaction behavior with empty DataFrame."""
@@ -151,9 +143,7 @@ class TestPIIRedaction(unittest.TestCase):
         pd.testing.assert_frame_equal(redacted_df, safe_data)
 
     @patch("bankstatementparser.cli.CamtParser")
-    def test_cli_default_console_output_redacts_pii(
-        self, mock_camt_parser
-    ):
+    def test_cli_default_console_output_redacts_pii(self, mock_camt_parser):
         """Test CLI default behavior redacts PII in console output."""
         # Setup mock parser to return data with PII
         mock_parser_instance = Mock()
@@ -251,9 +241,7 @@ class TestPIIRedaction(unittest.TestCase):
             output_path = Path("output.csv")
 
             with patch("builtins.print"):
-                self.cli.parse_camt(
-                    input_path, output_path, show_pii=False
-                )
+                self.cli.parse_camt(input_path, output_path, show_pii=False)
 
                 # Verify to_csv was called once
                 self.assertEqual(mock_to_csv.call_count, 1)
@@ -295,9 +283,7 @@ class TestPIIRedaction(unittest.TestCase):
             output_path = Path("output.csv")
 
             with patch("builtins.print"):
-                self.cli.parse_pain(
-                    input_path, output_path, show_pii=False
-                )
+                self.cli.parse_pain(input_path, output_path, show_pii=False)
 
                 # Verify to_csv was called once for file export
                 self.assertEqual(mock_to_csv.call_count, 1)
@@ -368,9 +354,7 @@ class TestPIIRedaction(unittest.TestCase):
                 result_redacted = parser.parse(redact_pii=True)
 
                 # Verify get_transactions was called with redact_pii=True
-                mock_get_transactions.assert_called_with(
-                    redact_pii=True
-                )
+                mock_get_transactions.assert_called_with(redact_pii=True)
 
                 # Verify the result is a DataFrame
                 self.assertIsInstance(result_redacted, pd.DataFrame)
@@ -407,15 +391,11 @@ class TestPIIRedaction(unittest.TestCase):
 
                 # Test with redact_pii=False (explicit)
                 result_unredacted = parser.parse(redact_pii=False)
-                mock_get_transactions.assert_called_with(
-                    redact_pii=False
-                )
+                mock_get_transactions.assert_called_with(redact_pii=False)
 
                 # Test default behavior (should be False)
                 result_default = parser.parse()
-                mock_get_transactions.assert_called_with(
-                    redact_pii=False
-                )
+                mock_get_transactions.assert_called_with(redact_pii=False)
 
                 # Both calls should result in DataFrames
                 self.assertIsInstance(result_unredacted, pd.DataFrame)
@@ -447,9 +427,7 @@ class TestPIIRedaction(unittest.TestCase):
                 Mock(spec=Pain001Parser)
 
                 # Test that the parse method signature accepts redact_pii
-                self.assertTrue(
-                    hasattr(Pain001Parser.parse, "__code__")
-                )
+                self.assertTrue(hasattr(Pain001Parser.parse, "__code__"))
                 param_names = Pain001Parser.parse.__code__.co_varnames
                 self.assertIn(
                     "redact_pii",
@@ -458,12 +436,8 @@ class TestPIIRedaction(unittest.TestCase):
                 )
 
                 # Test that get_summary method signature accepts redact_pii
-                self.assertTrue(
-                    hasattr(Pain001Parser.get_summary, "__code__")
-                )
-                summary_params = (
-                    Pain001Parser.get_summary.__code__.co_varnames
-                )
+                self.assertTrue(hasattr(Pain001Parser.get_summary, "__code__"))
+                summary_params = Pain001Parser.get_summary.__code__.co_varnames
                 self.assertIn(
                     "redact_pii",
                     summary_params,
@@ -581,9 +555,7 @@ class TestPIIRedaction(unittest.TestCase):
             {
                 "customer_name_full": ["John Doe"],  # Contains 'name'
                 "iban_code": ["GB123"],  # Contains 'iban'
-                "home_address_line1": [
-                    "123 Main St"
-                ],  # Contains 'address'
+                "home_address_line1": ["123 Main St"],  # Contains 'address'
                 "safe_data": ["Safe Value"],  # No PII keywords
                 "account_holder": ["Jane Smith"],  # Contains 'account'
             }
@@ -595,9 +567,7 @@ class TestPIIRedaction(unittest.TestCase):
         self.assertEqual(
             redacted_df["customer_name_full"].iloc[0], "***REDACTED***"
         )
-        self.assertEqual(
-            redacted_df["iban_code"].iloc[0], "***REDACTED***"
-        )
+        self.assertEqual(redacted_df["iban_code"].iloc[0], "***REDACTED***")
         self.assertEqual(
             redacted_df["home_address_line1"].iloc[0], "***REDACTED***"
         )

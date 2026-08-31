@@ -25,9 +25,7 @@ def test_to_polars_raises_clear_import_error(
     parser = _DummyParser("dummy.csv")
     monkeypatch.setitem(sys.modules, "polars", None)
 
-    with pytest.raises(
-        ImportError, match="bankstatementparser\\[polars\\]"
-    ):
+    with pytest.raises(ImportError, match="bankstatementparser\\[polars\\]"):
         parser.to_polars()
 
 

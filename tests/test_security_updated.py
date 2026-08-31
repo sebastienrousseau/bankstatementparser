@@ -102,9 +102,7 @@ class TestInputValidationSecurity(unittest.TestCase):
         # not exist on Windows runners.
         with self.assertRaises(ValidationError) as cm:
             CamtParser(tempfile.gettempdir())
-        self.assertIn(
-            "Path exists but is not a file", str(cm.exception)
-        )
+        self.assertIn("Path exists but is not a file", str(cm.exception))
 
 
 class TestXMLParsingSecurity(unittest.TestCase):

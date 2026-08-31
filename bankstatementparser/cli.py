@@ -177,9 +177,7 @@ class BankStatementCLI:
             data = parser.get_statement_stats()
             if isinstance(data, pd.DataFrame):
                 # list(DataFrame) would yield column names, not rows
-                return [
-                    dict(row) for row in data.to_dict(orient="records")
-                ]
+                return [dict(row) for row in data.to_dict(orient="records")]
             if isinstance(data, dict):
                 return [data]
             return list(data)
@@ -260,9 +258,7 @@ class BankStatementCLI:
                     safe_name = self.validator.get_safe_filename(
                         output_path.name
                     )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
+                    safe_output_path = str(output_path.parent / safe_name)
                     temp_output = f"{safe_output_path}.tmp"
 
                     with open(temp_output, "w", encoding="utf-8") as f:
@@ -279,9 +275,7 @@ class BankStatementCLI:
 
                             if not header_written:
                                 # Write header on first record
-                                record_df.to_csv(
-                                    f, index=False, mode="w"
-                                )
+                                record_df.to_csv(f, index=False, mode="w")
                                 header_written = True
                             else:
                                 # Write data without header
@@ -335,9 +329,7 @@ class BankStatementCLI:
                     safe_name = self.validator.get_safe_filename(
                         output_path.name
                     )
-                    safe_output_path = str(
-                        output_path.parent / safe_name
-                    )
+                    safe_output_path = str(output_path.parent / safe_name)
                     data_df.to_csv(safe_output_path, index=False)
                     print(f"Parsed data saved to {safe_output_path}")
                 else:
@@ -409,9 +401,7 @@ class BankStatementCLI:
                     tx.source_page if tx.source_page is not None else ""
                 ),
                 "booking_date": (
-                    tx.booking_date.isoformat()
-                    if tx.booking_date
-                    else ""
+                    tx.booking_date.isoformat() if tx.booking_date else ""
                 ),
                 "description": tx.description or "",
                 "amount": str(tx.amount),
@@ -426,9 +416,7 @@ class BankStatementCLI:
         df = pd.DataFrame(rows)
 
         if output_path:
-            safe_name = self.validator.get_safe_filename(
-                output_path.name
-            )
+            safe_name = self.validator.get_safe_filename(output_path.name)
             safe_output_path = str(output_path.parent / safe_name)
             df.to_csv(safe_output_path, index=False)
             print(
@@ -444,9 +432,7 @@ class BankStatementCLI:
 
         if result.verification is not None:
             v = result.verification
-            print(
-                f"\nVerification: {v.status.value.upper()} - {v.message}"
-            )
+            print(f"\nVerification: {v.status.value.upper()} - {v.message}")
         for warning in result.warnings:
             print(f"Warning: {warning}")
 
@@ -524,8 +510,7 @@ class BankStatementCLI:
             {
                 index
                 for index, tx in enumerate(result.transactions)
-                if tx.confidence is not None
-                and tx.confidence < review_below
+                if tx.confidence is not None and tx.confidence < review_below
             }
             if review_below is not None
             else set()
@@ -547,9 +532,7 @@ class BankStatementCLI:
             return
 
         if v is not None:
-            print(
-                f"Verification: {v.status.value.upper()} - {v.message}"
-            )
+            print(f"Verification: {v.status.value.upper()} - {v.message}")
         if not review_all:
             print(
                 f"Reviewing {len(low_confidence)} rows below "
@@ -640,12 +623,8 @@ class BankStatementCLI:
         output_target = output_path or file_path
         safe_name = self.validator.get_safe_filename(output_target.name)
         safe_output = str(output_target.parent / safe_name)
-        Path(safe_output).write_text(
-            updated.to_json(), encoding="utf-8"
-        )
-        print(
-            f"\nReview complete. Wrote {len(kept)} rows -> {safe_output}"
-        )
+        Path(safe_output).write_text(updated.to_json(), encoding="utf-8")
+        print(f"\nReview complete. Wrote {len(kept)} rows -> {safe_output}")
         print(f"Audit trail entries: {len(audit)}")
         if new_verification is not None:
             print(
@@ -728,8 +707,7 @@ class BankStatementCLI:
         current_amount = tx.amount
         try:
             new_desc = (
-                input(f"  new description [{current_desc}]: ")
-                or current_desc
+                input(f"  new description [{current_desc}]: ") or current_desc
             )
             new_amount_raw = input(
                 f"  new amount      [{current_amount}]: "
@@ -800,15 +778,13 @@ class BankStatementCLI:
         setup_logging(log_level)
 
         # Update validator max file size setting
-        max_size_bytes = (
-            args.max_size * 1024 * 1024
-        )  # Convert MB to bytes
+        max_size_bytes = args.max_size * 1024 * 1024  # Convert MB to bytes
         self.validator.max_file_size = max_size_bytes
 
         # Validate input file
         try:
-            validated_input_path = (
-                self.validator.validate_input_file_path(args.input)
+            validated_input_path = self.validator.validate_input_file_path(
+                args.input
             )
             logger.info(f"Input file validated: {validated_input_path}")
         except (ValidationError, FileNotFoundError) as e:
@@ -822,13 +798,9 @@ class BankStatementCLI:
         if args.output:
             try:
                 validated_output_path = (
-                    self.validator.validate_output_file_path(
-                        args.output
-                    )
+                    self.validator.validate_output_file_path(args.output)
                 )
-                logger.info(
-                    f"Output file validated: {validated_output_path}"
-                )
+                logger.info(f"Output file validated: {validated_output_path}")
             except ValidationError as e:
                 logger.error(f"Output validation failed: {e}")
                 print(f"Error: {e!s}")
@@ -873,9 +845,7 @@ class BankStatementCLI:
                 if args.review_below is not None and not (
                     0.0 <= args.review_below <= 1.0
                 ):
-                    print(
-                        "Error: --review-below must be between 0.0 and 1.0"
-                    )
+                    print("Error: --review-below must be between 0.0 and 1.0")
                     sys.exit(1)
                 self.run_review(
                     validated_input_path,

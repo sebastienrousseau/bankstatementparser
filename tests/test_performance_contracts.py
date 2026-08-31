@@ -259,9 +259,7 @@ class TestParallelParsing(unittest.TestCase):
         good = _write(_gen_camt(10))
         bad = "/nonexistent/file.xml"
         try:
-            results = parse_files_parallel(
-                [good, bad], format_name="camt"
-            )
+            results = parse_files_parallel([good, bad], format_name="camt")
             self.assertEqual(results[0].status, "SUCCESS")
             self.assertEqual(results[1].status, "FAILED")
             self.assertIn("not found", results[1].error.lower())
@@ -336,9 +334,7 @@ class TestParallelParsing(unittest.TestCase):
                 return _DeadFuture()
 
         with (
-            mock.patch.object(
-                parallel, "ProcessPoolExecutor", _FakeExecutor
-            ),
+            mock.patch.object(parallel, "ProcessPoolExecutor", _FakeExecutor),
             mock.patch.object(
                 parallel, "as_completed", lambda mapping: list(mapping)
             ),

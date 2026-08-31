@@ -141,9 +141,7 @@ def scan_and_ingest(
             result = smart_ingest(file_path)
         except Exception as exc:
             logger.warning("Failed to ingest %s: %s", file_path, exc)
-            failures.append(
-                FileFailure(path=str(file_path), error=str(exc))
-            )
+            failures.append(FileFailure(path=str(file_path), error=str(exc)))
             continue
         all_results.append(result)
         ingested_paths.append(str(file_path))
@@ -180,9 +178,7 @@ def scan_and_ingest(
                         else None
                     ),
                 )
-                for path, r in zip(
-                    ingested_paths, all_results, strict=True
-                )
+                for path, r in zip(ingested_paths, all_results, strict=True)
             ]
         )
         if continuity.status is not VerificationStatus.VERIFIED:

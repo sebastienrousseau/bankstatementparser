@@ -118,9 +118,7 @@ class AccountMapper:
                 return account
         return self.default
 
-    def map_batch(
-        self, transactions: Iterable[Transaction]
-    ) -> list[str]:
+    def map_batch(self, transactions: Iterable[Transaction]) -> list[str]:
         """Map every transaction in a batch. Returns one account per row."""
         return [self.map(tx) for tx in transactions]
 

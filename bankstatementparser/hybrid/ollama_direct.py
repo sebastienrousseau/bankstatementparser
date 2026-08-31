@@ -131,22 +131,16 @@ def ollama_direct_completion(**kwargs: Any) -> dict[str, Any]:
         response.raise_for_status()
         data = response.json()
     except Exception as exc:
-        raise OllamaDirectError(
-            f"Direct Ollama call failed: {exc}"
-        ) from exc
+        raise OllamaDirectError(f"Direct Ollama call failed: {exc}") from exc
 
     content = data.get("message", {}).get("content")
     if not isinstance(content, str):
-        raise OllamaDirectError(
-            f"Unexpected Ollama response shape: {data!r}"
-        )
+        raise OllamaDirectError(f"Unexpected Ollama response shape: {data!r}")
 
     # Wrap in an OpenAI-style envelope so _extract_message_content
     # in llm_extractor.py works without modification.
     return {
-        "choices": [
-            {"message": {"role": "assistant", "content": content}}
-        ]
+        "choices": [{"message": {"role": "assistant", "content": content}}]
     }
 
 
@@ -200,9 +194,7 @@ def _strip_data_url(url: str) -> str:
     try:
         base64.b64decode(url, validate=True)
     except Exception as exc:
-        raise OllamaDirectError(
-            f"Invalid image_url payload: {exc}"
-        ) from exc
+        raise OllamaDirectError(f"Invalid image_url payload: {exc}") from exc
     return url
 
 

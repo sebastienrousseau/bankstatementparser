@@ -131,14 +131,10 @@ def render_digital_pdf(target: Path) -> None:
     )
 
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(
-        20 * mm, page_h - 45 * mm, f"Account: {ACCOUNT_NUMBER}"
-    )
+    c.drawString(20 * mm, page_h - 45 * mm, f"Account: {ACCOUNT_NUMBER}")
     c.drawString(80 * mm, page_h - 45 * mm, f"Sort code: {SORT_CODE}")
     c.drawString(20 * mm, page_h - 51 * mm, f"Currency: {CURRENCY}")
-    c.drawString(
-        80 * mm, page_h - 51 * mm, f"Period:   {STATEMENT_PERIOD}"
-    )
+    c.drawString(80 * mm, page_h - 51 * mm, f"Period:   {STATEMENT_PERIOD}")
     c.drawString(
         20 * mm,
         page_h - 57 * mm,
@@ -211,9 +207,7 @@ def main() -> None:
     print("=" * 60)
     render_digital_pdf(DIGITAL_PDF)
     size_kb = DIGITAL_PDF.stat().st_size / 1024
-    print(
-        f"  -> {DIGITAL_PDF.relative_to(EXAMPLE_ROOT)} ({size_kb:.1f} KB)"
-    )
+    print(f"  -> {DIGITAL_PDF.relative_to(EXAMPLE_ROOT)} ({size_kb:.1f} KB)")
     print()
 
     print("=" * 60)
@@ -221,9 +215,7 @@ def main() -> None:
     print("=" * 60)
     render_scanned_pdf(DIGITAL_PDF, SCANNED_PDF)
     size_kb = SCANNED_PDF.stat().st_size / 1024
-    print(
-        f"  -> {SCANNED_PDF.relative_to(EXAMPLE_ROOT)} ({size_kb:.1f} KB)"
-    )
+    print(f"  -> {SCANNED_PDF.relative_to(EXAMPLE_ROOT)} ({size_kb:.1f} KB)")
     print()
 
     print("Statement summary:")

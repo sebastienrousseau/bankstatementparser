@@ -39,9 +39,7 @@ _MANUAL_LOADERS: dict[str, type[BankStatementParser]] = {}
 _MANUAL_WRITERS: dict[str, Callable[..., Any]] = {}
 
 
-def register_loader(
-    name: str, parser_cls: type[BankStatementParser]
-) -> None:
+def register_loader(name: str, parser_cls: type[BankStatementParser]) -> None:
     """Manually register a bank statement parser class.
 
     Args:

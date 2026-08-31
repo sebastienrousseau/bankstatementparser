@@ -106,9 +106,7 @@ class IngestResult:
         :class:`VerificationStatus` enum, and any ``audit_trail``
         entries the review CLI has appended.
         """
-        return json.dumps(
-            self._to_dict(), indent=indent, sort_keys=False
-        )
+        return json.dumps(self._to_dict(), indent=indent, sort_keys=False)
 
     def _to_dict(self) -> dict[str, Any]:
         """Build the JSON-serializable dict representation."""
@@ -144,9 +142,7 @@ class IngestResult:
                 f"IngestResult JSON is not valid JSON: {exc}"
             ) from exc
         if not isinstance(data, dict):
-            raise ValueError(
-                "IngestResult JSON must decode to an object"
-            )
+            raise ValueError("IngestResult JSON must decode to an object")
         return cls._from_dict(data)
 
     @classmethod
@@ -173,9 +169,7 @@ class IngestResult:
             raise ValueError("IngestResult 'warnings' must be a list")
         audit_raw = data.get("audit_trail") or []
         if not isinstance(audit_raw, list):
-            raise ValueError(
-                "IngestResult 'audit_trail' must be a list"
-            )
+            raise ValueError("IngestResult 'audit_trail' must be a list")
 
         return cls(
             source_method=str(data.get("source_method", "")),
@@ -198,12 +192,8 @@ def _verification_to_dict(
         return None
     return {
         "status": verification.status.value,
-        "opening_balance": _decimal_to_str(
-            verification.opening_balance
-        ),
-        "closing_balance": _decimal_to_str(
-            verification.closing_balance
-        ),
+        "opening_balance": _decimal_to_str(verification.opening_balance),
+        "closing_balance": _decimal_to_str(verification.closing_balance),
         "total_credits": _decimal_to_str(verification.total_credits),
         "total_debits": _decimal_to_str(verification.total_debits),
         "expected_delta": _decimal_to_str(verification.expected_delta),
@@ -226,28 +216,20 @@ def _verification_from_dict(
     try:
         return BalanceVerification(
             status=VerificationStatus(data["status"]),
-            opening_balance=_decimal_from_str(
-                data.get("opening_balance")
-            ),
-            closing_balance=_decimal_from_str(
-                data.get("closing_balance")
-            ),
+            opening_balance=_decimal_from_str(data.get("opening_balance")),
+            closing_balance=_decimal_from_str(data.get("closing_balance")),
             total_credits=_decimal_from_str(data["total_credits"])
             or Decimal("0"),
             total_debits=_decimal_from_str(data["total_debits"])
             or Decimal("0"),
-            expected_delta=_decimal_from_str(
-                data.get("expected_delta")
-            ),
+            expected_delta=_decimal_from_str(data.get("expected_delta")),
             actual_delta=_decimal_from_str(data["actual_delta"])
             or Decimal("0"),
             discrepancy=_decimal_from_str(data.get("discrepancy")),
             message=str(data.get("message", "")),
         )
     except (KeyError, ValueError, DecimalException) as exc:
-        raise ValueError(
-            f"Invalid verification payload: {exc}"
-        ) from exc
+        raise ValueError(f"Invalid verification payload: {exc}") from exc
 
 
 def _decimal_to_str(value: Optional[Decimal]) -> Optional[str]:
@@ -324,9 +306,7 @@ def smart_ingest(
                 fmt,
                 exc,
             )
-            warnings.append(
-                f"Deterministic parser '{fmt}' failed: {exc}"
-            )
+            warnings.append(f"Deterministic parser '{fmt}' failed: {exc}")
 
     return _run_pdf_fallbacks(
         file_path,
@@ -467,9 +447,7 @@ def _attach_text_pages(
             continue
         page = _page_for_description(tx.description, pages_lower)
         attached.append(
-            tx
-            if page is None
-            else tx.model_copy(update={"source_page": page})
+            tx if page is None else tx.model_copy(update={"source_page": page})
         )
     return attached
 
@@ -529,9 +507,7 @@ def _build_ingest_result(
     )
 
 
-def _coerce_transactions(
-    raw: object, *, source: str
-) -> list[Transaction]:
+def _coerce_transactions(raw: object, *, source: str) -> list[Transaction]:
     """Normalize parser output (DataFrame / list / dict) to Transactions."""
     if raw is None:
         return []

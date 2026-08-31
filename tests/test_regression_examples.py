@@ -28,9 +28,7 @@ HYBRID_DIR = EXAMPLES_DIR / "hybrid"
 SAMPLE_DATA_DIR = HYBRID_DIR / "sample_data"
 
 CAMT_FIXTURE = REPO_ROOT / "tests" / "test_data" / "camt.053.001.02.xml"
-PAIN001_FIXTURE = (
-    REPO_ROOT / "tests" / "test_data" / "pain.001.001.03.xml"
-)
+PAIN001_FIXTURE = REPO_ROOT / "tests" / "test_data" / "pain.001.001.03.xml"
 
 
 def _has(module: str) -> bool:
@@ -46,9 +44,7 @@ def _run(
     # Console scripts (e.g. `bankstatementparser`) live next to the
     # interpreter; shell examples rely on them being on PATH.
     env["PATH"] = (
-        str(Path(sys.executable).parent)
-        + os.pathsep
-        + env.get("PATH", "")
+        str(Path(sys.executable).parent) + os.pathsep + env.get("PATH", "")
     )
     proc = subprocess.run(
         list(command),
@@ -66,9 +62,7 @@ def _run(
     return proc.stdout
 
 
-def _run_example(
-    script: Path, *args: str, stdin: str | None = None
-) -> str:
+def _run_example(script: Path, *args: str, stdin: str | None = None) -> str:
     return _run(sys.executable, str(script), *args, stdin=stdin)
 
 
@@ -223,9 +217,7 @@ def test_export_pain001(tmp_path: Path) -> None:
     assert list(tmp_path.glob("*.json"))
 
 
-@pytest.mark.skipif(
-    not _has("openpyxl"), reason="requires the excel extra"
-)
+@pytest.mark.skipif(not _has("openpyxl"), reason="requires the excel extra")
 def test_export_camt_excel() -> None:
     out = _run_example(EXAMPLES_DIR / "export_camt_excel.py")
     assert "Excel workbook written to" in out
@@ -292,18 +284,14 @@ def test_hybrid_generate_sample_pdfs() -> None:
     assert (SAMPLE_DATA_DIR / "scanned.pdf").exists()
 
 
-@pytest.mark.skipif(
-    not _has("pypdf"), reason="requires the hybrid extra"
-)
+@pytest.mark.skipif(not _has("pypdf"), reason="requires the hybrid extra")
 def test_hybrid_02_text_llm_mock_mode() -> None:
     _ensure_sample_pdfs()
     out = _run_example(HYBRID_DIR / "02_smart_ingest_text_llm.py")
     assert "Source method:    llm" in out
 
 
-@pytest.mark.skipif(
-    not _has("pypdf"), reason="requires the hybrid extra"
-)
+@pytest.mark.skipif(not _has("pypdf"), reason="requires the hybrid extra")
 def test_hybrid_03_vision_mock_mode() -> None:
     _ensure_sample_pdfs()
     out = _run_example(HYBRID_DIR / "03_smart_ingest_vision.py")
@@ -319,9 +307,7 @@ def test_hybrid_06_cli_walkthrough_shell() -> None:
 
 def test_hybrid_06_powershell_walkthrough_mirrors_shell() -> None:
     """The .ps1 walkthrough must drive the same CLI surface as the .sh one."""
-    ps1 = (HYBRID_DIR / "06_cli_walkthrough.ps1").read_text(
-        encoding="utf-8"
-    )
+    ps1 = (HYBRID_DIR / "06_cli_walkthrough.ps1").read_text(encoding="utf-8")
     for needle in (
         "--type ingest",
         "BSP_HYBRID_MODEL",

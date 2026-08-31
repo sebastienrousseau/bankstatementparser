@@ -25,9 +25,7 @@ def test_first_matching_rule_wins() -> None:
     mapper = AccountMapper(
         rules=[
             AccountRule(pattern="COFFEE", account="Expenses:Coffee"),
-            AccountRule(
-                pattern="COFFEE|TEA", account="Expenses:Drinks"
-            ),
+            AccountRule(pattern="COFFEE|TEA", account="Expenses:Drinks"),
         ]
     )
     assert mapper.map(_tx("STARBUCKS COFFEE")) == "Expenses:Coffee"
@@ -45,9 +43,7 @@ def test_case_insensitive_matching() -> None:
     mapper = AccountMapper(
         rules=[AccountRule(pattern="coffee", account="Expenses:Coffee")]
     )
-    assert (
-        mapper.map(_tx("CARD PAYMENT COFFEE SHOP")) == "Expenses:Coffee"
-    )
+    assert mapper.map(_tx("CARD PAYMENT COFFEE SHOP")) == "Expenses:Coffee"
 
 
 def test_regex_pattern() -> None:

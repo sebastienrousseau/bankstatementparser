@@ -223,9 +223,7 @@ class TestPain001Parser(unittest.TestCase):
         from pathlib import Path
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = (
-            Path(current_dir) / "test_data" / "pain.001.001.03.xml"
-        )
+        file_path = Path(current_dir) / "test_data" / "pain.001.001.03.xml"
 
         # This should work without throwing validation error since it's not a string
         parser = Pain001Parser(str(file_path))
@@ -276,9 +274,7 @@ class TestPain001Parser(unittest.TestCase):
         with patch(
             "bankstatementparser.input_validator.InputValidator.validate_input_file_path"
         ) as mock_validate:
-            mock_validate.side_effect = ValidationError(
-                "Invalid file format"
-            )
+            mock_validate.side_effect = ValidationError("Invalid file format")
 
             with self.assertRaises(ValidationError) as context:
                 Pain001Parser("test.xml")

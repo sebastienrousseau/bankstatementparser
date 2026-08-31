@@ -119,9 +119,7 @@ def main() -> int:
     ]
     unique, skipped = dedup.dedupe_by_hash(batch_1, seen_hashes=seen)
     print(f"  in:      {len(batch_1)}")
-    print(
-        f"  unique:  {len(unique)}  (the duplicate Amazon row was caught)"
-    )
+    print(f"  unique:  {len(unique)}  (the duplicate Amazon row was caught)")
     print(f"  skipped: {len(skipped)}  -> {skipped}")
     print()
 
@@ -137,14 +135,10 @@ def main() -> int:
     print(f"  skipped: {len(skipped)}  -> already-seen hashes")
     print()
 
-    print(
-        f"State after both batches: {len(seen)} distinct hashes tracked"
-    )
+    print(f"State after both batches: {len(seen)} distinct hashes tracked")
     print()
     print("Use case: pass `seen_hashes=set(my_db.fetch_all_hashes())`")
-    print(
-        "at the start of each ingestion job to make the whole pipeline"
-    )
+    print("at the start of each ingestion job to make the whole pipeline")
     print("idempotent — re-running it never double-imports.")
     return 0
 

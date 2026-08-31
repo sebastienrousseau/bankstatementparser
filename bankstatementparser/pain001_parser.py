@@ -62,15 +62,11 @@ class Pain001Parser(BankStatementParser):
         if isinstance(file_name, str):
             validator = InputValidator()
             try:
-                validated_path = validator.validate_input_file_path(
-                    file_name
-                )
+                validated_path = validator.validate_input_file_path(file_name)
                 file_name = str(validated_path)
                 logger.info(f"Input file validated: {file_name}")
             except ValidationError as e:
-                logger.error(
-                    f"File validation failed for {file_name}: {e}"
-                )
+                logger.error(f"File validation failed for {file_name}: {e}")
                 # Check if it's a file read error during validation and re-raise with expected message
                 if "Cannot read file for format validation" in str(e):
                     raise ValidationError(
@@ -78,9 +74,7 @@ class Pain001Parser(BankStatementParser):
                     ) from e
                 raise
             except FileNotFoundError as e:
-                logger.error(
-                    f"File validation failed for {file_name}: {e}"
-                )
+                logger.error(f"File validation failed for {file_name}: {e}")
                 raise
 
         self.file_name = file_name
@@ -95,9 +89,7 @@ class Pain001Parser(BankStatementParser):
                 f"PAIN.001 file not found: {file_name}"
             ) from exc
         except PermissionError as exc:
-            logger.error(
-                "Permission denied reading file: %s", file_name
-            )
+            logger.error("Permission denied reading file: %s", file_name)
             raise ValidationError(
                 f"Permission denied reading file: {file_name}"
             ) from exc
@@ -124,29 +116,17 @@ class Pain001Parser(BankStatementParser):
             logger.error("XML syntax error: %s", str(e))
             # Check if it's a basic XML structure error and use appropriate message
             error_msg = str(e)
-            if (
-                "Start tag expected" in error_msg
-                and "not found" in error_msg
-            ):
-                raise ValidationError(
-                    f"Error parsing XML: {error_msg}"
-                ) from e
+            if "Start tag expected" in error_msg and "not found" in error_msg:
+                raise ValidationError(f"Error parsing XML: {error_msg}") from e
             else:
                 raise ValidationError(
                     f"Invalid XML format: {error_msg}"
                 ) from e
         except etree.LxmlError as e:
-            logger.error(
-                "An error occurred while parsing the XML: %s", str(e)
-            )
+            logger.error("An error occurred while parsing the XML: %s", str(e))
             error_msg = str(e)
-            if (
-                "Start tag expected" in error_msg
-                and "not found" in error_msg
-            ):
-                raise ValidationError(
-                    f"Error parsing XML: {error_msg}"
-                ) from e
+            if "Start tag expected" in error_msg and "not found" in error_msg:
+                raise ValidationError(f"Error parsing XML: {error_msg}") from e
             else:
                 raise ValidationError(
                     f"Invalid XML format: {error_msg}"
@@ -206,9 +186,7 @@ class Pain001Parser(BankStatementParser):
                 )
 
             # Batch extract payment information records
-            payment_info_records = root.findall(
-                ".//CstmrCdtTrfInitn/PmtInf"
-            )
+            payment_info_records = root.findall(".//CstmrCdtTrfInitn/PmtInf")
             payments: list[dict[str, Optional[str]]] = []
 
             for pmt in payment_info_records:
@@ -228,24 +206,18 @@ class Pain001Parser(BankStatementParser):
                         # Extract debtor information
                         dbtr_name = child.find("Nm")
                         pmt_fields["DbtrNm"] = (
-                            dbtr_name.text
-                            if dbtr_name is not None
-                            else None
+                            dbtr_name.text if dbtr_name is not None else None
                         )
                         # Extract debtor account
                         dbtr_acct = child.find("DbtrAcct/Id/IBAN")
                         pmt_fields["DbtrIBAN"] = (
-                            dbtr_acct.text
-                            if dbtr_acct is not None
-                            else None
+                            dbtr_acct.text if dbtr_acct is not None else None
                         )
                     elif child.tag == "DbtrAgt":
                         # Extract debtor agent
                         dbtr_agt = child.find("FinInstnId/BIC")
                         pmt_fields["DbtrBIC"] = (
-                            dbtr_agt.text
-                            if dbtr_agt is not None
-                            else None
+                            dbtr_agt.text if dbtr_agt is not None else None
                         )
 
                 # Batch process all transactions for this payment
@@ -267,12 +239,8 @@ class Pain001Parser(BankStatementParser):
                         elif child.tag == "Amt":
                             instd_amt_elem = child.find("InstdAmt")
                             if instd_amt_elem is not None:
-                                payment["InstdAmt"] = (
-                                    instd_amt_elem.text
-                                )
-                                payment["Currency"] = (
-                                    instd_amt_elem.get("Ccy")
-                                )
+                                payment["InstdAmt"] = instd_amt_elem.text
+                                payment["Currency"] = instd_amt_elem.get("Ccy")
                         elif child.tag == "CdtrAgt":
                             cdtr_agt_elem = child.find("FinInstnId/BIC")
                             payment["CdtrBIC"] = (
@@ -316,9 +284,7 @@ class Pain001Parser(BankStatementParser):
             TypeError,
             etree.LxmlError,
         ) as e:
-            raise Pain001ParseError(
-                f"Error parsing PAIN.001 file: {e}"
-            ) from e
+            raise Pain001ParseError(f"Error parsing PAIN.001 file: {e}") from e
 
     def parse_streaming(
         self, redact_pii: bool = False
@@ -346,9 +312,7 @@ class Pain001Parser(BankStatementParser):
                     self.file_name
                 )
                 file_path = str(validated_path)
-                logger.info(
-                    f"Input file validated for streaming: {file_path}"
-                )
+                logger.info(f"Input file validated for streaming: {file_path}")
             except (ValidationError, FileNotFoundError) as e:
                 logger.error(
                     f"File validation failed for streaming {self.file_name}: {e}"
@@ -411,9 +375,7 @@ class Pain001Parser(BankStatementParser):
                         f"Error reading file {file_path}: {e!s}"
                     ) from e
 
-                data_bytes = self._normalize_xml_text(data).encode(
-                    "utf-8"
-                )
+                data_bytes = self._normalize_xml_text(data).encode("utf-8")
                 source_stream: Union[BytesIO, str] = BytesIO(data_bytes)
             else:
                 # Large file — chunk-based namespace stripping to a
@@ -431,9 +393,7 @@ class Pain001Parser(BankStatementParser):
                         for chunk in iter(
                             lambda: src.read(8 * 1024 * 1024), ""
                         ):
-                            dst.write(
-                                PAIN_NAMESPACE_PATTERN.sub("", chunk)
-                            )
+                            dst.write(PAIN_NAMESPACE_PATTERN.sub("", chunk))
                 except FileNotFoundError as exc:
                     logger.error(
                         "File %s not found for streaming!",
@@ -484,9 +444,7 @@ class Pain001Parser(BankStatementParser):
                         elif child.tag == "InitgPty":
                             nm_elem = child.find("Nm")
                             header_fields["InitgPty"] = (
-                                nm_elem.text
-                                if nm_elem is not None
-                                else None
+                                nm_elem.text if nm_elem is not None else None
                             )
                     elem.clear()
 
@@ -510,9 +468,7 @@ class Pain001Parser(BankStatementParser):
                     if parent is not None and parent.tag == "PmtInf":
                         dbtr_name = elem.find("Nm")
                         current_payment_info["DbtrNm"] = (
-                            dbtr_name.text
-                            if dbtr_name is not None
-                            else None
+                            dbtr_name.text if dbtr_name is not None else None
                         )
 
                 elif event == "end" and elem.tag == "DbtrAcct":
@@ -599,16 +555,12 @@ class Pain001Parser(BankStatementParser):
             elif child.tag == "CdtrAgt":
                 cdtr_agt_elem = child.find("FinInstnId/BIC")
                 payment["CdtrBIC"] = (
-                    cdtr_agt_elem.text
-                    if cdtr_agt_elem is not None
-                    else None
+                    cdtr_agt_elem.text if cdtr_agt_elem is not None else None
                 )
             elif child.tag == "Cdtr":
                 cdtr_name_elem = child.find("Nm")
                 payment["CdtrNm"] = (
-                    cdtr_name_elem.text
-                    if cdtr_name_elem is not None
-                    else None
+                    cdtr_name_elem.text if cdtr_name_elem is not None else None
                 )
             elif child.tag == "RmtInf":
                 ustrd_elem = child.find("Ustrd")
@@ -664,9 +616,7 @@ class Pain001Parser(BankStatementParser):
                         )
 
             # Batch extract all payment information and calculate totals
-            payment_info_records = root.findall(
-                ".//CstmrCdtTrfInitn/PmtInf"
-            )
+            payment_info_records = root.findall(".//CstmrCdtTrfInitn/PmtInf")
             total_amount = Decimal("0")
             currency = "Unknown"
 

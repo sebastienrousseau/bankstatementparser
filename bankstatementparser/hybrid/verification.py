@@ -114,9 +114,7 @@ def verify_balance(
             expected_delta=None,
             actual_delta=actual_delta,
             discrepancy=None,
-            message=(
-                "Cannot verify: missing opening or closing balance"
-            ),
+            message=("Cannot verify: missing opening or closing balance"),
         )
 
     expected_delta = closing_balance - opening_balance
@@ -242,12 +240,8 @@ def aggregate_verifications(
     else:
         status = VerificationStatus.VERIFIED
 
-    credits = sum(
-        (v.total_credits for v in results.values()), Decimal("0")
-    )
-    debits = sum(
-        (v.total_debits for v in results.values()), Decimal("0")
-    )
+    credits = sum((v.total_credits for v in results.values()), Decimal("0"))
+    debits = sum((v.total_debits for v in results.values()), Decimal("0"))
 
     detail = "; ".join(
         f"{currency}: {v.status.value} ({v.message})"
@@ -289,9 +283,7 @@ class ContinuityResult:
 
 
 def verify_continuity(
-    statements: Sequence[
-        tuple[str, Optional[Decimal], Optional[Decimal]]
-    ],
+    statements: Sequence[tuple[str, Optional[Decimal], Optional[Decimal]]],
     *,
     tolerance: Decimal = Decimal("0.01"),
 ) -> ContinuityResult:
@@ -323,9 +315,7 @@ def verify_continuity(
             breaks=(),
             checked_links=0,
             unchecked_links=0,
-            message=(
-                "Cannot verify continuity: need at least two statements"
-            ),
+            message=("Cannot verify continuity: need at least two statements"),
         )
 
     breaks: list[ContinuityBreak] = []

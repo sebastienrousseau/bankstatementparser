@@ -59,13 +59,9 @@ def main() -> int:
         print(
             f"  {'idx':>3}  {'date':<10}  {'amount':>12}  {'hash[:8]':<10}  description"
         )
-        print(
-            f"  {'---':>3}  {'-' * 10}  {'-' * 12}  {'-' * 10}  {'-' * 40}"
-        )
+        print(f"  {'---':>3}  {'-' * 10}  {'-' * 12}  {'-' * 10}  {'-' * 40}")
         for idx, tx in enumerate(result.transactions[:5]):
-            booking = (
-                tx.booking_date.isoformat() if tx.booking_date else ""
-            )
+            booking = tx.booking_date.isoformat() if tx.booking_date else ""
             print(
                 f"  {idx:>3}  {booking:<10}  "
                 f"{tx.amount!s:>12}  "
