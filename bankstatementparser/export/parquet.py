@@ -64,7 +64,13 @@ def export_parquet(
             )
 
     buf = io.BytesIO()
-    df.to_parquet(buf, compression=compression, engine="auto")
+    try:
+        df.to_parquet(buf, compression=compression, engine="auto")
+    except ImportError as exc:
+        raise ImportError(
+            "Apache Parquet export requires 'pyarrow' or 'fastparquet'. "
+            "Install with: pip install 'bankstatementparser[parquet]' or pip install pyarrow"
+        ) from exc
     parquet_bytes = buf.getvalue()
 
     if output_path is not None:

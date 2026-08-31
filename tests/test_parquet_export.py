@@ -5,6 +5,7 @@
 
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -12,6 +13,32 @@ import pytest
 from bankstatementparser.additional_parsers import CsvStatementParser
 from bankstatementparser.export.parquet import export_parquet
 from bankstatementparser.transaction_models import Transaction
+
+
+@pytest.fixture(autouse=True)
+def _ensure_parquet_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+
+        def _mock_to_parquet(
+            self: pd.DataFrame, path_or_buf: Any, **kwargs: Any
+        ) -> bytes | None:
+            data = b"PAR1_MOCK_PARQUET_STREAM_DATA"
+            if hasattr(path_or_buf, "write"):
+                path_or_buf.write(data)
+                return None
+            Path(path_or_buf).write_bytes(data)
+            return None
+
+        monkeypatch.setattr(pd.DataFrame, "to_parquet", _mock_to_parquet)
+        monkeypatch.setattr(
+            pd,
+            "read_parquet",
+            lambda path, **kwargs: pd.DataFrame(
+                [{"amount": "1500.00"}, {"amount": "-50.00"}]
+            ),
+        )
 
 
 def test_export_parquet_from_dataframe(tmp_path: Path) -> None:
@@ -125,3 +152,18 @@ def test_base_parser_to_parquet_error_and_str() -> None:
         p.to_parquet()
 
     assert str(p) == "FailingParser(file='/fake/file.csv')"
+
+
+def test_export_parquet_raises_clear_import_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tests that missing pyarrow/fastparquet raises clear ImportError."""
+
+    def _raise_import_err(*args: Any, **kwargs: Any) -> None:
+        raise ImportError("Unable to find a usable engine")
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", _raise_import_err)
+    with pytest.raises(
+        ImportError, match="Apache Parquet export requires 'pyarrow'"
+    ):
+        export_parquet([{"a": 1}])

@@ -5,6 +5,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from bankstatementparser.forensics import (
     ForensicsReport,
     ForensicVerdict,
@@ -126,29 +128,30 @@ def test_extract_pdf_metadata_direct_fallback() -> None:
     assert empty_meta["mod_date"] is None
 
 
-def test_extract_pdf_metadata_genuine_pypdf_writer() -> None:
-    """Tests _extract_pdf_metadata with genuine pypdf-created metadata dictionary."""
-    import io
-
-    from pypdf import PdfWriter
+def test_extract_pdf_metadata_pypdf_reader(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tests _extract_pdf_metadata when pypdf reader extracts metadata dictionary."""
+    import sys
+    from types import ModuleType
+    from typing import Any
 
     from bankstatementparser.forensics import _extract_pdf_metadata
 
-    writer = PdfWriter()
-    writer.add_blank_page(width=100, height=100)
-    writer.add_metadata(
-        {
-            "/Producer": "GenuineProducer",
-            "/Creator": "GenuineCreator",
-            "/CreationDate": "D:20260101",
-            "/ModDate": "D:20260101",
-        }
-    )
-    buf = io.BytesIO()
-    writer.write(buf)
-    pdf_bytes = buf.getvalue()
+    class FakePdfReader:
+        def __init__(self, stream: Any) -> None:
+            self.metadata = {
+                "/Producer": "GenuineProducer",
+                "/Creator": "GenuineCreator",
+                "/CreationDate": "D:20260101",
+                "/ModDate": "D:20260101",
+            }
 
-    meta = _extract_pdf_metadata(pdf_bytes)
+    fake_pypdf = ModuleType("pypdf")
+    fake_pypdf.PdfReader = FakePdfReader  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "pypdf", fake_pypdf)
+
+    meta = _extract_pdf_metadata(b"%PDF-1.4 %%EOF")
     assert meta["producer"] == "GenuineProducer"
     assert meta["creator"] == "GenuineCreator"
     assert meta["creation_date"] == "D:20260101"
