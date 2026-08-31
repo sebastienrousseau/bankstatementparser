@@ -155,3 +155,25 @@ def test_extract_pdf_metadata_pypdf_reader(
     assert meta["producer"] == "GenuineProducer"
     assert meta["creator"] == "GenuineCreator"
     assert meta["creation_date"] == "D:20260101"
+
+
+def test_extract_pdf_metadata_pypdf_reader_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tests _extract_pdf_metadata when pypdf reader returns empty metadata."""
+    import sys
+    from types import ModuleType
+    from typing import Any
+
+    from bankstatementparser.forensics import _extract_pdf_metadata
+
+    class FakeEmptyPdfReader:
+        def __init__(self, stream: Any) -> None:
+            self.metadata = None
+
+    fake_pypdf = ModuleType("pypdf")
+    fake_pypdf.PdfReader = FakeEmptyPdfReader  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "pypdf", fake_pypdf)
+
+    meta = _extract_pdf_metadata(b"%PDF-1.4 %%EOF")
+    assert meta["producer"] is None
