@@ -445,16 +445,7 @@ class CamtParser(BankStatementParser):
 
         # Batch XPath queries to eliminate N+1 pattern
         # Pre-extract all data with single queries per field type
-        amounts = []
-        currencies = []
-        cdt_dbt_inds = []
-        debtors = []
-        creditors = []
-        references = []
-        value_dates = []
-        booking_dates = []
-        debtor_addresses = []
-        creditor_addresses = []
+        transactions: list[TransactionRecord] = []
 
         for entry in entries:
             # Essential transaction fields - skip entries missing required fields
@@ -468,119 +459,155 @@ class CamtParser(BankStatementParser):
                 )
                 continue
 
-            amounts.append(
-                iso_decimal(
-                    amount_elems[0].text,
-                    context="transaction entry",
-                )
+            entry_amount = iso_decimal(
+                amount_elems[0].text,
+                context="transaction entry",
             )
-            currencies.append(currency_elems[0])
-            cdt_dbt_inds.append(cdt_dbt_elems[0].text)
+            entry_currency = currency_elems[0]
+            entry_cdt_dbt = cdt_dbt_elems[0].text
 
-            # Party information
-            debtor_elems = entry.xpath(".//Dbtr/Nm")
-            debtors.append(debtor_elems[0].text if debtor_elems else "")
+            # Dates on entry level
+            val_date_elems = entry.xpath("./ValDt/Dt") or entry.xpath("./ValDt/DtTm")
+            entry_val_date = val_date_elems[0].text if val_date_elems else ""
 
-            creditor_elems = entry.xpath(".//Cdtr/Nm")
-            creditors.append(creditor_elems[0].text if creditor_elems else "")
+            booking_date_elems = entry.xpath("./BookgDt/Dt") or entry.xpath("./BookgDt/DtTm")
+            entry_book_date = booking_date_elems[0].text if booking_date_elems else ""
 
-            # References
-            ref_elems = entry.xpath(".//Ustrd")
-            references.append(
-                "".join([ref.text for ref in ref_elems if ref.text])
-            )
+            tx_dtls_elems = entry.xpath(".//TxDtls")
+            if tx_dtls_elems:
+                for tx_dtls in tx_dtls_elems:
+                    tx_amt_elems = tx_dtls.xpath("./Amt")
+                    tx_ccy_elems = tx_dtls.xpath("./Amt/@Ccy")
+                    tx_cdt_dbt_elems = tx_dtls.xpath("./CdtDbtInd")
 
-            # Dates
-            val_date_elems = entry.xpath("./ValDt/Dt")
-            if not val_date_elems:
-                val_date_elems = entry.xpath("./ValDt/DtTm")
-            value_dates.append(
-                val_date_elems[0].text if val_date_elems else ""
-            )
+                    amount = (
+                        iso_decimal(tx_amt_elems[0].text, context="transaction detail")
+                        if tx_amt_elems
+                        else entry_amount
+                    )
+                    currency = tx_ccy_elems[0] if tx_ccy_elems else entry_currency
+                    cdt_dbt = tx_cdt_dbt_elems[0].text if tx_cdt_dbt_elems else entry_cdt_dbt
 
-            booking_date_elems = entry.xpath("./BookgDt/Dt")
-            if not booking_date_elems:
-                booking_date_elems = entry.xpath("./BookgDt/DtTm")
-            booking_dates.append(
-                booking_date_elems[0].text if booking_date_elems else ""
-            )
+                    debtor_elems = (
+                        tx_dtls.xpath(".//Dbtr/Nm")
+                        or tx_dtls.xpath(".//RltdPties/Dbtr/Nm")
+                        or entry.xpath(".//Dbtr/Nm")
+                    )
+                    debtor = debtor_elems[0].text if debtor_elems else ""
 
-            # Address information
-            debtor_addr_elems = entry.xpath(".//Dbtr/PstlAdr/AdrLine")
-            if not debtor_addr_elems:
-                debtor_addr_elems = entry.xpath(".//Dbtr/PstlAdr/StrtNm")
-            debtor_addr = (
-                debtor_addr_elems[0].text if debtor_addr_elems else ""
-            )
-            debtor_addresses.append(debtor_addr)
+                    creditor_elems = (
+                        tx_dtls.xpath(".//Cdtr/Nm")
+                        or tx_dtls.xpath(".//RltdPties/Cdtr/Nm")
+                        or entry.xpath(".//Cdtr/Nm")
+                    )
+                    creditor = creditor_elems[0].text if creditor_elems else ""
 
-            creditor_addr_elems = entry.xpath(".//Cdtr/PstlAdr/AdrLine")
-            if not creditor_addr_elems:
-                creditor_addr_elems = entry.xpath(".//Cdtr/PstlAdr/StrtNm")
-            creditor_addr = (
-                creditor_addr_elems[0].text if creditor_addr_elems else ""
-            )
-            creditor_addresses.append(creditor_addr)
+                    ref_elems = (
+                        tx_dtls.xpath(".//Ustrd")
+                        or tx_dtls.xpath(".//Strd//Ref")
+                        or tx_dtls.xpath(".//CdtrRefInf/Ref")
+                        or entry.xpath(".//Ustrd")
+                        or entry.xpath(".//Strd//Ref")
+                    )
+                    reference = " ".join([r.text for r in ref_elems if r.text])
 
-        transactions: list[TransactionRecord] = []
+                    tx_val_elems = (
+                        tx_dtls.xpath("./ValDt/Dt")
+                        or tx_dtls.xpath("./ValDt/DtTm")
+                    )
+                    val_date = tx_val_elems[0].text if tx_val_elems else entry_val_date
 
-        # Reconstruct transactions from batched data
-        for _i, (
-            amount,
-            currency,
-            cdt_dbt,
-            debtor,
-            creditor,
-            reference,
-            val_date,
-            book_date,
-            debtor_addr,
-            creditor_addr,
-        ) in enumerate(
-            zip(
-                amounts,
-                currencies,
-                cdt_dbt_inds,
-                debtors,
-                creditors,
-                references,
-                value_dates,
-                booking_dates,
-                debtor_addresses,
-                creditor_addresses,
-                strict=False,
-            )
-        ):
-            # Apply debit sign adjustment
-            if cdt_dbt == "DBIT":
-                amount = -amount
+                    tx_book_elems = (
+                        tx_dtls.xpath("./BookgDt/Dt")
+                        or tx_dtls.xpath("./BookgDt/DtTm")
+                    )
+                    book_date = tx_book_elems[0].text if tx_book_elems else entry_book_date
 
-            # Apply PII redaction if requested
-            if redact_pii:
+                    debtor_addr_elems = (
+                        tx_dtls.xpath(".//Dbtr/PstlAdr/AdrLine")
+                        or tx_dtls.xpath(".//Dbtr/PstlAdr/StrtNm")
+                        or entry.xpath(".//Dbtr/PstlAdr/AdrLine")
+                        or entry.xpath(".//Dbtr/PstlAdr/StrtNm")
+                    )
+                    debtor_addr = debtor_addr_elems[0].text if debtor_addr_elems else ""
+
+                    creditor_addr_elems = (
+                        tx_dtls.xpath(".//Cdtr/PstlAdr/AdrLine")
+                        or tx_dtls.xpath(".//Cdtr/PstlAdr/StrtNm")
+                        or entry.xpath(".//Cdtr/PstlAdr/AdrLine")
+                        or entry.xpath(".//Cdtr/PstlAdr/StrtNm")
+                    )
+                    creditor_addr = creditor_addr_elems[0].text if creditor_addr_elems else ""
+
+                    if cdt_dbt == "DBIT":
+                        amount = -amount
+
+                    if redact_pii:
+                        if debtor_addr:
+                            debtor_addr = "***REDACTED***"
+                        if creditor_addr:
+                            creditor_addr = "***REDACTED***"
+
+                    result: TransactionRecord = {
+                        "Amount": amount,
+                        "Currency": currency,
+                        "DrCr": cdt_dbt,
+                        "Debtor": debtor,
+                        "Creditor": creditor,
+                        "Reference": reference,
+                        "ValDt": val_date,
+                        "BookgDt": book_date,
+                    }
+                    if debtor_addr:
+                        result["DebtorAddress"] = debtor_addr
+                    if creditor_addr:
+                        result["CreditorAddress"] = creditor_addr
+                    transactions.append(result)
+            else:
+                # Single transaction entry without nested TxDtls
+                amount = entry_amount
+                currency = entry_currency
+                cdt_dbt = entry_cdt_dbt
+
+                debtor_elems = entry.xpath(".//Dbtr/Nm")
+                debtor = debtor_elems[0].text if debtor_elems else ""
+
+                creditor_elems = entry.xpath(".//Cdtr/Nm")
+                creditor = creditor_elems[0].text if creditor_elems else ""
+
+                ref_elems = entry.xpath(".//Ustrd") or entry.xpath(".//Strd//Ref")
+                reference = " ".join([ref.text for ref in ref_elems if ref.text])
+
+                debtor_addr_elems = entry.xpath(".//Dbtr/PstlAdr/AdrLine") or entry.xpath(".//Dbtr/PstlAdr/StrtNm")
+                debtor_addr = debtor_addr_elems[0].text if debtor_addr_elems else ""
+
+                creditor_addr_elems = entry.xpath(".//Cdtr/PstlAdr/AdrLine") or entry.xpath(".//Cdtr/PstlAdr/StrtNm")
+                creditor_addr = creditor_addr_elems[0].text if creditor_addr_elems else ""
+
+                if cdt_dbt == "DBIT":
+                    amount = -amount
+
+                if redact_pii:
+                    if debtor_addr:
+                        debtor_addr = "***REDACTED***"
+                    if creditor_addr:
+                        creditor_addr = "***REDACTED***"
+
+                result_entry: TransactionRecord = {
+                    "Amount": amount,
+                    "Currency": currency,
+                    "DrCr": cdt_dbt,
+                    "Debtor": debtor,
+                    "Creditor": creditor,
+                    "Reference": reference,
+                    "ValDt": entry_val_date,
+                    "BookgDt": entry_book_date,
+                }
                 if debtor_addr:
-                    debtor_addr = "***REDACTED***"
+                    result_entry["DebtorAddress"] = debtor_addr
                 if creditor_addr:
-                    creditor_addr = "***REDACTED***"
-
-            # Build transaction dictionary
-            result: TransactionRecord = {
-                "Amount": amount,
-                "Currency": currency,
-                "DrCr": cdt_dbt,
-                "Debtor": debtor,
-                "Creditor": creditor,
-                "Reference": reference,
-                "ValDt": val_date,
-                "BookgDt": book_date,
-            }
-
-            # Only add address fields if they exist
-            if debtor_addr:
-                result["DebtorAddress"] = debtor_addr
-            if creditor_addr:
-                result["CreditorAddress"] = creditor_addr
-
-            transactions.append(result)
+                    result_entry["CreditorAddress"] = creditor_addr
+                transactions.append(result_entry)
 
         return transactions
 

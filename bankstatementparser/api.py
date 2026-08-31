@@ -133,7 +133,7 @@ def _allowed_suffix(name: str) -> bool:
 def create_app(
     *,
     title: str = "Bank Statement Parser API",
-    version: str = "0.0.9",
+    version: Optional[str] = None,
     max_upload_bytes: Optional[int] = None,
 ) -> Any:
     """Create a FastAPI application wrapping :func:`smart_ingest`.
@@ -159,7 +159,10 @@ def create_app(
             "Install with: pip install 'bankstatementparser[api]'"
         ) from exc
 
+    from . import __version__
     from .hybrid import smart_ingest
+
+    resolved_version = version or __version__
 
     upload_cap = (
         max_upload_bytes
@@ -167,7 +170,7 @@ def create_app(
         else _resolve_max_upload_bytes()
     )
 
-    app = FastAPI(title=title, version=version)
+    app = FastAPI(title=title, version=resolved_version)
 
     _file_field = File(...)
 

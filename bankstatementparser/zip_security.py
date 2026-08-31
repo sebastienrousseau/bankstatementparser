@@ -1,13 +1,38 @@
-"""Secure helpers for reading XML statement files from ZIP archives."""
+# Copyright (C) 2023-2026 Bank Statement Parser. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Secure helpers for reading statement files from ZIP archives."""
 
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile, ZipInfo
 
 from .input_validator import InputValidator, ValidationError
+
+DEFAULT_ALLOWED_EXTENSIONS: tuple[str, ...] = (
+    ".xml",
+    ".csv",
+    ".ofx",
+    ".qfx",
+    ".mt940",
+    ".sta",
+    ".bai2",
+    ".mt942",
+)
 
 
 @dataclass(frozen=True)
@@ -16,6 +41,15 @@ class ZipXMLSource:
 
     source_name: str
     xml_bytes: bytes
+
+
+@dataclass(frozen=True)
+class ZipStatementSource:
+    """Validated bank statement payload extracted from a ZIP archive."""
+
+    source_name: str
+    content_bytes: bytes
+    extension: str
 
 
 class ZipSecurityError(ValidationError):
@@ -34,6 +68,39 @@ def iter_secure_xml_entries(
     This helper is intentionally strict because ZIP archives may come from
     untrusted banks, middleware, or user uploads.
     """
+    for entry in iter_secure_statement_entries(
+        zip_path,
+        allowed_extensions=(".xml",),
+        max_entry_size=max_entry_size,
+        max_total_uncompressed_size=max_total_uncompressed_size,
+        max_compression_ratio=max_compression_ratio,
+    ):
+        yield ZipXMLSource(
+            source_name=entry.source_name,
+            xml_bytes=entry.content_bytes,
+        )
+
+
+def iter_secure_statement_entries(
+    zip_path: str | Path,
+    *,
+    allowed_extensions: Sequence[str] = DEFAULT_ALLOWED_EXTENSIONS,
+    max_entry_size: int = 10 * 1024 * 1024,
+    max_total_uncompressed_size: int = 50 * 1024 * 1024,
+    max_compression_ratio: float = 100.0,
+) -> Generator[ZipStatementSource, None, None]:
+    """Yield validated statement members from a ZIP archive across supported formats.
+
+    Args:
+        zip_path: Path to the ZIP archive.
+        allowed_extensions: List of permitted file suffixes (e.g. '.xml', '.csv').
+        max_entry_size: Maximum uncompressed size per file in bytes.
+        max_total_uncompressed_size: Maximum cumulative uncompressed bytes.
+        max_compression_ratio: Maximum compression ratio to prevent zip bombs.
+
+    Yields:
+        ZipStatementSource containing the member name and bytes.
+    """
     if max_entry_size <= 0:
         raise ZipSecurityError("max_entry_size must be greater than zero")
     if max_total_uncompressed_size <= 0:
@@ -45,6 +112,7 @@ def iter_secure_xml_entries(
             "max_compression_ratio must be greater than zero"
         )
 
+    normalized_allowed = {ext.lower() for ext in allowed_extensions}
     archive_path = Path(zip_path)
     total_uncompressed_size = 0
     validator = InputValidator(max_file_size=max_entry_size)
@@ -60,7 +128,8 @@ def iter_secure_xml_entries(
             for member in members:
                 if member.is_dir():
                     continue
-                if not member.filename.lower().endswith(".xml"):
+                suffix = Path(member.filename).suffix.lower()
+                if suffix not in normalized_allowed:
                     continue
 
                 _validate_zip_member(
@@ -72,22 +141,15 @@ def iter_secure_xml_entries(
                 total_uncompressed_size += member.file_size
                 if total_uncompressed_size > max_total_uncompressed_size:
                     raise ZipSecurityError(
-                        "ZIP archive exceeds the total allowed uncompressed XML size"
+                        "ZIP archive exceeds the total allowed uncompressed size"
                     )
 
-                xml_bytes = zf.read(member)
-                try:
-                    (
-                        xml_bytes,
-                        safe_name,
-                    ) = validator.validate_xml_content(
-                        xml_bytes, source_name=member.filename
-                    )
-                except ValidationError as exc:
-                    raise ZipSecurityError(str(exc)) from exc
-                yield ZipXMLSource(
+                raw_bytes = zf.read(member)
+                safe_name = validator.sanitize_source_name(member.filename)
+                yield ZipStatementSource(
                     source_name=safe_name,
-                    xml_bytes=xml_bytes,
+                    content_bytes=raw_bytes,
+                    extension=suffix,
                 )
     except BadZipFile as exc:
         raise ZipSecurityError(f"Invalid ZIP archive: {archive_path}") from exc

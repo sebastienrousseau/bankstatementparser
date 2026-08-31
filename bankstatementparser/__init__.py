@@ -45,9 +45,17 @@ from .transaction_deduplicator import (
     MatchGroup,
 )
 from .transaction_models import BoundingBox, Transaction
+from .plugins import (
+    discover_loaders,
+    discover_writers,
+    register_loader,
+    register_writer,
+)
 from .zip_security import (
     ZipSecurityError,
+    ZipStatementSource,
     ZipXMLSource,
+    iter_secure_statement_entries,
     iter_secure_xml_entries,
 )
 
@@ -56,7 +64,7 @@ from .zip_security import (
 #: so the conformance gate can compare it statically against
 #: pyproject.toml -- that comparison is the thing that catches drift, and
 #: a runtime lookup would make the two trivially equal and check nothing.
-__version__ = "0.0.18"
+__version__ = "0.0.19"
 
 __all__ = [
     "BankStatementParser",
@@ -80,10 +88,16 @@ __all__ = [
     "Transaction",
     "ValidationError",
     "ZipSecurityError",
+    "ZipStatementSource",
     "ZipXMLSource",
     "__version__",
     "create_parser",
     "detect_statement_format",
+    "discover_loaders",
+    "discover_writers",
+    "iter_secure_statement_entries",
     "iter_secure_xml_entries",
     "parse_files_parallel",
+    "register_loader",
+    "register_writer",
 ]
