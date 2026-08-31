@@ -174,6 +174,33 @@ class BankStatementParser(ABC):
         """
         return self.to_polars().lazy()
 
+    def to_parquet(
+        self,
+        output_path: Union[str, Path, None] = None,
+        compression: str = "snappy",
+    ) -> bytes:
+        """Export parsed statement transactions to Apache Parquet format.
+
+        Args:
+            output_path (Union[str, Path, None]): Optional file path to write to.
+            compression (str): Compression codec ('snappy', 'gzip', 'zstd', None).
+
+        Returns:
+            bytes: Binary content of the Parquet dataset.
+
+        Raises:
+            ExportError: If exporting to Parquet fails.
+        """
+        from .export.parquet import export_parquet
+
+        try:
+            df = self.parse()
+            return export_parquet(
+                df, output_path=output_path, compression=compression
+            )
+        except Exception as exc:
+            raise ExportError(f"Failed to export Parquet: {exc}") from exc
+
     def __repr__(self) -> str:
         """Return a string representation of the parser.
 

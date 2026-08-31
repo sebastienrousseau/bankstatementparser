@@ -184,7 +184,7 @@ BLOCK_SPECS: tuple[BlockSpec, ...] = (
     ),
     # README — Parallel parsing
     BlockSpec(
-        marker="parse_files_parallel([",
+        marker="parse_files_parallel(",
         files=(
             ("statements/jan.xml", CAMT_FIXTURE),
             ("statements/feb.xml", CAMT_FIXTURE),

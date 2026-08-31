@@ -196,17 +196,19 @@ from bankstatementparser.hybrid import smart_ingest
 
 # Path A — deterministic parser (free, fastest, $0)
 result = smart_ingest("statement.xml")
-print(result.source_method)         # "deterministic"
+print(result.source_method)  # "deterministic"
 
 # Path B — text-LLM for digital PDFs (set BSP_HYBRID_MODEL=ollama/llama3)
 result = smart_ingest("statement.pdf")
-print(result.source_method)         # "llm"
-print(result.verification.status)   # VERIFIED | DISCREPANCY | UNVERIFIABLE | FAILED
+print(result.source_method)  # "llm"
+print(
+    result.verification.status
+)  # VERIFIED | DISCREPANCY | UNVERIFIABLE | FAILED
 
 # Path C — multimodal vision for scanned PDFs (set BSP_HYBRID_VISION_MODEL)
 # auto-routed when pypdf cannot extract enough text
 result = smart_ingest("scan.pdf")
-print(result.source_method)         # "vision"
+print(result.source_method)  # "vision"
 ```
 
 Every row carries:
@@ -244,7 +246,9 @@ For ZIP archives, use `iter_secure_xml_entries()`.
 from bankstatementparser import CamtParser, iter_secure_xml_entries
 
 for entry in iter_secure_xml_entries("statements.zip"):
-    parser = CamtParser.from_bytes(entry.xml_bytes, source_name=entry.source_name)
+    parser = CamtParser.from_bytes(
+        entry.xml_bytes, source_name=entry.source_name
+    )
     transactions = parser.parse()
     print(entry.source_name, len(transactions), "transactions")
 ```
@@ -341,7 +345,7 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 877 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 905 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
@@ -408,11 +412,13 @@ Process multiple files simultaneously across CPU cores:
 ```python
 from bankstatementparser import parse_files_parallel
 
-results = parse_files_parallel([
-    "statements/jan.xml",
-    "statements/feb.xml",
-    "statements/mar.xml",
-])
+results = parse_files_parallel(
+    [
+        "statements/jan.xml",
+        "statements/feb.xml",
+        "statements/mar.xml",
+    ]
+)
 
 for r in results:
     print(r.path, r.status, len(r.transactions), "rows")
@@ -688,15 +694,15 @@ cleanly — see each companion's README for runnable examples.
 ## Project Layout
 
 ```text
-bankstatementparser/            Source code (33 modules)
+bankstatementparser/            Source code (38 modules)
 bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
-bankstatementparser/export/     hledger + beancount journal export
+bankstatementparser/export/     hledger + beancount journal export, Apache Parquet columnar export
 bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 9 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          877 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          905 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---

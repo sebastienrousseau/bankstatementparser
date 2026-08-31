@@ -105,6 +105,7 @@ def _time(call) -> float:
 
 
 def _once(call) -> float:
+    """Measure the duration of a single callable execution in seconds."""
     start = time.perf_counter()
     call()
     return time.perf_counter() - start

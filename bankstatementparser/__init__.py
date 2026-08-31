@@ -27,6 +27,17 @@ from .additional_parsers import (
     create_parser,
     detect_statement_format,
 )
+from .analytics import (
+    AnalyticsReport,
+    AnomalyFinding,
+    CashFlowMetrics,
+    RecurringCadence,
+    RecurringPattern,
+    analyze_statement_transactions,
+    compute_cash_flow_summary,
+    detect_anomalies_and_nsf,
+    detect_recurring_transactions,
+)
 from .base_parser import BankStatementParser
 from .camt_parser import CamtParser
 from .exceptions import (
@@ -34,6 +45,14 @@ from .exceptions import (
     ExportError,
     Pain001ParseError,
     ParserError,
+)
+from .export.parquet import export_parquet
+from .field86_parser import Field86Structure, parse_field_86
+from .forensics import (
+    ForensicFinding,
+    ForensicsReport,
+    ForensicVerdict,
+    inspect_pdf_forensics,
 )
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
@@ -43,6 +62,12 @@ from .plugins import (
     discover_writers,
     register_loader,
     register_writer,
+)
+from .reconciliation import (
+    ReconciliationMatch,
+    ReconciliationReport,
+    ReconciliationStatus,
+    reconcile_payments_and_statements,
 )
 from .transaction_deduplicator import (
     DeduplicationResult,
@@ -67,16 +92,23 @@ from .zip_security import (
 __version__ = "0.0.19"
 
 __all__ = [
+    "AnalyticsReport",
+    "AnomalyFinding",
     "BankStatementParser",
     "BankStatementParserError",
     "BoundingBox",
     "CamtParser",
+    "CashFlowMetrics",
     "CsvStatementParser",
     "DeduplicationResult",
     "Deduplicator",
     "ExactDuplicateGroup",
     "ExportError",
+    "Field86Structure",
     "FileResult",
+    "ForensicFinding",
+    "ForensicVerdict",
+    "ForensicsReport",
     "InputValidator",
     "MatchGroup",
     "Mt940Parser",
@@ -85,19 +117,32 @@ __all__ = [
     "Pain001Parser",
     "ParserError",
     "QfxParser",
+    "ReconciliationMatch",
+    "ReconciliationReport",
+    "ReconciliationStatus",
+    "RecurringCadence",
+    "RecurringPattern",
     "Transaction",
     "ValidationError",
     "ZipSecurityError",
     "ZipStatementSource",
     "ZipXMLSource",
     "__version__",
+    "analyze_statement_transactions",
+    "compute_cash_flow_summary",
     "create_parser",
+    "detect_anomalies_and_nsf",
+    "detect_recurring_transactions",
     "detect_statement_format",
     "discover_loaders",
     "discover_writers",
+    "export_parquet",
+    "inspect_pdf_forensics",
     "iter_secure_statement_entries",
     "iter_secure_xml_entries",
+    "parse_field_86",
     "parse_files_parallel",
+    "reconcile_payments_and_statements",
     "register_loader",
     "register_writer",
 ]

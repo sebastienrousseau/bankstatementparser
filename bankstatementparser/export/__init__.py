@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 from .ledger import to_beancount, to_hledger
+from .parquet import export_parquet
 
 __all__ = [
+    "export_parquet",
     "to_beancount",
     "to_hledger",
 ]
