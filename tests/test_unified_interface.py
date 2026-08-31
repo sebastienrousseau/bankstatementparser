@@ -39,7 +39,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
         self.pain001_file = os.path.join(
             self.test_data_dir, "pain.001.001.03.xml"
         )
-        self.invalid_xml_file = os.path.join(self.test_data_dir, "invalid.xml")
+        self.invalid_xml_file = os.path.join(
+            self.test_data_dir, "invalid.xml"
+        )
 
         # Initialize parsers if files exist
         self.camt_parser = None
@@ -103,11 +105,16 @@ class TestUnifiedParserInterface(unittest.TestCase):
                     "date",
                     "id",
                 ]
-                column_names_lower = [col.lower() for col in result.columns]
+                column_names_lower = [
+                    col.lower() for col in result.columns
+                ]
 
                 # At least some expected patterns should be present
                 found_patterns = any(
-                    any(pattern in col for pattern in expected_column_patterns)
+                    any(
+                        pattern in col
+                        for pattern in expected_column_patterns
+                    )
                     for col in column_names_lower
                 )
                 self.assertTrue(
@@ -287,7 +294,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
         try:
             # Mock an exception during JSON export
             with (
-                patch("builtins.open", side_effect=Exception("Test error")),
+                patch(
+                    "builtins.open", side_effect=Exception("Test error")
+                ),
                 self.assertRaises(IOError),
             ):
                 self.camt_parser.export_json(output_path)
@@ -370,12 +379,16 @@ class TestUnifiedParserInterface(unittest.TestCase):
 
         try:
             # Test CAMT parser with malformed input
-            with self.assertRaises((ValidationError, ParseError, Exception)):
+            with self.assertRaises(
+                (ValidationError, ParseError, Exception)
+            ):
                 parser = CamtParser(tmp_path)
                 parser.parse()
 
             # Test PAIN001 parser with malformed input
-            with self.assertRaises((ValidationError, ParseError, Exception)):
+            with self.assertRaises(
+                (ValidationError, ParseError, Exception)
+            ):
                 parser = Pain001Parser(tmp_path)
                 parser.parse()
 
@@ -402,7 +415,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
         """
 
         # Add multiple transaction entries
-        for i in range(100):  # 100 transactions to make it moderately large
+        for i in range(
+            100
+        ):  # 100 transactions to make it moderately large
             large_xml_content += f"""
                     <Ntry>
                         <Amt Ccy="GBP">{10.00 + i}</Amt>
@@ -442,7 +457,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
             parser = CamtParser(tmp_path)
             df = parser.parse()
             self.assertIsInstance(df, pd.DataFrame)
-            self.assertGreater(len(df), 50)  # Should have many transactions
+            self.assertGreater(
+                len(df), 50
+            )  # Should have many transactions
 
             # Test export functionality with larger dataset
             with tempfile.NamedTemporaryFile(
@@ -462,7 +479,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
     def test_edge_case_file_formats(self):
         """Test parser behavior with edge case file formats."""
         # Test empty XML file
-        empty_xml = """<?xml version="1.0" encoding="UTF-8"?><root></root>"""
+        empty_xml = (
+            """<?xml version="1.0" encoding="UTF-8"?><root></root>"""
+        )
 
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".xml", delete=False
@@ -526,7 +545,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
 
         # Test with Path object
         path_obj = Path(self.camt_file)
-        parser2 = CamtParser(str(path_obj))  # Constructor expects string
+        parser2 = CamtParser(
+            str(path_obj)
+        )  # Constructor expects string
         self.assertEqual(parser2.file_name, str(path_obj))
 
     def test_export_error_handling(self):
@@ -553,7 +574,9 @@ class TestParserFactoryPattern(unittest.TestCase):
         test_data_dir = os.path.join(current_dir, "test_data")
 
         camt_file = os.path.join(test_data_dir, "camt.053.001.02.xml")
-        pain001_file = os.path.join(test_data_dir, "pain.001.001.03.xml")
+        pain001_file = os.path.join(
+            test_data_dir, "pain.001.001.03.xml"
+        )
 
         parsers = {}
 

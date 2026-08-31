@@ -64,7 +64,9 @@ class DummyCustomParser(BankStatementParser):
         self._text = Path(file_name).read_text(encoding="utf-8")
 
     def parse(self) -> pd.DataFrame:
-        return pd.DataFrame([{"date": "2026-08-31", "amount": Decimal("100.00")}])
+        return pd.DataFrame(
+            [{"date": "2026-08-31", "amount": Decimal("100.00")}]
+        )
 
     def get_summary(self) -> SummaryRecord:
         return {
@@ -92,13 +94,19 @@ def test_plugin_registration_and_creation(tmp_path: Path) -> None:
     assert summary["account_id"] == "DUMMY"
 
     # Unsupported format error
-    with pytest.raises(ValidationError, match="Unsupported statement format"):
+    with pytest.raises(
+        ValidationError, match="Unsupported statement format"
+    ):
         create_parser(test_file, "nonexistent_format_xyz")
 
     # Unmatched plugin in detect_statement_format (valid extension, unknown format)
     bad_fmt_file = tmp_path / "unknown_content.xml"
-    bad_fmt_file.write_text("unknown content without any known tags", encoding="utf-8")
-    with pytest.raises(ValidationError, match="Unable to detect statement format"):
+    bad_fmt_file.write_text(
+        "unknown content without any known tags", encoding="utf-8"
+    )
+    with pytest.raises(
+        ValidationError, match="Unable to detect statement format"
+    ):
         detect_statement_format(bad_fmt_file)
 
     unregister_loader("customfmt")
@@ -106,7 +114,9 @@ def test_plugin_registration_and_creation(tmp_path: Path) -> None:
     assert "customfmt" not in get_registered_loaders()
 
 
-def test_writer_registration_and_discovery(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_writer_registration_and_discovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def dummy_writer(data, path, **kwargs):
         return Path(path)
 
@@ -119,21 +129,26 @@ def test_writer_registration_and_discovery(monkeypatch: pytest.MonkeyPatch) -> N
     # Test error handling when entry point load fails and succeeds
     class FailingEP:
         name = "bad_loader"
+
         def load(self):
             raise RuntimeError("simulated error")
 
     class WorkingEP:
         name = "good_loader"
+
         def load(self):
             return DummyCustomParser
 
     class FakeEPs:
         def select(self, group=None):
             return [FailingEP(), WorkingEP()]
+
         def get(self, group, default=None):
             return [FailingEP(), WorkingEP()]
 
-    monkeypatch.setattr("importlib.metadata.entry_points", lambda: FakeEPs())
+    monkeypatch.setattr(
+        "importlib.metadata.entry_points", lambda: FakeEPs()
+    )
     discovered_l = discover_loaders()
     assert "bad_loader" not in discovered_l
     assert "good_loader" in discovered_l
@@ -203,27 +218,43 @@ def test_mt940_reversals_and_multiline_86(tmp_path: Path) -> None:
 
 def test_detect_format_all_types(tmp_path: Path) -> None:
     bai2_file = tmp_path / "sample.bai2"
-    bai2_file.write_text("01,SENDER,RECEIVER,260101,1200,1/\n02,GROUP/\n99,TRAILER/", encoding="utf-8")
+    bai2_file.write_text(
+        "01,SENDER,RECEIVER,260101,1200,1/\n02,GROUP/\n99,TRAILER/",
+        encoding="utf-8",
+    )
     assert detect_statement_format(bai2_file) == "bai2"
 
     mt942_file = tmp_path / "sample.mt942"
-    mt942_file.write_text(":20:REPORT\n:25:ACCT123\n:34F:EUR2601010,00\n:61:260101C100,00NTRF\n:86:DETAILS\n-", encoding="utf-8")
+    mt942_file.write_text(
+        ":20:REPORT\n:25:ACCT123\n:34F:EUR2601010,00\n:61:260101C100,00NTRF\n:86:DETAILS\n-",
+        encoding="utf-8",
+    )
     assert detect_statement_format(mt942_file) == "mt942"
 
     csv_file = tmp_path / "sample.csv"
-    csv_file.write_text("Date,Amount,Description\n2026-01-01,10.00,Test\n", encoding="utf-8")
+    csv_file.write_text(
+        "Date,Amount,Description\n2026-01-01,10.00,Test\n",
+        encoding="utf-8",
+    )
     assert detect_statement_format(csv_file) == "csv"
 
     ofx_file = tmp_path / "sample.ofx"
-    ofx_file.write_text("<OFX><BANKTRANLIST></BANKTRANLIST></OFX>", encoding="utf-8")
+    ofx_file.write_text(
+        "<OFX><BANKTRANLIST></BANKTRANLIST></OFX>", encoding="utf-8"
+    )
     assert detect_statement_format(ofx_file) == "ofx"
 
     sta_file = tmp_path / "sample.sta"
-    sta_file.write_text(":20:STA\n:25:123\n:60F:C260101EUR0,00\n:61:260101C10,00NTRF\n:62F:C260102EUR10,00\n", encoding="utf-8")
+    sta_file.write_text(
+        ":20:STA\n:25:123\n:60F:C260101EUR0,00\n:61:260101C10,00NTRF\n:62F:C260102EUR10,00\n",
+        encoding="utf-8",
+    )
     assert detect_statement_format(sta_file) == "mt940"
 
 
-def test_camt_extract_transactions_batch_and_redact(tmp_path: Path) -> None:
+def test_camt_extract_transactions_batch_and_redact(
+    tmp_path: Path,
+) -> None:
     camt_content = """<?xml version="1.0" encoding="UTF-8"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
   <BkToCstmrStmt>
@@ -304,11 +335,18 @@ def test_camt_extract_transactions_batch_and_redact(tmp_path: Path) -> None:
     assert df_pii.iloc[0]["CreditorAddress"] == "***REDACTED***"
     assert df_pii.iloc[2]["DebtorAddress"] == "***REDACTED***"
     assert df_pii.iloc[2]["CreditorAddress"] == "***REDACTED***"
-    assert pd.isna(df_pii.iloc[3]["DebtorAddress"]) or df_pii.iloc[3]["DebtorAddress"] == ""
+    assert (
+        pd.isna(df_pii.iloc[3]["DebtorAddress"])
+        or df_pii.iloc[3]["DebtorAddress"] == ""
+    )
 
 
-def test_categorizer_concurrency_and_currency(monkeypatch: pytest.MonkeyPatch) -> None:
-    tx_no_ccy = Transaction(date="2026-01-01", amount=Decimal("10.00"), description="Test")
+def test_categorizer_concurrency_and_currency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tx_no_ccy = Transaction(
+        date="2026-01-01", amount=Decimal("10.00"), description="Test"
+    )
     row_str = _format_row(0, tx_no_ccy)
     assert "10.00" in row_str
 
@@ -351,11 +389,7 @@ def test_categorizer_concurrency_and_currency(monkeypatch: pytest.MonkeyPatch) -
         ]
         return {
             "choices": [
-                {
-                    "message": {
-                        "content": json.dumps({"results": items})
-                    }
-                }
+                {"message": {"content": json.dumps({"results": items})}}
             ]
         }
 
@@ -370,11 +404,17 @@ def test_categorizer_concurrency_and_currency(monkeypatch: pytest.MonkeyPatch) -
     assert all(r.category == "Groceries" for r in results)
 
     # Invalid configuration validation
-    with pytest.raises(ValueError, match="schema must be a non-empty tuple"):
+    with pytest.raises(
+        ValueError, match="schema must be a non-empty tuple"
+    ):
         Categorizer(schema=())
-    with pytest.raises(ValueError, match="batch_size must be at least 1"):
+    with pytest.raises(
+        ValueError, match="batch_size must be at least 1"
+    ):
         Categorizer(batch_size=0)
-    with pytest.raises(ValueError, match="max_concurrency must be at least 1"):
+    with pytest.raises(
+        ValueError, match="max_concurrency must be at least 1"
+    ):
         Categorizer(max_concurrency=0)
 
     # Test error handling when chunk fails
@@ -398,7 +438,10 @@ def test_zip_security_multi_format_and_errors(tmp_path: Path) -> None:
         zf.writestr("folder/", "")
         zf.writestr("ignored.txt", "ignore me")
         zf.writestr("test.csv", "date,amount\n2026-08-31,50.00")
-        zf.writestr("test.mt940", ":20:1\n:25:A\n:60F:C260101EUR100,00\n:62F:C260102EUR100,00")
+        zf.writestr(
+            "test.mt940",
+            ":20:1\n:25:A\n:60F:C260101EUR100,00\n:62F:C260102EUR100,00",
+        )
 
     entries = list(iter_secure_statement_entries(zip_file))
     assert len(entries) == 2
@@ -415,33 +458,63 @@ def test_zip_security_multi_format_and_errors(tmp_path: Path) -> None:
     # Test invalid parameter validation
     with pytest.raises(ZipSecurityError, match="max_entry_size"):
         list(iter_secure_statement_entries(zip_file, max_entry_size=0))
-    with pytest.raises(ZipSecurityError, match="max_total_uncompressed_size"):
-        list(iter_secure_statement_entries(zip_file, max_total_uncompressed_size=0))
+    with pytest.raises(
+        ZipSecurityError, match="max_total_uncompressed_size"
+    ):
+        list(
+            iter_secure_statement_entries(
+                zip_file, max_total_uncompressed_size=0
+            )
+        )
     with pytest.raises(ZipSecurityError, match="max_compression_ratio"):
-        list(iter_secure_statement_entries(zip_file, max_compression_ratio=0))
+        list(
+            iter_secure_statement_entries(
+                zip_file, max_compression_ratio=0
+            )
+        )
 
     # Test empty zip
     empty_zip = tmp_path / "empty.zip"
     with zipfile.ZipFile(empty_zip, "w"):
         pass
-    with pytest.raises(ZipSecurityError, match="does not contain any entries"):
+    with pytest.raises(
+        ZipSecurityError, match="does not contain any entries"
+    ):
         list(iter_secure_statement_entries(empty_zip))
 
     # Test uncompressed size exceeding limit
-    with pytest.raises(ZipSecurityError, match="exceeds the total allowed uncompressed size"):
-        list(iter_secure_statement_entries(zip_file, max_total_uncompressed_size=10))
+    with pytest.raises(
+        ZipSecurityError,
+        match="exceeds the total allowed uncompressed size",
+    ):
+        list(
+            iter_secure_statement_entries(
+                zip_file, max_total_uncompressed_size=10
+            )
+        )
 
     # Test member validation unit helper
     zinfo = ZipInfo("bad.xml")
     zinfo.file_size = 0
     with pytest.raises(ZipSecurityError, match="empty or invalid"):
-        _validate_zip_member(zinfo, max_entry_size=100, max_compression_ratio=10)
+        _validate_zip_member(
+            zinfo, max_entry_size=100, max_compression_ratio=10
+        )
 
     zinfo.file_size = 500
-    with pytest.raises(ZipSecurityError, match="exceeds the allowed uncompressed size limit"):
-        _validate_zip_member(zinfo, max_entry_size=100, max_compression_ratio=10)
+    with pytest.raises(
+        ZipSecurityError,
+        match="exceeds the allowed uncompressed size limit",
+    ):
+        _validate_zip_member(
+            zinfo, max_entry_size=100, max_compression_ratio=10
+        )
 
     zinfo.file_size = 50
     zinfo.compress_size = 0
-    with pytest.raises(ZipSecurityError, match="invalid compressed size"):
-        _validate_zip_member(zinfo, max_entry_size=100, max_compression_ratio=10)
+    with pytest.raises(
+        ZipSecurityError, match="invalid compressed size"
+    ):
+        _validate_zip_member(
+            zinfo, max_entry_size=100, max_compression_ratio=10
+        )

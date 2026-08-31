@@ -69,7 +69,9 @@ def iter_secure_xml_entries(
     untrusted banks, middleware, or user uploads.
     """
     if max_entry_size <= 0:
-        raise ZipSecurityError("max_entry_size must be greater than zero")
+        raise ZipSecurityError(
+            "max_entry_size must be greater than zero"
+        )
     if max_total_uncompressed_size <= 0:
         raise ZipSecurityError(
             "max_total_uncompressed_size must be greater than zero"
@@ -104,7 +106,10 @@ def iter_secure_xml_entries(
                 )
 
                 total_uncompressed_size += member.file_size
-                if total_uncompressed_size > max_total_uncompressed_size:
+                if (
+                    total_uncompressed_size
+                    > max_total_uncompressed_size
+                ):
                     raise ZipSecurityError(
                         "ZIP archive exceeds the total allowed uncompressed XML size"
                     )
@@ -124,7 +129,9 @@ def iter_secure_xml_entries(
                     xml_bytes=xml_bytes,
                 )
     except BadZipFile as exc:
-        raise ZipSecurityError(f"Invalid ZIP archive: {archive_path}") from exc
+        raise ZipSecurityError(
+            f"Invalid ZIP archive: {archive_path}"
+        ) from exc
 
 
 def iter_secure_statement_entries(
@@ -148,7 +155,9 @@ def iter_secure_statement_entries(
         ZipStatementSource containing the member name and bytes.
     """
     if max_entry_size <= 0:
-        raise ZipSecurityError("max_entry_size must be greater than zero")
+        raise ZipSecurityError(
+            "max_entry_size must be greater than zero"
+        )
     if max_total_uncompressed_size <= 0:
         raise ZipSecurityError(
             "max_total_uncompressed_size must be greater than zero"
@@ -185,20 +194,27 @@ def iter_secure_statement_entries(
                 )
 
                 total_uncompressed_size += member.file_size
-                if total_uncompressed_size > max_total_uncompressed_size:
+                if (
+                    total_uncompressed_size
+                    > max_total_uncompressed_size
+                ):
                     raise ZipSecurityError(
                         "ZIP archive exceeds the total allowed uncompressed size"
                     )
 
                 raw_bytes = zf.read(member)
-                safe_name = validator.sanitize_source_name(member.filename)
+                safe_name = validator.sanitize_source_name(
+                    member.filename
+                )
                 yield ZipStatementSource(
                     source_name=safe_name,
                     content_bytes=raw_bytes,
                     extension=suffix,
                 )
     except BadZipFile as exc:
-        raise ZipSecurityError(f"Invalid ZIP archive: {archive_path}") from exc
+        raise ZipSecurityError(
+            f"Invalid ZIP archive: {archive_path}"
+        ) from exc
 
 
 def _validate_zip_member(
@@ -217,7 +233,9 @@ def _validate_zip_member(
         )
 
     if member.file_size <= 0:
-        raise ZipSecurityError(f"ZIP entry is empty or invalid: {safe_name}")
+        raise ZipSecurityError(
+            f"ZIP entry is empty or invalid: {safe_name}"
+        )
 
     if member.file_size > max_entry_size:
         raise ZipSecurityError(

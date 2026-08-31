@@ -190,7 +190,9 @@ def test_env_api_base_used_when_no_explicit_override(
         messages=[{"role": "user", "content": "hi"}],
     )
 
-    assert captured["url"] == "http://host.docker.internal:11434/api/chat"
+    assert (
+        captured["url"] == "http://host.docker.internal:11434/api/chat"
+    )
 
 
 def test_returns_openai_envelope(
@@ -332,7 +334,9 @@ def test_raises_when_model_missing(
 ) -> None:
     _install_fake_httpx(monkeypatch)
     with pytest.raises(OllamaDirectError, match="model is required"):
-        ollama_direct_completion(messages=[{"role": "user", "content": "hi"}])
+        ollama_direct_completion(
+            messages=[{"role": "user", "content": "hi"}]
+        )
 
 
 def test_raises_when_messages_missing_or_empty(
@@ -366,7 +370,9 @@ def test_raises_on_invalid_raw_base64_image(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _install_fake_httpx(monkeypatch)
-    with pytest.raises(OllamaDirectError, match="Invalid image_url payload"):
+    with pytest.raises(
+        OllamaDirectError, match="Invalid image_url payload"
+    ):
         ollama_direct_completion(
             model="ollama/llava",
             messages=[
@@ -386,8 +392,12 @@ def test_raises_on_invalid_raw_base64_image(
 def test_wraps_http_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _install_fake_httpx(monkeypatch, raise_on_post=ConnectionError("refused"))
-    with pytest.raises(OllamaDirectError, match="Direct Ollama call failed"):
+    _install_fake_httpx(
+        monkeypatch, raise_on_post=ConnectionError("refused")
+    )
+    with pytest.raises(
+        OllamaDirectError, match="Direct Ollama call failed"
+    ):
         ollama_direct_completion(
             model="ollama/llava",
             messages=[{"role": "user", "content": "hi"}],
@@ -397,7 +407,9 @@ def test_wraps_http_failure(
 def test_wraps_unexpected_response_shape(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _install_fake_httpx(monkeypatch, response_payload={"unexpected": "shape"})
+    _install_fake_httpx(
+        monkeypatch, response_payload={"unexpected": "shape"}
+    )
     with pytest.raises(
         OllamaDirectError, match="Unexpected Ollama response shape"
     ):
@@ -474,7 +486,9 @@ def test_vision_extractor_missing_litellm_raises(
 
     monkeypatch.setitem(sys.modules, "litellm", None)
     ext = VisionExtractor(model="anthropic/claude-3-haiku")
-    with pytest.raises(VisionExtractorError, match="litellm is required"):
+    with pytest.raises(
+        VisionExtractorError, match="litellm is required"
+    ):
         ext._resolve_completion()
 
 

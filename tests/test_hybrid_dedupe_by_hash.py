@@ -65,7 +65,9 @@ def test_dedupe_by_hash_respects_seen_state() -> None:
     assert seen  # state mutated in-place
 
     second_batch = [_tx("10.00", "Coffee"), _tx("5.00", "Tea")]
-    unique2, skipped2 = dedup.dedupe_by_hash(second_batch, seen_hashes=seen)
+    unique2, skipped2 = dedup.dedupe_by_hash(
+        second_batch, seen_hashes=seen
+    )
     assert len(unique2) == 1
     assert len(skipped2) == 1
 

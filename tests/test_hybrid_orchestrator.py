@@ -187,7 +187,9 @@ def test_smart_ingest_falls_back_to_llm_when_parser_raises(
 
     monkeypatch.setattr(orchestrator, "create_parser", boom)
     monkeypatch.setattr(
-        orchestrator, "extract_text_pages", lambda _p: ["raw pdf text " * 10]
+        orchestrator,
+        "extract_text_pages",
+        lambda _p: ["raw pdf text " * 10],
     )
 
     payload = {
@@ -218,7 +220,9 @@ def test_smart_ingest_warns_when_detection_raises(
 
     monkeypatch.setattr(orchestrator, "detect_statement_format", boom)
     monkeypatch.setattr(
-        orchestrator, "extract_text_pages", lambda _p: ["pdf text " * 20]
+        orchestrator,
+        "extract_text_pages",
+        lambda _p: ["pdf text " * 20],
     )
 
     payload = {
@@ -250,7 +254,9 @@ def test_smart_ingest_uses_llm_for_pdf_directly(
         orchestrator, "detect_statement_format", lambda _p: "pdf"
     )
     monkeypatch.setattr(
-        orchestrator, "extract_text_pages", lambda _p: ["raw pdf text " * 10]
+        orchestrator,
+        "extract_text_pages",
+        lambda _p: ["raw pdf text " * 10],
     )
 
     payload = {
@@ -348,7 +354,10 @@ def test_coerce_transactions_to_dict_typeerror_falls_back() -> None:
         def to_dict(self, *_args: object) -> object:
             raise TypeError("not a DataFrame")
 
-    assert orchestrator._coerce_transactions(_BadToDict(), source="csv") == []
+    assert (
+        orchestrator._coerce_transactions(_BadToDict(), source="csv")
+        == []
+    )
 
 
 def test_coerce_transactions_unsupported_type_yields_empty() -> None:
@@ -440,10 +449,14 @@ def test_smart_ingest_vision_raises_when_model_unset(
     monkeypatch.setattr(
         orchestrator, "detect_statement_format", lambda _p: "pdf"
     )
-    monkeypatch.setattr(orchestrator, "extract_text_pages", lambda _p: [""])
+    monkeypatch.setattr(
+        orchestrator, "extract_text_pages", lambda _p: [""]
+    )
     monkeypatch.delenv("BSP_HYBRID_VISION_MODEL", raising=False)
 
-    with pytest.raises(VisionExtractorError, match="Vision model required"):
+    with pytest.raises(
+        VisionExtractorError, match="Vision model required"
+    ):
         smart_ingest(file_path)
 
 
@@ -526,7 +539,9 @@ def _make_full_result() -> orchestrator.IngestResult:
         transactions=tuple(txs),
         verification=verification,
         warnings=("a warning",),
-        audit_trail=({"action": "review_started", "operator": "alice"},),
+        audit_trail=(
+            {"action": "review_started", "operator": "alice"},
+        ),
     )
 
 
@@ -572,7 +587,9 @@ def test_ingest_result_json_round_trip_with_no_verification() -> None:
     original = orchestrator.IngestResult(
         source_method="deterministic",
         source_format="camt",
-        transactions=[Transaction(amount=Decimal("10.00"), description="x")],
+        transactions=[
+            Transaction(amount=Decimal("10.00"), description="x")
+        ],
     )
     restored = orchestrator.IngestResult.from_json(original.to_json())
     assert restored.verification is None
@@ -596,7 +613,9 @@ def test_ingest_result_from_json_rejects_invalid_json() -> None:
         orchestrator.IngestResult.from_json("not json")
 
 
-def test_ingest_result_from_json_rejects_unknown_schema_version() -> None:
+def test_ingest_result_from_json_rejects_unknown_schema_version() -> (
+    None
+):
     payload = json.dumps({"schema_version": 99, "transactions": []})
     with pytest.raises(ValueError, match="Unsupported"):
         orchestrator.IngestResult.from_json(payload)
@@ -606,7 +625,9 @@ def test_ingest_result_from_json_rejects_invalid_transactions() -> None:
     payload = json.dumps(
         {
             "schema_version": 1,
-            "transactions": [{"booking_date": "2026-04-01"}],  # missing amount
+            "transactions": [
+                {"booking_date": "2026-04-01"}
+            ],  # missing amount
         }
     )
     with pytest.raises(ValueError, match="invalid transactions"):
@@ -633,7 +654,9 @@ def test_ingest_result_from_json_rejects_non_list_audit_trail() -> None:
         orchestrator.IngestResult.from_json(payload)
 
 
-def test_ingest_result_from_json_rejects_non_object_verification() -> None:
+def test_ingest_result_from_json_rejects_non_object_verification() -> (
+    None
+):
     payload = json.dumps(
         {
             "schema_version": 1,
@@ -641,7 +664,9 @@ def test_ingest_result_from_json_rejects_non_object_verification() -> None:
             "verification": "oops",
         }
     )
-    with pytest.raises(ValueError, match=r"verification.*object or null"):
+    with pytest.raises(
+        ValueError, match=r"verification.*object or null"
+    ):
         orchestrator.IngestResult.from_json(payload)
 
 
@@ -652,10 +677,14 @@ def test_ingest_result_from_json_rejects_invalid_verification_payload() -> (
         {
             "schema_version": 1,
             "transactions": [],
-            "verification": {"status": "verified"},  # missing required fields
+            "verification": {
+                "status": "verified"
+            },  # missing required fields
         }
     )
-    with pytest.raises(ValueError, match="Invalid verification payload"):
+    with pytest.raises(
+        ValueError, match="Invalid verification payload"
+    ):
         orchestrator.IngestResult.from_json(payload)
 
 
@@ -724,7 +753,9 @@ def test_ingest_result_round_trip_unverifiable_status() -> None:
     payload = original.to_json()
     restored = orchestrator.IngestResult.from_json(payload)
     assert restored.verification is not None
-    assert restored.verification.status is VerificationStatus.UNVERIFIABLE
+    assert (
+        restored.verification.status is VerificationStatus.UNVERIFIABLE
+    )
 
 
 def test_ingest_result_from_json_skips_non_dict_audit_entries() -> None:

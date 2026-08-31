@@ -168,7 +168,9 @@ def main() -> int:
     if live:
         print(f"Model: {os.environ.get('BSP_HYBRID_MODEL')}")
     else:
-        print("Set BSP_HYBRID_MODEL=ollama/llama3 (and run `ollama serve`)")
+        print(
+            "Set BSP_HYBRID_MODEL=ollama/llama3 (and run `ollama serve`)"
+        )
         print("to call a real model instead of the mock.")
     print()
     print(f"Input: {SAMPLE_PDF.relative_to(REPO_ROOT)}")
@@ -201,7 +203,9 @@ def main() -> int:
     print(f"  {'-' * 10}  {'-' * 10}  {'-' * 5}  {'-' * 40}")
     for tx in result.transactions:
         booking = tx.booking_date.isoformat() if tx.booking_date else ""
-        conf = f"{tx.confidence:.2f}" if tx.confidence is not None else ""
+        conf = (
+            f"{tx.confidence:.2f}" if tx.confidence is not None else ""
+        )
         print(
             f"  {booking:<10}  {tx.amount!s:>10}  {conf:>5}  "
             f"{(tx.description or '')[:40]}"
@@ -209,8 +213,12 @@ def main() -> int:
     print()
 
     print("Every row is tagged source_method='llm' for audit purposes,")
-    print("and `raw_source_text` is populated where the description was")
-    print("found in the original PDF text — ready for v0.0.6 review mode.")
+    print(
+        "and `raw_source_text` is populated where the description was"
+    )
+    print(
+        "found in the original PDF text — ready for v0.0.6 review mode."
+    )
     return 0
 
 

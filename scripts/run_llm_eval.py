@@ -74,7 +74,9 @@ def _mock_completion_for(case: EvalCase) -> Any:
         "transactions": [
             {
                 "booking_date": (
-                    tx.booking_date.isoformat() if tx.booking_date else None
+                    tx.booking_date.isoformat()
+                    if tx.booking_date
+                    else None
                 ),
                 "amount": str(tx.amount),
                 "description": tx.description,
@@ -86,7 +88,9 @@ def _mock_completion_for(case: EvalCase) -> Any:
 
     def completion(**_kwargs: Any) -> dict[str, Any]:
         """Return the case's perfect answer as a completion response."""
-        return {"choices": [{"message": {"content": json.dumps(payload)}}]}
+        return {
+            "choices": [{"message": {"content": json.dumps(payload)}}]
+        }
 
     return completion
 
@@ -94,7 +98,9 @@ def _mock_completion_for(case: EvalCase) -> Any:
 def _run_case(case: EvalCase, *, args: argparse.Namespace) -> EvalScore:
     """Extract and score a single eval case using the configured model."""
     if args.mock:
-        extractor = LLMExtractor(completion_fn=_mock_completion_for(case))
+        extractor = LLMExtractor(
+            completion_fn=_mock_completion_for(case)
+        )
     else:
         extractor = LLMExtractor(model=args.model)
     result = extractor.extract(case.statement_text)
@@ -129,7 +135,9 @@ def _print_score(score: EvalScore) -> None:
     if score.date_accuracy is not None:
         print(f"  date accuracy:        {score.date_accuracy:.2f}")
     if score.description_accuracy is not None:
-        print(f"  description accuracy: {score.description_accuracy:.2f}")
+        print(
+            f"  description accuracy: {score.description_accuracy:.2f}"
+        )
     print(
         f"  opening {_flag(score.opening_balance_correct)}  "
         f"closing {_flag(score.closing_balance_correct)}  "
@@ -207,7 +215,9 @@ def main(argv: list[str] | None = None) -> int:
         f"mean recall {summary.mean_recall:.3f}  "
         f"mean f1 {summary.mean_f1:.3f}"
     )
-    print(f"  worst case: {summary.worst_case} (f1 {summary.worst_f1:.3f})")
+    print(
+        f"  worst case: {summary.worst_case} (f1 {summary.worst_f1:.3f})"
+    )
 
     if errors or summary.mean_f1 < args.min_f1:
         print(

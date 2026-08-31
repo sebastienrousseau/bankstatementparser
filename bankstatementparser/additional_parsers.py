@@ -167,7 +167,9 @@ def _require_amount(value: object, *, context: str) -> Decimal:
     """Parse an amount that must be present and valid."""
     amount = _parse_amount(value)
     if amount is None:
-        raise ValidationError(f"Unparseable amount {value!r} in {context}")
+        raise ValidationError(
+            f"Unparseable amount {value!r} in {context}"
+        )
     return amount
 
 
@@ -189,7 +191,9 @@ class CsvStatementParser(BankStatementParser):
         self._path, _ = _read_validated_text(file_name)
         self._parsed_df: pd.DataFrame | None = None
 
-    def _find_column(self, df: pd.DataFrame, logical_name: str) -> str | None:
+    def _find_column(
+        self, df: pd.DataFrame, logical_name: str
+    ) -> str | None:
         """Return the DataFrame column matching a logical name, if any."""
         candidates = CSV_COLUMN_GROUPS[logical_name]
         for column in df.columns:
@@ -224,7 +228,9 @@ class CsvStatementParser(BankStatementParser):
         else:
             credit_col = self._find_column(raw_df, "credit")
             debit_col = self._find_column(raw_df, "debit")
-            zero = pd.Series([Decimal("0")] * len(raw_df), index=raw_df.index)
+            zero = pd.Series(
+                [Decimal("0")] * len(raw_df), index=raw_df.index
+            )
             credit = (
                 raw_df[credit_col].map(
                     lambda v: _amount_or_zero(
@@ -261,7 +267,9 @@ class CsvStatementParser(BankStatementParser):
     def get_summary(self) -> SummaryRecord:
         """Summarize the parsed CSV statement."""
         df = self.parse()
-        balance = df["balance"] if "balance" in df.columns else pd.Series()
+        balance = (
+            df["balance"] if "balance" in df.columns else pd.Series()
+        )
         return {
             "account_id": (
                 df["account_id"].dropna().astype(str).iloc[0]
@@ -280,10 +288,14 @@ class CsvStatementParser(BankStatementParser):
                 else Decimal("0")
             ),
             "opening_balance": (
-                _parse_amount(balance.iloc[0]) if not balance.empty else None
+                _parse_amount(balance.iloc[0])
+                if not balance.empty
+                else None
             ),
             "closing_balance": (
-                _parse_amount(balance.iloc[-1]) if not balance.empty else None
+                _parse_amount(balance.iloc[-1])
+                if not balance.empty
+                else None
             ),
             "currency": (
                 df["currency"].dropna().astype(str).iloc[0]
@@ -304,7 +316,9 @@ class OfxParser(BankStatementParser):
 
     def _tag_value(self, source: str, tag: str) -> str | None:
         """Return the stripped value of an OFX/SGML tag, or None."""
-        match = re.search(rf"<{tag}>([^<\r\n]+)", source, flags=re.IGNORECASE)
+        match = re.search(
+            rf"<{tag}>([^<\r\n]+)", source, flags=re.IGNORECASE
+        )
         if match is None:
             return None
         return match.group(1).strip()
@@ -341,7 +355,9 @@ class OfxParser(BankStatementParser):
                     "currency": currency,
                     "account_id": account_id,
                     "transaction_id": transaction_id,
-                    "transaction_type": self._tag_value(block, "TRNTYPE"),
+                    "transaction_type": self._tag_value(
+                        block, "TRNTYPE"
+                    ),
                 }
             )
 
@@ -415,14 +431,18 @@ class Mt940Parser(BankStatementParser):
             elif line.startswith((":60F:", ":60M:", ":62F:", ":62M:")):
                 in_86 = False
                 match = re.match(
-                    r"^:(60F|60M|62F|62M):[CD](\d{6})([A-Z]{3})([0-9,]+)$", line
+                    r"^:(60F|60M|62F|62M):[CD](\d{6})([A-Z]{3})([0-9,]+)$",
+                    line,
                 )
                 if match is not None:
                     amount = _parse_amount(match.group(4))
                     current_currency = match.group(3)
                     if self._currency is None:
                         self._currency = current_currency
-                    if match.group(1).startswith("60") and self._opening_balance is None:
+                    if (
+                        match.group(1).startswith("60")
+                        and self._opening_balance is None
+                    ):
                         self._opening_balance = amount
                     elif match.group(1).startswith("62"):
                         self._closing_balance = amount
@@ -447,8 +467,10 @@ class Mt940Parser(BankStatementParser):
                             match.group(3),
                             context="MT940 :61: line",
                         ),
-                        "transaction_id": match.group(4).strip() or None,
-                        "account_id": current_account_id or self._account_id,
+                        "transaction_id": match.group(4).strip()
+                        or None,
+                        "account_id": current_account_id
+                        or self._account_id,
                         "currency": current_currency or self._currency,
                         "description": None,
                     }
@@ -459,9 +481,13 @@ class Mt940Parser(BankStatementParser):
                 in_86 = True
             elif in_86 and current is not None:
                 # Continuation line for :86: narrative
-                if re.match(r"^:[0-9]{2}[A-Z]?:", line) is None and not line.startswith("-"):
+                if re.match(
+                    r"^:[0-9]{2}[A-Z]?:", line
+                ) is None and not line.startswith("-"):
                     desc = current.get("description") or ""
-                    current["description"] = (desc + " " + line).strip() or None
+                    current["description"] = (
+                        desc + " " + line
+                    ).strip() or None
                 else:
                     in_86 = False
 
@@ -513,7 +539,9 @@ def detect_statement_format(file_name: str | Path) -> str:
         "cstmrcdttrfinitn" in lowered or "pain.001" in lowered
     ):
         return "pain001"
-    if suffix == ".xml" and ("bktocstmrstmt" in lowered or "camt." in lowered):
+    if suffix == ".xml" and (
+        "bktocstmrstmt" in lowered or "camt." in lowered
+    ):
         return "camt"
     if "<ofx>" in lowered or "<banktranlist>" in lowered:
         return "ofx"
@@ -534,7 +562,9 @@ def create_parser(
     format_name: str | None = None,
 ) -> BankStatementParser:
     """Create a parser instance from an explicit or detected format."""
-    selected = (format_name or detect_statement_format(file_name)).lower()
+    selected = (
+        format_name or detect_statement_format(file_name)
+    ).lower()
     parser_map: dict[str, type[BankStatementParser]] = {
         "camt": CamtParser,
         "pain001": Pain001Parser,
@@ -547,6 +577,8 @@ def create_parser(
     parser_map.update(get_registered_loaders())
 
     if selected not in parser_map:
-        raise ValidationError(f"Unsupported statement format: {selected}")
+        raise ValidationError(
+            f"Unsupported statement format: {selected}"
+        )
     parser_cls = parser_map[selected]
     return parser_cls(str(file_name))

@@ -75,7 +75,9 @@ def _install_fake_pdfium(
     open_fail: bool = False,
 ) -> None:
     module = types.ModuleType("pypdfium2")
-    effective = pages if pages is not None else [_FakePage(b"PNGBYTES_PAGE_1")]
+    effective = (
+        pages if pages is not None else [_FakePage(b"PNGBYTES_PAGE_1")]
+    )
 
     def _doc_factory(_path: str) -> _FakePdfDocument:
         if open_fail:
@@ -128,7 +130,11 @@ def test_vision_extract_renders_and_calls_model(
         captured.update(kwargs)
         return {
             "choices": [
-                {"message": {"content": json.dumps(_valid_vision_payload())}}
+                {
+                    "message": {
+                        "content": json.dumps(_valid_vision_payload())
+                    }
+                }
             ]
         }
 
@@ -170,7 +176,11 @@ def test_vision_extract_caps_pages(
         captured.update(kwargs)
         return {
             "choices": [
-                {"message": {"content": json.dumps(_valid_vision_payload())}}
+                {
+                    "message": {
+                        "content": json.dumps(_valid_vision_payload())
+                    }
+                }
             ]
         }
 
@@ -193,7 +203,9 @@ def test_vision_requires_configured_model(
     monkeypatch.delenv("BSP_HYBRID_VISION_MODEL", raising=False)
 
     extractor = VisionExtractor(completion_fn=lambda **_: None)
-    with pytest.raises(VisionExtractorError, match="Vision model required"):
+    with pytest.raises(
+        VisionExtractorError, match="Vision model required"
+    ):
         extractor.extract(pdf_path)
 
 
@@ -211,7 +223,11 @@ def test_vision_reads_model_from_env(
         captured.update(kwargs)
         return {
             "choices": [
-                {"message": {"content": json.dumps(_valid_vision_payload())}}
+                {
+                    "message": {
+                        "content": json.dumps(_valid_vision_payload())
+                    }
+                }
             ]
         }
 
@@ -232,7 +248,11 @@ def test_vision_passes_api_base_when_set(
         captured.update(kwargs)
         return {
             "choices": [
-                {"message": {"content": json.dumps(_valid_vision_payload())}}
+                {
+                    "message": {
+                        "content": json.dumps(_valid_vision_payload())
+                    }
+                }
             ]
         }
 
@@ -254,7 +274,9 @@ def test_vision_completion_failure_wrapped(
     def boom(**_: Any) -> Any:
         raise RuntimeError("network")
 
-    extractor = VisionExtractor(model="ollama/llava", completion_fn=boom)
+    extractor = VisionExtractor(
+        model="ollama/llava", completion_fn=boom
+    )
     with pytest.raises(VisionExtractorError, match="Vision completion"):
         extractor.extract(pdf_path)
 
@@ -316,7 +338,9 @@ def test_build_vision_messages_encodes_images() -> None:
     assert messages[1]["role"] == "user"
     content = messages[1]["content"]
     assert content[0]["type"] == "text"
-    assert content[1]["image_url"]["url"].startswith("data:image/png;base64,")
+    assert content[1]["image_url"]["url"].startswith(
+        "data:image/png;base64,"
+    )
     assert len(content) == 3  # 1 text + 2 images
 
 
@@ -439,7 +463,9 @@ def test_strip_extractor_calls_completion_per_strip(
                     }
                 ]
             }
-        return {"choices": [{"message": {"content": json.dumps(payload)}}]}
+        return {
+            "choices": [{"message": {"content": json.dumps(payload)}}]
+        }
 
     extractor = VisionExtractor(
         model="ollama/minicpm-v",
@@ -482,7 +508,9 @@ def test_strip_extractor_raises_when_no_strips_rendered(
         completion_fn=lambda **_: None,
         strip_rows=True,
     )
-    with pytest.raises(VisionExtractorError, match="No strips rendered"):
+    with pytest.raises(
+        VisionExtractorError, match="No strips rendered"
+    ):
         extractor.extract(pdf_path)
 
 
@@ -614,7 +642,9 @@ def test_render_pages_missing_pypdfium2_raises(
     pdf_path.write_bytes(b"%PDF stub")
     monkeypatch.setitem(sys.modules, "pypdfium2", None)
     extractor = VisionExtractor(completion_fn=lambda **_: None)
-    with pytest.raises(VisionExtractorError, match="pypdfium2 is required"):
+    with pytest.raises(
+        VisionExtractorError, match="pypdfium2 is required"
+    ):
         extractor._render_pages(pdf_path)
 
 
@@ -628,5 +658,7 @@ def test_render_strips_missing_pypdfium2_raises(
     extractor = VisionExtractor(
         completion_fn=lambda **_: None, strip_rows=True
     )
-    with pytest.raises(VisionExtractorError, match="pypdfium2 is required"):
+    with pytest.raises(
+        VisionExtractorError, match="pypdfium2 is required"
+    ):
         extractor._render_strips(pdf_path)

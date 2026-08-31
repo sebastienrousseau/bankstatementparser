@@ -24,7 +24,9 @@ def _tx(amount: str) -> Transaction:
     return Transaction(amount=Decimal(amount))
 
 
-def test_verify_balance_returns_verified_when_within_tolerance() -> None:
+def test_verify_balance_returns_verified_when_within_tolerance() -> (
+    None
+):
     txs = [_tx("100.00"), _tx("-30.00"), _tx("-20.00")]
     result = verify_balance(
         txs,
@@ -105,7 +107,9 @@ def test_verify_continuity_reports_break_with_gap() -> None:
     assert "jan.xml closed at 250" in result.message
 
 
-def test_verify_continuity_break_takes_precedence_over_missing() -> None:
+def test_verify_continuity_break_takes_precedence_over_missing() -> (
+    None
+):
     result = verify_continuity(
         [
             ("jan.xml", Decimal("100"), None),
@@ -132,7 +136,9 @@ def test_verify_continuity_unverifiable_when_balance_missing() -> None:
 
 
 def test_verify_continuity_needs_at_least_two_statements() -> None:
-    result = verify_continuity([("jan.xml", Decimal("1"), Decimal("2"))])
+    result = verify_continuity(
+        [("jan.xml", Decimal("1"), Decimal("2"))]
+    )
     assert result.status is VerificationStatus.UNVERIFIABLE
     assert result.checked_links == 0
     assert "at least two statements" in result.message

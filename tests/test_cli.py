@@ -10,7 +10,9 @@ from bankstatementparser.input_validator import ValidationError
 class TestConsoleScript(unittest.TestCase):
     def test_main_delegates_to_cli_run(self):
         """The console-script entry point dispatches to BankStatementCLI.run()."""
-        with patch("bankstatementparser.cli.BankStatementCLI") as mock_cls:
+        with patch(
+            "bankstatementparser.cli.BankStatementCLI"
+        ) as mock_cls:
             instance = Mock()
             mock_cls.return_value = instance
             main()
@@ -89,7 +91,9 @@ class TestBankStatementCLI(unittest.TestCase):
         Regression: list(DataFrame) yields column names, which crashed
         PII redaction with "'int' object has no attribute 'lower'".
         """
-        fixture = Path(__file__).parent / "test_data" / "camt.053.001.02.xml"
+        fixture = (
+            Path(__file__).parent / "test_data" / "camt.053.001.02.xml"
+        )
 
         with patch("builtins.print") as mock_print:
             self.cli.parse_camt(fixture, None)
@@ -103,7 +107,9 @@ class TestBankStatementCLI(unittest.TestCase):
     @patch("bankstatementparser.cli.CamtParser")
     def test_parse_camt_file_not_found(self, mock_camt_parser):
         """Test CAMT parsing with file not found error."""
-        mock_camt_parser.side_effect = FileNotFoundError("File not found")
+        mock_camt_parser.side_effect = FileNotFoundError(
+            "File not found"
+        )
 
         with patch("sys.exit") as mock_exit:
             with patch("builtins.print") as mock_print:
@@ -178,7 +184,9 @@ class TestBankStatementCLI(unittest.TestCase):
     @patch("bankstatementparser.cli.Pain001Parser")
     def test_parse_pain_file_not_found(self, mock_pain_parser):
         """Test PAIN parsing with file not found error."""
-        mock_pain_parser.side_effect = FileNotFoundError("File not found")
+        mock_pain_parser.side_effect = FileNotFoundError(
+            "File not found"
+        )
 
         with patch("sys.exit") as mock_exit:
             with patch("builtins.print") as mock_print:
@@ -215,7 +223,9 @@ class TestBankStatementCLI(unittest.TestCase):
             self.cli.run()
             mock_exit.assert_called_with(1)
 
-    @patch("sys.argv", ["cli.py", "--type", "camt", "--input", "test.xml"])
+    @patch(
+        "sys.argv", ["cli.py", "--type", "camt", "--input", "test.xml"]
+    )
     @patch("bankstatementparser.cli.logger")
     def test_run_camt_success(self, mock_logger):
         """Test successful CAMT parsing via run method."""
@@ -388,7 +398,9 @@ class TestBankStatementCLI(unittest.TestCase):
                 mock_exit.assert_called_with(1)
                 mock_print.assert_called()
 
-    @patch("sys.argv", ["cli.py", "--type", "camt", "--input", "test.xml"])
+    @patch(
+        "sys.argv", ["cli.py", "--type", "camt", "--input", "test.xml"]
+    )
     def test_run_parsing_exception(self):
         """Test run with parsing exception."""
         with (

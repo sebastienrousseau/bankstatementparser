@@ -49,7 +49,9 @@ def main() -> int:
             print(f" - {failure}")
         return 1
 
-    print(f"Verified SHA-256 hashes for {len(packages)} locked packages.")
+    print(
+        f"Verified SHA-256 hashes for {len(packages)} locked packages."
+    )
     return 0
 
 

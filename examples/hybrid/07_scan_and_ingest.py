@@ -73,7 +73,9 @@ def main() -> int:
         "scan_and_ingest() deduplicated the re-exported month by "
         "transaction_hash,"
     )
-    print("so each booking appears exactly once in unique_transactions.")
+    print(
+        "so each booking appears exactly once in unique_transactions."
+    )
     return 0
 
 

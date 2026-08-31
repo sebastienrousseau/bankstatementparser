@@ -539,7 +539,9 @@ def _rss_mb() -> float:
     try:
         import psutil
 
-        return psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+        return psutil.Process(os.getpid()).memory_info().rss / (
+            1024 * 1024
+        )
     except ImportError:
         return 0.0
 

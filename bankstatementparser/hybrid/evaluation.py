@@ -106,10 +106,14 @@ def _to_decimal(value: object, *, context: str) -> Decimal:
     try:
         return Decimal(str(value))
     except InvalidOperation as exc:
-        raise EvalCaseError(f"Invalid decimal {value!r} in {context}") from exc
+        raise EvalCaseError(
+            f"Invalid decimal {value!r} in {context}"
+        ) from exc
 
 
-def _optional_decimal(value: object, *, context: str) -> Optional[Decimal]:
+def _optional_decimal(
+    value: object, *, context: str
+) -> Optional[Decimal]:
     """Coerce a value to ``Decimal``, returning ``None`` when empty."""
     if value is None or value == "":
         return None
@@ -123,7 +127,9 @@ def _optional_date(value: object, *, context: str) -> Optional[date]:
     try:
         return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
     except ValueError as exc:
-        raise EvalCaseError(f"Invalid date {value!r} in {context}") from exc
+        raise EvalCaseError(
+            f"Invalid date {value!r} in {context}"
+        ) from exc
 
 
 def load_eval_case(path: PathLike) -> EvalCase:
@@ -145,15 +151,21 @@ def load_eval_case(path: PathLike) -> EvalCase:
     try:
         payload = json.loads(case_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise EvalCaseError(f"Invalid JSON in {case_path}: {exc}") from exc
+        raise EvalCaseError(
+            f"Invalid JSON in {case_path}: {exc}"
+        ) from exc
 
     name = payload.get("name") or case_path.stem
     statement_text = payload.get("statement_text")
     if not statement_text or not str(statement_text).strip():
-        raise EvalCaseError(f"{case_path}: 'statement_text' is required")
+        raise EvalCaseError(
+            f"{case_path}: 'statement_text' is required"
+        )
     expected = payload.get("expected")
     if not isinstance(expected, dict):
-        raise EvalCaseError(f"{case_path}: 'expected' object is required")
+        raise EvalCaseError(
+            f"{case_path}: 'expected' object is required"
+        )
     raw_txs = expected.get("transactions")
     if not isinstance(raw_txs, list) or not raw_txs:
         raise EvalCaseError(
@@ -253,7 +265,11 @@ def _description_matches(
         return False
     exp_norm = normalize_description(expected)
     act_norm = normalize_description(actual)
-    return exp_norm == act_norm or exp_norm in act_norm or act_norm in exp_norm
+    return (
+        exp_norm == act_norm
+        or exp_norm in act_norm
+        or act_norm in exp_norm
+    )
 
 
 def _ratio(numerator: int, denominator: int) -> float:
@@ -299,7 +315,9 @@ def score_extraction(
     description_accuracy: Optional[float] = None
     if matched:
         dates_checked = [
-            (exp, tx) for exp, tx in pairs if exp.booking_date is not None
+            (exp, tx)
+            for exp, tx in pairs
+            if exp.booking_date is not None
         ]
         if dates_checked:
             date_accuracy = _ratio(
@@ -319,7 +337,9 @@ def score_extraction(
             matched,
         )
 
-    def _check(expected_value: object, actual_value: object) -> Optional[bool]:
+    def _check(
+        expected_value: object, actual_value: object
+    ) -> Optional[bool]:
         """Compare values, returning ``None`` when nothing is pinned."""
         if expected_value is None:
             return None
@@ -335,8 +355,12 @@ def score_extraction(
         f1=f1,
         date_accuracy=date_accuracy,
         description_accuracy=description_accuracy,
-        opening_balance_correct=_check(case.opening_balance, opening_balance),
-        closing_balance_correct=_check(case.closing_balance, closing_balance),
+        opening_balance_correct=_check(
+            case.opening_balance, opening_balance
+        ),
+        closing_balance_correct=_check(
+            case.closing_balance, closing_balance
+        ),
         currency_correct=_check(
             case.currency,
             currency.upper() if currency else None,

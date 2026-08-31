@@ -55,14 +55,18 @@ def _install_fake_fastapi(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_responses = types.ModuleType("fastapi.responses")
 
     class _FakeJSONResponse:
-        def __init__(self, content: Any, status_code: int = 200) -> None:
+        def __init__(
+            self, content: Any, status_code: int = 200
+        ) -> None:
             self.content = content
             self.status_code = status_code
 
     fake_responses.JSONResponse = _FakeJSONResponse  # type: ignore[attr-defined]
 
     monkeypatch.setitem(sys.modules, "fastapi", fake_fastapi)
-    monkeypatch.setitem(sys.modules, "fastapi.responses", fake_responses)
+    monkeypatch.setitem(
+        sys.modules, "fastapi.responses", fake_responses
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -321,7 +325,9 @@ class _FakeUpload:
         return chunk
 
 
-def _ingest_route(monkeypatch: pytest.MonkeyPatch, **kwargs: Any) -> Any:
+def _ingest_route(
+    monkeypatch: pytest.MonkeyPatch, **kwargs: Any
+) -> Any:
     """Build the app with a fake FastAPI and return its ``/ingest`` route."""
     _install_fake_fastapi(monkeypatch)
     app = create_app(**kwargs)
@@ -373,7 +379,9 @@ def test_ingest_success_returns_serialized_result(
     )
 
     route = _ingest_route(monkeypatch)
-    upload = _FakeUpload("statement.csv", b"date,amount\n2026-01-01,1.00\n")
+    upload = _FakeUpload(
+        "statement.csv", b"date,amount\n2026-01-01,1.00\n"
+    )
     response = asyncio.run(route(file=upload))
     assert response.status_code == 200
     assert response.content["source_method"] == "deterministic"

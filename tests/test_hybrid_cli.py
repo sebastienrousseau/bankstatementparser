@@ -35,9 +35,11 @@ def _make_result(verified: bool = True) -> IngestResult:
         confidence=0.9,
     )
     verification = BalanceVerification(
-        status=VerificationStatus.VERIFIED
-        if verified
-        else VerificationStatus.DISCREPANCY,
+        status=(
+            VerificationStatus.VERIFIED
+            if verified
+            else VerificationStatus.DISCREPANCY
+        ),
         opening_balance=Decimal("0"),
         closing_balance=Decimal("10"),
         total_credits=Decimal("10"),
@@ -68,7 +70,9 @@ def test_run_ingest_console_output(
 
     import bankstatementparser.hybrid as hybrid_pkg
 
-    monkeypatch.setattr(hybrid_pkg, "smart_ingest", lambda _p: _make_result())
+    monkeypatch.setattr(
+        hybrid_pkg, "smart_ingest", lambda _p: _make_result()
+    )
 
     instance.run_ingest(file_path)
 
@@ -90,7 +94,9 @@ def test_run_ingest_writes_csv(
     instance = cli.BankStatementCLI()
     import bankstatementparser.hybrid as hybrid_pkg
 
-    monkeypatch.setattr(hybrid_pkg, "smart_ingest", lambda _p: _make_result())
+    monkeypatch.setattr(
+        hybrid_pkg, "smart_ingest", lambda _p: _make_result()
+    )
 
     instance.run_ingest(file_path, output_path)
 
@@ -161,7 +167,9 @@ def test_cli_run_dispatches_to_ingest(
 
     import bankstatementparser.hybrid as hybrid_pkg
 
-    monkeypatch.setattr(hybrid_pkg, "smart_ingest", lambda _p: _make_result())
+    monkeypatch.setattr(
+        hybrid_pkg, "smart_ingest", lambda _p: _make_result()
+    )
     monkeypatch.setattr(
         sys,
         "argv",

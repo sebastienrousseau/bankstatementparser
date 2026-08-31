@@ -218,7 +218,9 @@ class VisionExtractor:
 
         images = self._render_pages(Path(pdf_path))
         if not images:
-            raise VisionExtractorError(f"No pages rendered from {pdf_path}")
+            raise VisionExtractorError(
+                f"No pages rendered from {pdf_path}"
+            )
 
         return self._call_vision(_build_vision_messages(images))
 
@@ -262,7 +264,9 @@ class VisionExtractor:
         """
         page_strips = self._render_strips(pdf_path)
         if not page_strips:
-            raise VisionExtractorError(f"No strips rendered from {pdf_path}")
+            raise VisionExtractorError(
+                f"No strips rendered from {pdf_path}"
+            )
 
         merged_transactions: list[Transaction] = []
         seen_hashes: set[str] = set()
@@ -396,7 +400,9 @@ class VisionExtractor:
                     (strip_index + 1) * strip_height + overlap,
                 )
                 try:
-                    strip_image = pil_image.crop((0, top, width, bottom))
+                    strip_image = pil_image.crop(
+                        (0, top, width, bottom)
+                    )
                     buffer = BytesIO()
                     strip_image.save(buffer, format="PNG")
                     all_strips.append(buffer.getvalue())

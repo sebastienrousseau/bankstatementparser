@@ -38,7 +38,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DOC_FILES = ("README.md", "FAQ.md", "docs/index.md", "docs/MAPPING.md")
 
 CAMT_FIXTURE = REPO_ROOT / "tests" / "test_data" / "camt.053.001.02.xml"
-PAIN001_FIXTURE = REPO_ROOT / "tests" / "test_data" / "pain.001.001.03.xml"
+PAIN001_FIXTURE = (
+    REPO_ROOT / "tests" / "test_data" / "pain.001.001.03.xml"
+)
 OFX_FIXTURE = REPO_ROOT / "tests" / "test_data" / "sample.ofx"
 
 
@@ -83,7 +85,9 @@ def _extract_blocks() -> list[DocBlock]:
 
 ALL_BLOCKS = _extract_blocks()
 PYTHON_BLOCKS = [b for b in ALL_BLOCKS if b.lang == "python"]
-BASH_BLOCKS = [b for b in ALL_BLOCKS if b.lang in ("bash", "sh", "console")]
+BASH_BLOCKS = [
+    b for b in ALL_BLOCKS if b.lang in ("bash", "sh", "console")
+]
 
 
 # ----------------------------------------------------------------------
@@ -383,7 +387,9 @@ def test_documented_python_block(
 def _run_cli(*args: str, stdin: str | None = None) -> str:
     env = os.environ.copy()
     env["PATH"] = (
-        str(Path(sys.executable).parent) + os.pathsep + env.get("PATH", "")
+        str(Path(sys.executable).parent)
+        + os.pathsep
+        + env.get("PATH", "")
     )
     proc = subprocess.run(
         [sys.executable, "-m", "bankstatementparser.cli", *args],
@@ -407,7 +413,9 @@ def test_cli_doc_flags_all_exist() -> None:
 
     parser = BankStatementCLI().setup_arg_parser()
     known = {
-        opt for action in parser._actions for opt in action.option_strings
+        opt
+        for action in parser._actions
+        for opt in action.option_strings
     }
 
     documented: set[str] = set()
@@ -420,7 +428,9 @@ def test_cli_doc_flags_all_exist() -> None:
             ):
                 continue
             documented.update(
-                token for token in shlex.split(line) if token.startswith("--")
+                token
+                for token in shlex.split(line)
+                if token.startswith("--")
             )
 
     unknown = documented - known

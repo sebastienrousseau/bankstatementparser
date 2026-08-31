@@ -126,7 +126,9 @@ def to_beancount(
             else "1970-01-01"
         )
         payee = _escape_beancount_string(tx.counterparty or "")
-        narration = _escape_beancount_string(tx.description or "Unknown")
+        narration = _escape_beancount_string(
+            tx.description or "Unknown"
+        )
         currency = tx.currency or default_currency
         amount = format(tx.amount.normalize(), "f")
         neg_amount = format((-tx.amount).normalize(), "f")

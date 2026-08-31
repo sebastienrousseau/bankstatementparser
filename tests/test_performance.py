@@ -35,7 +35,9 @@ class TestPerformanceBenchmarks(unittest.TestCase):
         if not self.camt_file.exists():
             self.skipTest(f"CAMT test file not found: {self.camt_file}")
         if not self.pain001_file.exists():
-            self.skipTest(f"Pain001 test file not found: {self.pain001_file}")
+            self.skipTest(
+                f"Pain001 test file not found: {self.pain001_file}"
+            )
 
     def test_camt_parse_time_benchmark(self):
         """Benchmark test for CAMT parsing performance - should complete in <100ms."""
@@ -81,7 +83,9 @@ class TestPerformanceBenchmarks(unittest.TestCase):
 
         # Verify we got valid data
         self.assertIsInstance(payments, pd.DataFrame)
-        self.assertGreater(len(payments), 0, "Should parse some payment data")
+        self.assertGreater(
+            len(payments), 0, "Should parse some payment data"
+        )
 
         print(f"Pain001 parse benchmark: {parse_time_ms:.2f}ms")
 
@@ -99,7 +103,9 @@ class TestStreamingFunctionality(unittest.TestCase):
         if not self.camt_file.exists():
             self.skipTest(f"CAMT test file not found: {self.camt_file}")
         if not self.pain001_file.exists():
-            self.skipTest(f"Pain001 test file not found: {self.pain001_file}")
+            self.skipTest(
+                f"Pain001 test file not found: {self.pain001_file}"
+            )
 
     def test_camt_streaming_yields_correct_results(self):
         """Test that parse_streaming() yields correct results matching standard parse()."""
@@ -375,9 +381,9 @@ class TestCLIStreamingFlag(unittest.TestCase):
                     execution_successful = True
                 except Exception as e:
                     # If streaming not fully implemented, that's OK for this test
-                    if "parse_streaming" in str(e) or "not implemented" in str(
+                    if "parse_streaming" in str(
                         e
-                    ):
+                    ) or "not implemented" in str(e):
                         execution_successful = True
                     else:
                         execution_successful = False
@@ -491,7 +497,9 @@ class TestPerformanceEdgeCases(unittest.TestCase):
             statements = parser.get_statement_stats()
 
             final_memory = self._get_process_memory()
-            memory_usage_mb = (final_memory - initial_memory) / 1024 / 1024
+            memory_usage_mb = (
+                (final_memory - initial_memory) / 1024 / 1024
+            )
 
             # Memory usage should be reasonable even for larger files
             self.assertLess(

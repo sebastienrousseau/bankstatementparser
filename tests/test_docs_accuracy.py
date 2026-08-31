@@ -60,7 +60,9 @@ def _actual_test_count() -> int:
     count = 0
     for py in TESTS_DIR.rglob("*.py"):
         content = py.read_text(encoding="utf-8")
-        count += len(re.findall(r"^\s*def test_", content, re.MULTILINE))
+        count += len(
+            re.findall(r"^\s*def test_", content, re.MULTILINE)
+        )
     return count
 
 
@@ -77,23 +79,24 @@ class TestReadmeAccuracy:
     def test_test_count_matches_reality(self) -> None:
         actual = _actual_test_count()
         for claimed in _claimed_test_count(self.readme_text):
-            assert claimed == actual, (
-                f"README claims {claimed} tests but actual count is {actual}"
-            )
+            assert (
+                claimed == actual
+            ), f"README claims {claimed} tests but actual count is {actual}"
 
     def test_module_count_matches_reality(self) -> None:
         modules = [
             p
             for p in SRC_DIR.rglob("*.py")
-            if "__pycache__" not in str(p) and ".mypy_cache" not in str(p)
+            if "__pycache__" not in str(p)
+            and ".mypy_cache" not in str(p)
         ]
         actual = len(modules)
         match = re.search(r"(\d+)\s+modules", self.readme_text)
         assert match is not None, "README should mention module count"
         claimed = int(match.group(1))
-        assert claimed == actual, (
-            f"README claims {claimed} modules but actual count is {actual}"
-        )
+        assert (
+            claimed == actual
+        ), f"README claims {claimed} modules but actual count is {actual}"
 
     def test_example_count_matches_reality(self) -> None:
         deterministic = list(EXAMPLES_DIR.glob("*.py"))
@@ -114,16 +117,24 @@ class TestReadmeAccuracy:
     def test_python_version_matches_pyproject(self) -> None:
         pyproject = _read(PYPROJECT)
         if ">=3.10" in pyproject:
-            assert "3.10" in self.readme_text, (
-                "README should mention Python 3.10 minimum"
-            )
+            assert (
+                "3.10" in self.readme_text
+            ), "README should mention Python 3.10 minimum"
         if ">=3.9" in pyproject:
             assert "3.9" in self.readme_text
 
     def test_install_extras_match_pyproject(self) -> None:
         pyproject = _read(PYPROJECT)
-        for extra in ["hybrid", "hybrid-plus", "hybrid-vision", "enrichment"]:
-            if f"{extra} = [" in pyproject or f"{extra} = [" in pyproject:
+        for extra in [
+            "hybrid",
+            "hybrid-plus",
+            "hybrid-vision",
+            "enrichment",
+        ]:
+            if (
+                f"{extra} = [" in pyproject
+                or f"{extra} = [" in pyproject
+            ):
                 assert extra in self.readme_text, (
                     f"README doesn't mention [{extra}] extra "
                     f"but it exists in pyproject.toml"
@@ -134,14 +145,14 @@ class TestReadmeAccuracy:
         choices = re.search(r"choices=\[([^\]]+)\]", cli_py)
         assert choices is not None
         for choice in re.findall(r'"(\w+)"', choices.group(1)):
-            assert choice in self.readme_text, (
-                f"README doesn't document --type {choice}"
-            )
+            assert (
+                choice in self.readme_text
+            ), f"README doesn't document --type {choice}"
 
     def test_mermaid_diagram_present(self) -> None:
-        assert "```mermaid" in self.readme_text, (
-            "README should have a Mermaid diagram"
-        )
+        assert (
+            "```mermaid" in self.readme_text
+        ), "README should have a Mermaid diagram"
         assert "smart_ingest" in self.readme_text
 
     def test_version_badge_matches_pyproject(self) -> None:
@@ -149,16 +160,19 @@ class TestReadmeAccuracy:
         match = re.search(r'version\s*=\s*"([^"]+)"', pyproject)
         assert match is not None
         version = match.group(1)
-        assert f"v={version}" in self.readme_text, (
-            f"README badge has wrong version (expected v={version})"
-        )
+        assert (
+            f"v={version}" in self.readme_text
+        ), f"README badge has wrong version (expected v={version})"
 
     def test_console_script_documented(self) -> None:
         pyproject = _read(PYPROJECT)
-        if "bankstatementparser = " in pyproject and "cli:main" in pyproject:
-            assert "bankstatementparser --type" in self.readme_text, (
-                "README should document the console-script invocation"
-            )
+        if (
+            "bankstatementparser = " in pyproject
+            and "cli:main" in pyproject
+        ):
+            assert (
+                "bankstatementparser --type" in self.readme_text
+            ), "README should document the console-script invocation"
 
     def test_key_features_table_present(self) -> None:
         assert "Key Features" in self.readme_text
@@ -180,9 +194,9 @@ class TestFaqAccuracy:
     def test_test_count_matches_reality(self) -> None:
         actual = _actual_test_count()
         for claimed in _claimed_test_count(self.faq_text):
-            assert claimed == actual, (
-                f"FAQ claims {claimed} tests but actual is {actual}"
-            )
+            assert (
+                claimed == actual
+            ), f"FAQ claims {claimed} tests but actual is {actual}"
 
     def test_hybrid_api_references_exist(self) -> None:
         # Every API function mentioned in the FAQ should be importable
@@ -202,7 +216,9 @@ class TestFaqAccuracy:
 
     def test_no_stale_442_467_counts(self) -> None:
         for stale in ["442 tests", "467 tests", "484 tests"]:
-            assert stale not in self.faq_text, f"FAQ has stale count: {stale}"
+            assert (
+                stale not in self.faq_text
+            ), f"FAQ has stale count: {stale}"
 
 
 # ---------------------------------------------------------------------------
@@ -220,9 +236,9 @@ class TestChangelogAccuracy:
         match = re.search(r'version\s*=\s*"([^"]+)"', pyproject)
         assert match is not None
         version = match.group(1)
-        assert f"[{version}]" in self.changelog_text, (
-            f"CHANGELOG has no entry for current version {version}"
-        )
+        assert (
+            f"[{version}]" in self.changelog_text
+        ), f"CHANGELOG has no entry for current version {version}"
 
     def test_v006_closes_all_milestone_issues(self) -> None:
         if "[0.0.6]" not in self.changelog_text:
@@ -230,9 +246,9 @@ class TestChangelogAccuracy:
         v006_section = self.changelog_text.split("[0.0.6]")[1]
         v006_section = v006_section.split("\n## [")[0]
         for issue_num in [44, 45, 46, 47]:
-            assert f"#{issue_num}" in v006_section, (
-                f"v0.0.6 CHANGELOG doesn't reference issue #{issue_num}"
-            )
+            assert (
+                f"#{issue_num}" in v006_section
+            ), f"v0.0.6 CHANGELOG doesn't reference issue #{issue_num}"
 
     def test_no_stale_test_counts_in_current_version(self) -> None:
         actual = _actual_test_count()
@@ -273,9 +289,9 @@ class TestContributingAccuracy:
     def test_install_extras_documented(self) -> None:
         pyproject = _read(PYPROJECT)
         if "hybrid-vision" in pyproject:
-            assert "hybrid" in self.contributing_text, (
-                "CONTRIBUTING should mention hybrid extras for contributors"
-            )
+            assert (
+                "hybrid" in self.contributing_text
+            ), "CONTRIBUTING should mention hybrid extras for contributors"
 
     def test_signed_commits_section_present(self) -> None:
         assert "Signed Commits" in self.contributing_text or (
@@ -297,9 +313,9 @@ class TestSecurityDocs:
 
     def test_top_level_is_redirect(self) -> None:
         text = _read(SECURITY_TOP)
-        assert ".github/SECURITY.md" in text, (
-            "Top-level SECURITY.md should reference .github/SECURITY.md"
-        )
+        assert (
+            ".github/SECURITY.md" in text
+        ), "Top-level SECURITY.md should reference .github/SECURITY.md"
 
     def test_github_security_has_current_version(self) -> None:
         text = _read(SECURITY_GH)
@@ -333,9 +349,9 @@ class TestExamplesExist:
         scripts = self._extract_script_paths(self.readme_text)
         for script in scripts:
             path = EXAMPLES_DIR / script
-            assert path.exists(), (
-                f"README references examples/{script} but file doesn't exist"
-            )
+            assert (
+                path.exists()
+            ), f"README references examples/{script} but file doesn't exist"
 
     def test_all_examples_readme_scripts_exist(self) -> None:
         scripts = self._extract_script_paths(self.examples_readme_text)
@@ -384,30 +400,30 @@ class TestApiSurface:
             "smart_ingest",
         ]
         for sym in must_mention:
-            assert sym in self.readme_text, (
-                f"README doesn't mention public API symbol '{sym}'"
-            )
+            assert (
+                sym in self.readme_text
+            ), f"README doesn't mention public API symbol '{sym}'"
 
     def test_boundingbox_in_docs(self) -> None:
         """BoundingBox is a v0.0.6 addition — should be documented."""
         combined = self.readme_text + _read(CHANGELOG)
-        assert "BoundingBox" in combined, (
-            "BoundingBox should be mentioned in README or CHANGELOG"
-        )
+        assert (
+            "BoundingBox" in combined
+        ), "BoundingBox should be mentioned in README or CHANGELOG"
 
     def test_enrichment_in_docs(self) -> None:
         """Enrichment module is a v0.0.6 addition — should be documented."""
         combined = self.readme_text + _read(CHANGELOG)
-        assert "enrichment" in combined.lower(), (
-            "Enrichment module should be mentioned in README or CHANGELOG"
-        )
+        assert (
+            "enrichment" in combined.lower()
+        ), "Enrichment module should be mentioned in README or CHANGELOG"
 
     def test_review_mode_in_docs(self) -> None:
         """Review mode is a v0.0.6 addition — should be documented."""
         combined = self.readme_text + _read(CHANGELOG)
-        assert "review" in combined.lower(), (
-            "Review mode should be mentioned in README or CHANGELOG"
-        )
+        assert (
+            "review" in combined.lower()
+        ), "Review mode should be mentioned in README or CHANGELOG"
 
 
 # ---------------------------------------------------------------------------
@@ -426,9 +442,9 @@ class TestCrossFileConsistency:
         }
         for name, path in files.items():
             for claimed in _claimed_test_count(_read(path)):
-                assert claimed == actual, (
-                    f"{name} claims {claimed} tests but actual is {actual}"
-                )
+                assert (
+                    claimed == actual
+                ), f"{name} claims {claimed} tests but actual is {actual}"
 
     def test_pyproject_version_consistent_everywhere(self) -> None:
         pyproject = _read(PYPROJECT)
@@ -453,7 +469,10 @@ class TestCrossFileConsistency:
         if ">=3.10" in pyproject:
             # v0.0.6+ — 3.9 should not be in any CI matrix
             workflow = (
-                REPO_ROOT / ".github" / "workflows" / "quality-gates.yml"
+                REPO_ROOT
+                / ".github"
+                / "workflows"
+                / "quality-gates.yml"
             )
             if workflow.exists():
                 wf_text = _read(workflow)

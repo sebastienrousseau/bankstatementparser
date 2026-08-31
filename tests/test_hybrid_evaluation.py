@@ -125,7 +125,10 @@ def test_load_eval_case_minimal_fields(tmp_path: Path) -> None:
         ),
         (
             json.dumps(
-                {"statement_text": "x", "expected": {"transactions": []}}
+                {
+                    "statement_text": "x",
+                    "expected": {"transactions": []},
+                }
             ),
             "transactions",
         ),
@@ -196,7 +199,9 @@ def test_load_eval_case_empty_optional_strings(tmp_path: Path) -> None:
                 "statement_text": "x",
                 "expected": {
                     "opening_balance": "",
-                    "transactions": [{"amount": "1", "booking_date": ""}],
+                    "transactions": [
+                        {"amount": "1", "booking_date": ""}
+                    ],
                 },
             }
         )
@@ -339,7 +344,9 @@ def test_score_extraction_partial_match_and_wrong_fields() -> None:
                 booking_date=date(2026, 1, 1),
                 description="RENT",
             ),
-            ExpectedTransaction(amount=Decimal("20"), description="GAS"),
+            ExpectedTransaction(
+                amount=Decimal("20"), description="GAS"
+            ),
         ),
         currency="EUR",
         closing_balance=Decimal("30"),
@@ -368,11 +375,15 @@ def test_score_extraction_partial_match_and_wrong_fields() -> None:
     assert score.account_id_correct is None
 
 
-def test_score_extraction_dates_unpinned_leaves_date_accuracy_none() -> None:
+def test_score_extraction_dates_unpinned_leaves_date_accuracy_none() -> (
+    None
+):
     case = _case(
         (ExpectedTransaction(amount=Decimal("5"), description="FEE"),)
     )
-    score = score_extraction(case, transactions=[_tx("5", description="FEE")])
+    score = score_extraction(
+        case, transactions=[_tx("5", description="FEE")]
+    )
     assert score.matched == 1
     assert score.date_accuracy is None
     assert score.description_accuracy == 1.0
@@ -402,7 +413,9 @@ def _score(name: str, f1: float) -> EvalScore:
 
 
 def test_summarize_scores() -> None:
-    summary = summarize_scores([_score("good", 1.0), _score("bad", 0.5)])
+    summary = summarize_scores(
+        [_score("good", 1.0), _score("bad", 0.5)]
+    )
     assert summary.case_count == 2
     assert summary.mean_f1 == 0.75
     assert summary.worst_case == "bad"
@@ -438,7 +451,9 @@ def test_run_llm_eval_script_mock_mode() -> None:
 
 def test_run_llm_eval_script_requires_model_without_mock() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    env = {k: v for k, v in os.environ.items() if k != "BSP_HYBRID_MODEL"}
+    env = {
+        k: v for k, v in os.environ.items() if k != "BSP_HYBRID_MODEL"
+    }
     proc = subprocess.run(
         [
             sys.executable,

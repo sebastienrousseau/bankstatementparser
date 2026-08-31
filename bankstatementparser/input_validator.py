@@ -132,7 +132,9 @@ class InputValidator:
             FileNotFoundError: If file doesn't exist.
         """
         if not isinstance(file_path, str):
-            raise ValidationError("File path must be a non-empty string")
+            raise ValidationError(
+                "File path must be a non-empty string"
+            )
 
         if not file_path:
             raise ValidationError("File path cannot be empty")
@@ -153,7 +155,9 @@ class InputValidator:
         try:
             path = Path(file_path).resolve()
         except (OSError, ValueError) as e:
-            raise ValidationError(f"Invalid file path format: {e}") from e
+            raise ValidationError(
+                f"Invalid file path format: {e}"
+            ) from e
 
         # Check for symlink attacks: reject if the original path is a symlink
         # pointing outside its parent directory
@@ -177,7 +181,9 @@ class InputValidator:
 
         # Check if it's actually a file
         if not os.path.isfile(str(path)):
-            raise ValidationError(f"Path exists but is not a file: {path}")
+            raise ValidationError(
+                f"Path exists but is not a file: {path}"
+            )
 
         # Check if we can read the file
         if not os.access(path, os.R_OK):
@@ -389,7 +395,9 @@ class InputValidator:
             allowed.add(f".{name.lower()}")
 
         if path.suffix.lower() not in allowed:
-            allowed_str = ", ".join(sorted(self.ALLOWED_INPUT_EXTENSIONS))
+            allowed_str = ", ".join(
+                sorted(self.ALLOWED_INPUT_EXTENSIONS)
+            )
             raise ValidationError(
                 f"Invalid input file extension '{path.suffix}'. "
                 f"Allowed extensions: {allowed_str}"
@@ -411,7 +419,9 @@ class InputValidator:
         try:
             file_size = path.stat().st_size
         except OSError as e:
-            raise ValidationError(f"Cannot determine file size: {e}") from e
+            raise ValidationError(
+                f"Cannot determine file size: {e}"
+            ) from e
 
         if file_size < self.MIN_FILE_SIZE_BYTES:
             raise ValidationError(
@@ -511,7 +521,10 @@ class InputValidator:
 
             if not has_xml_indicator:
                 # Check if it's binary data (control chars other than whitespace)
-                if any(c < 32 and c not in (9, 10, 13) for c in header[:100]):
+                if any(
+                    c < 32 and c not in (9, 10, 13)
+                    for c in header[:100]
+                ):
                     raise ValidationError(
                         f"File appears to contain binary data, expected XML: {path}"
                     )
@@ -581,7 +594,8 @@ class InputValidator:
 
         if not has_xml_indicator:
             if any(
-                byte < 32 and byte not in (9, 10, 13) for byte in header[:100]
+                byte < 32 and byte not in (9, 10, 13)
+                for byte in header[:100]
             ):
                 raise ValidationError(
                     f"XML content appears to contain binary data, expected XML: {source_name}"

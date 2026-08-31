@@ -537,7 +537,9 @@ class TestBankStatementParsersEdgeCases(unittest.TestCase):
             with open(camt_file, "w", encoding="utf-8") as f:
                 f.write(CAMT_NO_TRANSACTIONS)
 
-            files_df, _stmts_df, _txns_df = process_camt053_folder(tmpdir)
+            files_df, _stmts_df, _txns_df = process_camt053_folder(
+                tmpdir
+            )
             # Only the XML file is processed, not the subdirectory
             self.assertEqual(len(files_df), 1)
             self.assertEqual(files_df.iloc[0]["FileName"], "test.xml")

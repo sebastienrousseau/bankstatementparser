@@ -75,7 +75,9 @@ def test_categorizer_resolves_model_from_enrichment_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("BSP_HYBRID_MODEL", raising=False)
-    monkeypatch.setenv("BSP_HYBRID_ENRICHMENT_MODEL", "openai/gpt-4o-mini")
+    monkeypatch.setenv(
+        "BSP_HYBRID_ENRICHMENT_MODEL", "openai/gpt-4o-mini"
+    )
     cat = Categorizer(completion_fn=lambda **_: None)
     assert cat._resolved_model == "openai/gpt-4o-mini"
 
@@ -243,7 +245,9 @@ def test_categorize_returns_none_category_when_not_in_schema() -> None:
     assert out[0].category is None
 
 
-def test_categorize_returns_none_category_when_llm_returns_null() -> None:
+def test_categorize_returns_none_category_when_llm_returns_null() -> (
+    None
+):
     cat = Categorizer(
         completion_fn=lambda **_: _ok_response(
             [{"index": 0, "category": None, "confidence": 0.1}]
@@ -273,7 +277,9 @@ def test_categorize_marks_missing_row_when_llm_skips_one() -> None:
             # row 1 missing
         )
     )
-    out = cat.categorize_batch([_tx("-1.00", "first"), _tx("-2.00", "second")])
+    out = cat.categorize_batch(
+        [_tx("-1.00", "first"), _tx("-2.00", "second")]
+    )
     assert out[1].category is None
     assert "did not return a result" in (out[1].rationale or "")
 
@@ -300,7 +306,11 @@ def test_categorize_warns_on_duplicate_llm_index(
     cat = Categorizer(
         completion_fn=lambda **_: _ok_response(
             [
-                {"index": 0, "category": "Food and Drink", "confidence": 0.9},
+                {
+                    "index": 0,
+                    "category": "Food and Drink",
+                    "confidence": 0.9,
+                },
                 {"index": 0, "category": "Shops", "confidence": 0.8},
             ]
         )
@@ -332,12 +342,16 @@ def test_categorize_drops_non_bool_is_business_expense() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_categorize_chunk_failure_returns_none_results_for_chunk() -> None:
+def test_categorize_chunk_failure_returns_none_results_for_chunk() -> (
+    None
+):
     def boom(**_: Any) -> Any:
         raise RuntimeError("network down")
 
     cat = Categorizer(completion_fn=boom)
-    out = cat.categorize_batch([_tx("-1.00", "first"), _tx("-2.00", "second")])
+    out = cat.categorize_batch(
+        [_tx("-1.00", "first"), _tx("-2.00", "second")]
+    )
     assert len(out) == 2
     assert out[0].category is None
     assert out[1].category is None
@@ -349,7 +363,11 @@ def test_extract_message_content_handles_object_response() -> None:
 
     class _Msg:
         content = json.dumps(
-            {"results": [{"index": 0, "category": "Shops", "confidence": 0.9}]}
+            {
+                "results": [
+                    {"index": 0, "category": "Shops", "confidence": 0.9}
+                ]
+            }
         )
 
     class _Choice:
@@ -372,7 +390,9 @@ def test_extract_message_content_rejects_unexpected_shape() -> None:
 
 def test_extract_message_content_rejects_empty_string() -> None:
     cat = Categorizer(
-        completion_fn=lambda **_: _ok_response([{"index": 0, "category": "x"}])
+        completion_fn=lambda **_: _ok_response(
+            [{"index": 0, "category": "x"}]
+        )
     )
     # Now explicitly send empty content
     cat.completion_fn = lambda **_: {
@@ -410,7 +430,11 @@ def test_parse_json_handles_markdown_fenced_response() -> None:
 
 def test_parse_json_handles_prose_wrapped_response() -> None:
     noisy = "Sure! Here you go:\n" + json.dumps(
-        {"results": [{"index": 0, "category": "Shops", "confidence": 0.9}]}
+        {
+            "results": [
+                {"index": 0, "category": "Shops", "confidence": 0.9}
+            ]
+        }
     )
     cat = Categorizer(
         completion_fn=lambda **_: {
@@ -444,7 +468,9 @@ def test_parse_json_rejects_non_object_payload() -> None:
 def test_build_enriched_rejects_missing_results_key() -> None:
     cat = Categorizer(
         completion_fn=lambda **_: {
-            "choices": [{"message": {"content": json.dumps({"foo": "bar"})}}]
+            "choices": [
+                {"message": {"content": json.dumps({"foo": "bar"})}}
+            ]
         }
     )
     out = cat.categorize_batch([_tx("-1.00", "x")])
@@ -457,7 +483,9 @@ def test_build_enriched_rejects_non_object_result_entries() -> None:
             "choices": [
                 {
                     "message": {
-                        "content": json.dumps({"results": ["not an object"]})
+                        "content": json.dumps(
+                            {"results": ["not an object"]}
+                        )
                     }
                 }
             ]

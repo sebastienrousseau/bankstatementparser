@@ -177,7 +177,9 @@ def test_extract_text_pdfplumber_missing_raises(
     pdf_path = tmp_path / "demo.pdf"
     pdf_path.write_bytes(b"%PDF-1.4 stub")
     monkeypatch.setitem(sys.modules, "pdfplumber", None)
-    with pytest.raises(PDFExtractionError, match="pdfplumber is required"):
+    with pytest.raises(
+        PDFExtractionError, match="pdfplumber is required"
+    ):
         pdf_text.extract_text_pages(pdf_path, engine="pdfplumber")
 
 

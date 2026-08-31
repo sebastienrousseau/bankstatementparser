@@ -120,7 +120,9 @@ class LLMExtractor:
                 kwargs["api_base"] = self.api_base
             response = completion(**kwargs)
         except Exception as exc:
-            raise LLMExtractorError(f"LLM completion failed: {exc}") from exc
+            raise LLMExtractorError(
+                f"LLM completion failed: {exc}"
+            ) from exc
 
         raw = _extract_message_content(response)
         payload = _parse_json_payload(raw)
@@ -154,7 +156,9 @@ class LLMExtractor:
 
 def _extract_message_content(response: Any) -> str:
     """Pull the assistant message content out of an OpenAI-style response."""
-    return extract_message_content(response, error_cls=LLMExtractorError)
+    return extract_message_content(
+        response, error_cls=LLMExtractorError
+    )
 
 
 def _parse_json_payload(raw: str) -> dict[str, Any]:
@@ -208,7 +212,9 @@ def _build_result(
     """Convert a parsed LLM payload into an :class:`LLMExtractionResult`."""
     raw_txs = payload.get("transactions") or []
     if not isinstance(raw_txs, list):
-        raise LLMExtractorError("LLM 'transactions' field must be a list")
+        raise LLMExtractorError(
+            "LLM 'transactions' field must be a list"
+        )
 
     account_id = payload.get("account_id")
     currency = payload.get("currency")
@@ -233,19 +239,27 @@ def _build_result(
             error_cls=LLMExtractorError,
         )
 
-        description_str = str(description) if description is not None else None
+        description_str = (
+            str(description) if description is not None else None
+        )
         bbox = _parse_bbox(item.get("bbox"), index)
         transactions.append(
             Transaction(
-                account_id=str(account_id) if account_id is not None else None,
-                currency=str(currency).upper()
-                if currency is not None
-                else None,
+                account_id=(
+                    str(account_id) if account_id is not None else None
+                ),
+                currency=(
+                    str(currency).upper()
+                    if currency is not None
+                    else None
+                ),
                 amount=amount,
                 booking_date=_safe_date(item.get("booking_date")),
                 value_date=_safe_date(item.get("value_date")),
                 description=description_str,
-                normalized_description=normalize_description(description_str),
+                normalized_description=normalize_description(
+                    description_str
+                ),
                 reference=(
                     str(item.get("reference"))
                     if item.get("reference") is not None
@@ -259,13 +273,17 @@ def _build_result(
                     description_str, source_text
                 ),
                 source_bbox=bbox,
-                source_page=bbox.page_index if bbox is not None else None,
+                source_page=(
+                    bbox.page_index if bbox is not None else None
+                ),
             )
         )
 
     return LLMExtractionResult(
         account_id=str(account_id) if account_id is not None else None,
-        currency=str(currency).upper() if currency is not None else None,
+        currency=(
+            str(currency).upper() if currency is not None else None
+        ),
         opening_balance=opening,
         closing_balance=closing,
         transactions=transactions,

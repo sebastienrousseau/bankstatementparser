@@ -110,7 +110,9 @@ def _once(call) -> float:
     return time.perf_counter() - start
 
 
-def _exponent(a: tuple[int, float], b: tuple[int, float]) -> float | None:
+def _exponent(
+    a: tuple[int, float], b: tuple[int, float]
+) -> float | None:
     """Log-log slope between two points: 1.0 linear, 2.0 quadratic."""
     (n0, t0), (n1, t1) = a, b
     if n0 == n1 or t0 <= 0 or t1 <= 0:

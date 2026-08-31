@@ -51,7 +51,9 @@ class TestMultiCurrencyCamt:
         parser = CamtParser(GOLDEN / "camt053_multicurrency.xml")
         balances = parser.get_account_balances()
 
-        eur = balances[balances["AccountId"] == "DE89370400440532013000"]
+        eur = balances[
+            balances["AccountId"] == "DE89370400440532013000"
+        ]
         usd = balances[balances["AccountId"] == "US-ACCT-0099"]
         assert dict(zip(eur["Code"], eur["Amount"], strict=True)) == {
             "OPBD": Decimal("10000.00"),
@@ -66,11 +68,17 @@ class TestMultiCurrencyCamt:
         parser = CamtParser(GOLDEN / "camt053_multicurrency.xml")
         stats = parser.get_statement_stats()
 
-        by_id = {row["StatementId"]: row for row in stats.to_dict("records")}
+        by_id = {
+            row["StatementId"]: row for row in stats.to_dict("records")
+        }
         assert by_id["GOLDEN-MULTI-EUR"]["NumTransactions"] == 2
-        assert by_id["GOLDEN-MULTI-EUR"]["NetAmount"] == Decimal("750.25")
+        assert by_id["GOLDEN-MULTI-EUR"]["NetAmount"] == Decimal(
+            "750.25"
+        )
         assert by_id["GOLDEN-MULTI-USD"]["NumTransactions"] == 1
-        assert by_id["GOLDEN-MULTI-USD"]["NetAmount"] == Decimal("-99.99")
+        assert by_id["GOLDEN-MULTI-USD"]["NetAmount"] == Decimal(
+            "-99.99"
+        )
 
 
 class TestNoNamespaceCamt:
@@ -103,7 +111,9 @@ class TestDuplicateSameDayCamt:
     ) -> None:
         parser = CamtParser(GOLDEN / "camt053_duplicate_same_day.xml")
         dedup = Deduplicator()
-        txs = dedup.from_dataframe(parser.get_transactions(), source="golden")
+        txs = dedup.from_dataframe(
+            parser.get_transactions(), source="golden"
+        )
 
         seen: set[str] = set()
         unique, skipped = dedup.dedupe_by_hash(txs, seen_hashes=seen)
@@ -129,7 +139,9 @@ class TestGarbledAmounts:
 
 class TestEuropeanDecimalCsv:
     def test_german_headers_and_comma_decimals(self) -> None:
-        parser = CsvStatementParser(GOLDEN / "csv_european_decimals.csv")
+        parser = CsvStatementParser(
+            GOLDEN / "csv_european_decimals.csv"
+        )
         df = parser.parse()
 
         assert df["date"].tolist() == [

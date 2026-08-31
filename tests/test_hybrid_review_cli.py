@@ -78,7 +78,9 @@ def _write_result(result: IngestResult, tmp_path: Path) -> Path:
     return payload_path
 
 
-def _drive_inputs(monkeypatch: pytest.MonkeyPatch, answers: list[str]) -> None:
+def _drive_inputs(
+    monkeypatch: pytest.MonkeyPatch, answers: list[str]
+) -> None:
     """Replace ``builtins.input`` with a deterministic iterator.
 
     Each ``input(...)`` call consumes the next answer from the
@@ -208,8 +210,12 @@ def test_review_edit_updates_description_and_amount(
 
     written = json.loads(payload_path.read_text())
     assert len(written["transactions"]) == 1
-    assert written["transactions"][0]["description"] == "Salary ACME CORP"
-    assert Decimal(written["transactions"][0]["amount"]) == Decimal("2500.00")
+    assert (
+        written["transactions"][0]["description"] == "Salary ACME CORP"
+    )
+    assert Decimal(written["transactions"][0]["amount"]) == Decimal(
+        "2500.00"
+    )
     edit_entry = written["audit_trail"][0]
     assert edit_entry["action"] == "edit"
     assert edit_entry["before_hash"] == original_hash
@@ -231,7 +237,9 @@ def test_review_edit_keeps_defaults_when_operator_presses_enter(
 
     written = json.loads(payload_path.read_text())
     assert written["transactions"][0]["description"] == "Salary"
-    assert Decimal(written["transactions"][0]["amount"]) == Decimal("100.00")
+    assert Decimal(written["transactions"][0]["amount"]) == Decimal(
+        "100.00"
+    )
 
 
 def test_review_edit_falls_back_to_original_on_bad_amount(
@@ -250,7 +258,9 @@ def test_review_edit_falls_back_to_original_on_bad_amount(
     written = json.loads(payload_path.read_text())
     # Bad input -> original row preserved unchanged
     assert written["transactions"][0]["description"] == "Salary"
-    assert Decimal(written["transactions"][0]["amount"]) == Decimal("100.00")
+    assert Decimal(written["transactions"][0]["amount"]) == Decimal(
+        "100.00"
+    )
     assert "edit aborted" in capsys.readouterr().out
 
 
@@ -466,7 +476,9 @@ def test_review_missing_extra_exits_with_install_hint(
 # ---------------------------------------------------------------------------
 
 
-def _make_verified_result(*, transactions: list[Transaction]) -> IngestResult:
+def _make_verified_result(
+    *, transactions: list[Transaction]
+) -> IngestResult:
     verification = BalanceVerification(
         status=VerificationStatus.VERIFIED,
         opening_balance=Decimal("500.00"),
@@ -673,7 +685,10 @@ def test_cli_run_passes_review_below_to_review(
         ],
     )
     cli.BankStatementCLI().run()
-    assert "Reviewing 1 rows below confidence 0.80" in capsys.readouterr().out
+    assert (
+        "Reviewing 1 rows below confidence 0.80"
+        in capsys.readouterr().out
+    )
 
 
 # ---------------------------------------------------------------------------

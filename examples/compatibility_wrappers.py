@@ -1,6 +1,7 @@
 """
 Example: legacy compatibility wrappers from bank_statement_parsers.py.
 """
+
 # ruff: noqa: E402
 
 from __future__ import annotations

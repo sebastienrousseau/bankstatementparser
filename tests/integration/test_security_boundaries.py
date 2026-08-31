@@ -59,7 +59,8 @@ class TestSecurityBoundaries:
 
         for dangerous_path in dangerous_paths:
             with pytest.raises(
-                ValidationError, match=r"dangerous path|system directory"
+                ValidationError,
+                match=r"dangerous path|system directory",
             ):
                 validator.validate_input_file_path(dangerous_path)
 
@@ -82,7 +83,9 @@ class TestSecurityBoundaries:
             ]
 
         for sys_path in system_paths:
-            with pytest.raises(ValidationError, match="system directory"):
+            with pytest.raises(
+                ValidationError, match="system directory"
+            ):
                 validator.validate_input_file_path(sys_path)
 
     def test_variable_expansion_prevention(self, temp_dir, validator):
@@ -128,7 +131,9 @@ class TestSecurityBoundaries:
 
         # Create an oversized file
         large_content = (
-            "<?xml version='1.0'?><Document>" + "x" * 2048 + "</Document>"
+            "<?xml version='1.0'?><Document>"
+            + "x" * 2048
+            + "</Document>"
         )
         large_file = temp_dir / "large.xml"
         large_file.write_text(large_content)
@@ -203,9 +208,9 @@ class TestSecurityBoundaries:
             # If this succeeds, the parser used the original safe content
         except Exception as e:
             # If it fails, it should be due to structure, not XXE
-            assert "entity" not in str(e).lower(), (
-                "Parser may be vulnerable to XXE after file replacement"
-            )
+            assert (
+                "entity" not in str(e).lower()
+            ), "Parser may be vulnerable to XXE after file replacement"
 
     def test_filename_sanitization(self, validator):
         """Test filename sanitization for safe output generation."""
@@ -267,9 +272,7 @@ class TestSecurityBoundaries:
 
         # Add many repeated large elements
         for i in range(1000):
-            bomb_xml += (
-                f"<LargeElement{'A' * 1000}>{i}</LargeElement{'A' * 1000}>"
-            )
+            bomb_xml += f"<LargeElement{'A' * 1000}>{i}</LargeElement{'A' * 1000}>"
 
         bomb_xml += "</Document>"
 

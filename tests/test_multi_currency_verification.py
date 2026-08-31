@@ -18,7 +18,9 @@ from bankstatementparser.hybrid.verification import (
 )
 
 
-def _tx(amount: str, currency: str, day: str = "2026-04-01") -> Transaction:
+def _tx(
+    amount: str, currency: str, day: str = "2026-04-01"
+) -> Transaction:
     return Transaction(
         amount=Decimal(amount),
         currency=currency,
@@ -159,7 +161,9 @@ def test_aggregate_discrepancy_wins_over_unverifiable() -> None:
     assert aggregate.status is VerificationStatus.DISCREPANCY
 
 
-def test_aggregate_unverifiable_when_any_currency_unverifiable() -> None:
+def test_aggregate_unverifiable_when_any_currency_unverifiable() -> (
+    None
+):
     txs = [
         _tx("100.00", "GBP"),
         _tx("200.00", "EUR"),
@@ -175,7 +179,9 @@ def test_aggregate_unverifiable_when_any_currency_unverifiable() -> None:
 def test_aggregate_failed_takes_precedence_over_unverifiable() -> None:
     """FAILED (genuine error) outranks UNVERIFIABLE but not DISCREPANCY."""
     verified = _balance_verification(VerificationStatus.VERIFIED)
-    unverifiable = _balance_verification(VerificationStatus.UNVERIFIABLE)
+    unverifiable = _balance_verification(
+        VerificationStatus.UNVERIFIABLE
+    )
     failed = _balance_verification(VerificationStatus.FAILED)
     aggregate = aggregate_verifications(
         {
@@ -208,7 +214,9 @@ def test_verify_transactions_single_currency_uses_golden_rule() -> None:
     assert result.opening_balance == Decimal("500")
 
 
-def test_verify_transactions_no_currency_metadata_uses_golden_rule() -> None:
+def test_verify_transactions_no_currency_metadata_uses_golden_rule() -> (
+    None
+):
     txs = [
         Transaction(amount=Decimal("100.00"), description="x"),
         Transaction(amount=Decimal("-30.00"), description="y"),
@@ -221,7 +229,9 @@ def test_verify_transactions_no_currency_metadata_uses_golden_rule() -> None:
     assert result.status is VerificationStatus.VERIFIED
 
 
-def test_verify_transactions_multi_currency_avoids_false_discrepancy() -> None:
+def test_verify_transactions_multi_currency_avoids_false_discrepancy() -> (
+    None
+):
     """Mixed currencies must not be summed into one Golden Rule check."""
     txs = [
         _tx("100.00", "GBP"),
