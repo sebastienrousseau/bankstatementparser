@@ -87,12 +87,17 @@ def discover_loaders() -> dict[str, type[BankStatementParser]]:
     """
     discovered: dict[str, type[BankStatementParser]] = {}
     try:
-        eps = importlib.metadata.entry_points()
-        loader_eps = (
-            eps.select(group=LOADER_ENTRYPOINT_GROUP)
-            if hasattr(eps, "select")
-            else eps.get(LOADER_ENTRYPOINT_GROUP, [])
-        )
+        try:
+            loader_eps: Any = importlib.metadata.entry_points(
+                group=LOADER_ENTRYPOINT_GROUP
+            )
+        except TypeError:
+            eps_any: Any = importlib.metadata.entry_points()
+            loader_eps = (
+                eps_any.select(group=LOADER_ENTRYPOINT_GROUP)
+                if hasattr(eps_any, "select")
+                else eps_any.get(LOADER_ENTRYPOINT_GROUP, [])
+            )
         for ep in loader_eps:
             try:
                 loaded = ep.load()
@@ -115,12 +120,17 @@ def discover_writers() -> dict[str, Callable[..., Any]]:
     """
     discovered: dict[str, Callable[..., Any]] = {}
     try:
-        eps = importlib.metadata.entry_points()
-        writer_eps = (
-            eps.select(group=WRITER_ENTRYPOINT_GROUP)
-            if hasattr(eps, "select")
-            else eps.get(WRITER_ENTRYPOINT_GROUP, [])
-        )
+        try:
+            writer_eps: Any = importlib.metadata.entry_points(
+                group=WRITER_ENTRYPOINT_GROUP
+            )
+        except TypeError:
+            eps_any: Any = importlib.metadata.entry_points()
+            writer_eps = (
+                eps_any.select(group=WRITER_ENTRYPOINT_GROUP)
+                if hasattr(eps_any, "select")
+                else eps_any.get(WRITER_ENTRYPOINT_GROUP, [])
+            )
         for ep in writer_eps:
             try:
                 loaded = ep.load()

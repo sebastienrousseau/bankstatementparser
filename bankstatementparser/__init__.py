@@ -38,6 +38,12 @@ from .exceptions import (
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
 from .parallel import FileResult, parse_files_parallel
+from .plugins import (
+    discover_loaders,
+    discover_writers,
+    register_loader,
+    register_writer,
+)
 from .transaction_deduplicator import (
     DeduplicationResult,
     Deduplicator,
@@ -45,12 +51,6 @@ from .transaction_deduplicator import (
     MatchGroup,
 )
 from .transaction_models import BoundingBox, Transaction
-from .plugins import (
-    discover_loaders,
-    discover_writers,
-    register_loader,
-    register_writer,
-)
 from .zip_security import (
     ZipSecurityError,
     ZipStatementSource,

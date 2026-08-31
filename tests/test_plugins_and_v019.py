@@ -15,12 +15,11 @@
 """Tests for v0.0.19 features: plugin registry, MT940 reversals, CAMT.053 batches, multi-format zip security."""
 
 import json
-import os
+import zipfile
 from decimal import Decimal
 from pathlib import Path
-import tempfile
-import zipfile
 from zipfile import ZipInfo
+
 import pandas as pd
 import pytest
 
@@ -33,18 +32,16 @@ from bankstatementparser import (
     discover_loaders,
     discover_writers,
     iter_secure_statement_entries,
-    iter_secure_xml_entries,
     register_loader,
     register_writer,
 )
 from bankstatementparser.enrichment.categorizer import (
-    Categorizer,
-    CategorizerError,
-    _format_row,
     ENV_ENRICHMENT_MODEL,
     ENV_FALLBACK_MODEL,
+    Categorizer,
+    _format_row,
 )
-from bankstatementparser.input_validator import InputValidator, ValidationError
+from bankstatementparser.input_validator import ValidationError
 from bankstatementparser.plugins import (
     get_registered_loaders,
     get_registered_writers,
@@ -53,7 +50,10 @@ from bankstatementparser.plugins import (
 )
 from bankstatementparser.record_types import SummaryRecord
 from bankstatementparser.transaction_models import Transaction
-from bankstatementparser.zip_security import ZipSecurityError, _validate_zip_member
+from bankstatementparser.zip_security import (
+    ZipSecurityError,
+    _validate_zip_member,
+)
 
 
 class DummyCustomParser(BankStatementParser):
@@ -335,7 +335,11 @@ def test_categorizer_concurrency_and_currency(monkeypatch: pytest.MonkeyPatch) -
 
     def mock_completion(**kwargs):
         messages = kwargs.get("messages", [])
-        rows = [l for l in messages[1]["content"].splitlines() if l.strip().startswith("[")]
+        rows = [
+            line
+            for line in messages[1]["content"].splitlines()
+            if line.strip().startswith("[")
+        ]
         items = [
             {
                 "index": i,
