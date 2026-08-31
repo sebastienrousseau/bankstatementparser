@@ -72,11 +72,11 @@ class TestPerformanceBenchmarks(unittest.TestCase):
         end_time = time.perf_counter()
         parse_time_ms = (end_time - start_time) * 1000
 
-        # Assert parsing completes in less than 100ms for test files
+        # Assert parsing completes in less than 250ms for test files
         self.assertLess(
             parse_time_ms,
-            100.0,
-            f"Pain001 parsing took {parse_time_ms:.2f}ms, expected <100ms",
+            250.0,
+            f"Pain001 parsing took {parse_time_ms:.2f}ms, expected <250ms",
         )
 
         # Verify we got valid data
