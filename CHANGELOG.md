@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.19] - 2026-08-31
+
+### Added
+
+- Dynamic plugin discovery for external loaders and writers (`bankstatementparser.loaders` and `bankstatementparser.writers`).
+- Multi-format secure ZIP entry extraction (`iter_secure_statement_entries`) in `zip_security.py`.
+- MT940 support for SWIFT reversal codes (`RC`, `RD`, `EC`, `ED`), multiline `:86:` narrative accumulation, and multi-statement files.
+- CAMT.053 support for `<TxDtls>` batch sub-transaction extraction and ISO 11649 RF structured remittance references (`<RmtInf>/<Strd>`).
+- Concurrent chunk batching in `Categorizer.categorize_batch()` with currency formatting in prompts.
+
 ## [0.0.18] - 2026-08-29
 
 Aligns the `bankstatementparser` suite on one version number, and adds
@@ -903,3 +913,5 @@ introduced in v0.0.5; earlier releases are not back-filled.
 [0.0.6]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.6
 [0.0.5]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.5
 [0.0.4]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.4
+
+[0.0.19]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.19

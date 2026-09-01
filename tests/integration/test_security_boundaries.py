@@ -59,7 +59,8 @@ class TestSecurityBoundaries:
 
         for dangerous_path in dangerous_paths:
             with pytest.raises(
-                ValidationError, match=r"dangerous path|system directory"
+                ValidationError,
+                match=r"dangerous path|system directory",
             ):
                 validator.validate_input_file_path(dangerous_path)
 

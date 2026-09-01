@@ -159,7 +159,10 @@ def create_app(
             "Install with: pip install 'bankstatementparser[api]'"
         ) from exc
 
+    from . import __version__
     from .hybrid import smart_ingest
+
+    resolved_version = version or __version__
 
     upload_cap = (
         max_upload_bytes
@@ -167,7 +170,7 @@ def create_app(
         else _resolve_max_upload_bytes()
     )
 
-    app = FastAPI(title=title, version=version)
+    app = FastAPI(title=title, version=resolved_version)
 
     _file_field = File(...)
 
@@ -284,17 +287,17 @@ def _verification_dict(v: Any) -> Optional[dict[str, Any]]:
         return None
     return {
         "status": v.status.value,
-        "opening_balance": str(v.opening_balance)
-        if v.opening_balance is not None
-        else None,
-        "closing_balance": str(v.closing_balance)
-        if v.closing_balance is not None
-        else None,
+        "opening_balance": (
+            str(v.opening_balance) if v.opening_balance is not None else None
+        ),
+        "closing_balance": (
+            str(v.closing_balance) if v.closing_balance is not None else None
+        ),
         "total_credits": str(v.total_credits),
         "total_debits": str(v.total_debits),
-        "discrepancy": str(v.discrepancy)
-        if v.discrepancy is not None
-        else None,
+        "discrepancy": (
+            str(v.discrepancy) if v.discrepancy is not None else None
+        ),
         "message": v.message,
     }
 

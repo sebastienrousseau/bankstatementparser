@@ -122,7 +122,12 @@ class TestReadmeAccuracy:
 
     def test_install_extras_match_pyproject(self) -> None:
         pyproject = _read(PYPROJECT)
-        for extra in ["hybrid", "hybrid-plus", "hybrid-vision", "enrichment"]:
+        for extra in [
+            "hybrid",
+            "hybrid-plus",
+            "hybrid-vision",
+            "enrichment",
+        ]:
             if f"{extra} = [" in pyproject or f"{extra} = [" in pyproject:
                 assert extra in self.readme_text, (
                     f"README doesn't mention [{extra}] extra "

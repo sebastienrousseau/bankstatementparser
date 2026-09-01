@@ -187,7 +187,9 @@ def test_smart_ingest_falls_back_to_llm_when_parser_raises(
 
     monkeypatch.setattr(orchestrator, "create_parser", boom)
     monkeypatch.setattr(
-        orchestrator, "extract_text_pages", lambda _p: ["raw pdf text " * 10]
+        orchestrator,
+        "extract_text_pages",
+        lambda _p: ["raw pdf text " * 10],
     )
 
     payload = {
@@ -218,7 +220,9 @@ def test_smart_ingest_warns_when_detection_raises(
 
     monkeypatch.setattr(orchestrator, "detect_statement_format", boom)
     monkeypatch.setattr(
-        orchestrator, "extract_text_pages", lambda _p: ["pdf text " * 20]
+        orchestrator,
+        "extract_text_pages",
+        lambda _p: ["pdf text " * 20],
     )
 
     payload = {
@@ -250,7 +254,9 @@ def test_smart_ingest_uses_llm_for_pdf_directly(
         orchestrator, "detect_statement_format", lambda _p: "pdf"
     )
     monkeypatch.setattr(
-        orchestrator, "extract_text_pages", lambda _p: ["raw pdf text " * 10]
+        orchestrator,
+        "extract_text_pages",
+        lambda _p: ["raw pdf text " * 10],
     )
 
     payload = {

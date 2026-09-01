@@ -596,7 +596,9 @@ class TestPain001ParserCoverage(unittest.TestCase):
 
         with (
             patch.object(
-                parser, "_parse_streaming_payment", side_effect=side_effect
+                parser,
+                "_parse_streaming_payment",
+                side_effect=side_effect,
             ),
             self.assertRaises(ValueError),
         ):
@@ -1203,7 +1205,13 @@ class TestCLICoverage(unittest.TestCase):
         with (
             patch(
                 "sys.argv",
-                ["prog", "--type", "pain001", "--input", self.pain_file],
+                [
+                    "prog",
+                    "--type",
+                    "pain001",
+                    "--input",
+                    self.pain_file,
+                ],
             ),
             patch.object(cli, "parse_pain") as mock_parse,
             patch.object(

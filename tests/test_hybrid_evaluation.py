@@ -125,7 +125,10 @@ def test_load_eval_case_minimal_fields(tmp_path: Path) -> None:
         ),
         (
             json.dumps(
-                {"statement_text": "x", "expected": {"transactions": []}}
+                {
+                    "statement_text": "x",
+                    "expected": {"transactions": []},
+                }
             ),
             "transactions",
         ),

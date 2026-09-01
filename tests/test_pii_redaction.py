@@ -247,9 +247,11 @@ class TestPIIRedaction(unittest.TestCase):
                 self.assertEqual(mock_to_csv.call_count, 1)
 
                 # Extract the DataFrame passed to to_csv
-                mock_to_csv.call_args[1]["data"] if "data" in str(
-                    mock_to_csv.call_args
-                ) else None
+                (
+                    mock_to_csv.call_args[1]["data"]
+                    if "data" in str(mock_to_csv.call_args)
+                    else None
+                )
 
                 # Verify that file export contains unredacted data
                 # The DataFrame passed to to_csv should be the original, not redacted

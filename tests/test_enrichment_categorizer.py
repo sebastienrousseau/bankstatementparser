@@ -300,7 +300,11 @@ def test_categorize_warns_on_duplicate_llm_index(
     cat = Categorizer(
         completion_fn=lambda **_: _ok_response(
             [
-                {"index": 0, "category": "Food and Drink", "confidence": 0.9},
+                {
+                    "index": 0,
+                    "category": "Food and Drink",
+                    "confidence": 0.9,
+                },
                 {"index": 0, "category": "Shops", "confidence": 0.8},
             ]
         )

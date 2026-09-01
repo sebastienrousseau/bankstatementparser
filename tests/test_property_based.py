@@ -120,9 +120,11 @@ def _build_ntry_xml(
 
     if creditor is not None:
         cdtr = etree.SubElement(
-            root.find(".//TxDtls")
-            if root.find(".//TxDtls") is not None
-            else etree.SubElement(root, "TxDtls"),
+            (
+                root.find(".//TxDtls")
+                if root.find(".//TxDtls") is not None
+                else etree.SubElement(root, "TxDtls")
+            ),
             "Cdtr",
         )
         nm = etree.SubElement(cdtr, "Nm")

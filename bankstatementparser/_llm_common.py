@@ -47,7 +47,12 @@ OLLAMA_PREFIX_RE = re.compile(r"^ollama(?:_chat)?/", re.IGNORECASE)
 
 _LOCAL_HOSTNAMES = frozenset(
     # Matched against, never bound to — this is an allowlist of local hosts
-    {"localhost", "127.0.0.1", "::1", "0.0.0.0"}  # noqa: S104  # nosec B104
+    {
+        "localhost",
+        "127.0.0.1",
+        "::1",
+        "0.0.0.0",  # noqa: S104
+    }  # nosec B104
 )
 
 # (model, api_base) pairs already warned about, so a batch run

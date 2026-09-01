@@ -167,12 +167,16 @@ def scan_and_ingest(
             [
                 (
                     path,
-                    r.verification.opening_balance
-                    if r.verification is not None
-                    else None,
-                    r.verification.closing_balance
-                    if r.verification is not None
-                    else None,
+                    (
+                        r.verification.opening_balance
+                        if r.verification is not None
+                        else None
+                    ),
+                    (
+                        r.verification.closing_balance
+                        if r.verification is not None
+                        else None
+                    ),
                 )
                 for path, r in zip(ingested_paths, all_results, strict=True)
             ]

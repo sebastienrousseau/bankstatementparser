@@ -70,7 +70,10 @@ def main() -> int:
             "AMZN MKTPLACE 2026-04-01 #A1B2C3",
             "AMZN MKTPLACE 2026-04-02 #Z9Y8X7",
         ),
-        ("CARD PAYMENT 12:49 COFFEE SHOP", "CARD PAYMENT 14:01 COFFEE SHOP"),
+        (
+            "CARD PAYMENT 12:49 COFFEE SHOP",
+            "CARD PAYMENT 14:01 COFFEE SHOP",
+        ),
         ("UBER EATS 03/04", "UBER EATS 05/04"),
     ]
 

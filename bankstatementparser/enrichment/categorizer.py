@@ -222,6 +222,9 @@ def _format_row(index: int, tx: Transaction) -> str:
     """Render one transaction as a single prompt line."""
     date = tx.booking_date.isoformat() if tx.booking_date else "????-??-??"
     desc = _sanitize_for_prompt(tx.description or "(no description)")
+    ccy = tx.currency or ""
+    if ccy:
+        return f"  [{index}] {date}  {ccy}  {tx.amount:>10}  {desc[:80]}"
     return f"  [{index}] {date}  {tx.amount:>10}  {desc[:80]}"
 
 
@@ -254,6 +257,8 @@ class Categorizer:
         batch_size: Number of transactions to send to the LLM in a
             single call. Defaults to 25 to keep prompts under most
             providers' practical context limits.
+        max_concurrency: Maximum concurrent LLM batch requests.
+            Defaults to 4.
     """
 
     schema: tuple[str, ...] = DEFAULT_CATEGORY_SCHEMA
@@ -261,6 +266,7 @@ class Categorizer:
     api_base: Optional[str] = None
     completion_fn: Optional[CompletionFn] = None
     batch_size: int = 25
+    max_concurrency: int = 4
     _resolved_model: str = field(init=False, default="")
 
     _schema_lookup: dict[str, str] = field(
@@ -271,13 +277,15 @@ class Categorizer:
         """Validate configuration and resolve the model id.
 
         Raises:
-            ValueError: If ``schema`` is empty or ``batch_size`` is
-                less than 1.
+            ValueError: If ``schema`` is empty, ``batch_size`` is
+                less than 1, or ``max_concurrency`` is less than 1.
         """
         if not self.schema:
             raise ValueError("schema must be a non-empty tuple")
         if self.batch_size < 1:
             raise ValueError("batch_size must be at least 1")
+        if self.max_concurrency < 1:
+            raise ValueError("max_concurrency must be at least 1")
         self._resolved_model = (
             self.model
             or os.environ.get(ENV_ENRICHMENT_MODEL)
@@ -293,6 +301,21 @@ class Categorizer:
         results = self.categorize_batch([transaction])
         return results[0]
 
+    def _safe_categorize_chunk(
+        self, chunk: list[Transaction]
+    ) -> list[EnrichedTransaction]:
+        """Categorize a chunk, falling back to None-categories on error."""
+        try:
+            return self._categorize_chunk(chunk)
+        except CategorizerError as exc:
+            return [
+                EnrichedTransaction(
+                    transaction=tx,
+                    rationale=f"categorization failed: {exc}",
+                )
+                for tx in chunk
+            ]
+
     def categorize_batch(
         self,
         transactions: Iterable[Transaction],
@@ -302,32 +325,33 @@ class Categorizer:
         Splits the input into chunks of :attr:`batch_size`, calls
         the LLM for each chunk, and returns one
         :class:`EnrichedTransaction` per input row in the same
-        order. If a chunk fails, the rows in that chunk are still
-        returned but with ``category=None`` and the failure
-        reported in ``rationale``.
+        order.
         """
         items = list(transactions)
         if not items:
             return []
 
-        out: list[EnrichedTransaction] = []
-        for chunk_start in range(0, len(items), self.batch_size):
-            chunk = items[chunk_start : chunk_start + self.batch_size]
-            try:
-                out.extend(self._categorize_chunk(chunk))
-            except CategorizerError as exc:
-                # Surface the failure as None-categories for the
-                # whole chunk so callers can still see every input
-                # row in the output. The audit trail makes the
-                # failure visible without losing data.
-                out.extend(
-                    EnrichedTransaction(
-                        transaction=tx,
-                        rationale=f"categorization failed: {exc}",
-                    )
-                    for tx in chunk
-                )
-        return out
+        chunks = [
+            items[i : i + self.batch_size]
+            for i in range(0, len(items), self.batch_size)
+        ]
+
+        if len(chunks) <= 1 or self.max_concurrency <= 1:
+            out: list[EnrichedTransaction] = []
+            for chunk in chunks:
+                out.extend(self._safe_categorize_chunk(chunk))
+            return out
+
+        from concurrent.futures import ThreadPoolExecutor
+
+        workers = min(self.max_concurrency, len(chunks))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            chunk_results = list(pool.map(self._safe_categorize_chunk, chunks))
+
+        flat_out: list[EnrichedTransaction] = []
+        for chunk_res in chunk_results:
+            flat_out.extend(chunk_res)
+        return flat_out
 
     def _categorize_chunk(
         self,

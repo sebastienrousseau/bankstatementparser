@@ -123,6 +123,7 @@ def check() -> tuple[list[str], dict[str, object]]:
 
 
 def main() -> int:
+    """Run suite consistency checks and format problem report."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true", help="emit JSON")
     args = parser.parse_args()

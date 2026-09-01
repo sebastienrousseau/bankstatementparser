@@ -1,4 +1,13 @@
-<!-- SPDX-License-Identifier: Apache-2.0 OR MIT>
+<!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
+
+<p align="center">
+  <img
+    src="https://cloudcdn.pro/bankstatementparser/v1/logos/bankstatementparser.svg"
+    alt="bankstatementparser logo"
+    width="120"
+    height="120"
+  />
+</p>
 
 <h1 align="center">Bank Statement Parser</h1>
 
@@ -10,7 +19,7 @@
 
 <p align="center">
   <a href="https://github.com/sebastienrousseau/bankstatementparser/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/bankstatementparser/quality-gates.yml?style=for-the-badge&logo=github" alt="Build" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.18" alt="PyPI" /></a>
+  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.19" alt="PyPI" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge" alt="PyPI Downloads" /></a>
   <a href="https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main"><img src="https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge" alt="Codecov" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge" alt="License" /></a>
@@ -187,17 +196,19 @@ from bankstatementparser.hybrid import smart_ingest
 
 # Path A — deterministic parser (free, fastest, $0)
 result = smart_ingest("statement.xml")
-print(result.source_method)         # "deterministic"
+print(result.source_method)  # "deterministic"
 
 # Path B — text-LLM for digital PDFs (set BSP_HYBRID_MODEL=ollama/llama3)
 result = smart_ingest("statement.pdf")
-print(result.source_method)         # "llm"
-print(result.verification.status)   # VERIFIED | DISCREPANCY | UNVERIFIABLE | FAILED
+print(result.source_method)  # "llm"
+print(
+    result.verification.status
+)  # VERIFIED | DISCREPANCY | UNVERIFIABLE | FAILED
 
 # Path C — multimodal vision for scanned PDFs (set BSP_HYBRID_VISION_MODEL)
 # auto-routed when pypdf cannot extract enough text
 result = smart_ingest("scan.pdf")
-print(result.source_method)         # "vision"
+print(result.source_method)  # "vision"
 ```
 
 Every row carries:
@@ -235,7 +246,9 @@ For ZIP archives, use `iter_secure_xml_entries()`.
 from bankstatementparser import CamtParser, iter_secure_xml_entries
 
 for entry in iter_secure_xml_entries("statements.zip"):
-    parser = CamtParser.from_bytes(entry.xml_bytes, source_name=entry.source_name)
+    parser = CamtParser.from_bytes(
+        entry.xml_bytes, source_name=entry.source_name
+    )
     transactions = parser.parse()
     print(entry.source_name, len(transactions), "transactions")
 ```
@@ -257,23 +270,23 @@ Gemini, …).
 
 ```mermaid
 flowchart TD
-    A[smart_ingest&lpar;path&rpar;] --> B{detect_statement_format}
-    B -- CAMT/PAIN/OFX/MT940/CSV --> C[Path A: deterministic parser<br/>$0, fastest]
-    C --> Z[IngestResult<br/>source_method='deterministic']
+    A["smart_ingest(path)"] --> B{"detect_statement_format"}
+    B -->|CAMT/PAIN/OFX/MT940/CSV| C["Path A: deterministic parser<br/>$0, fastest"]
+    C --> Z["IngestResult<br/>source_method='deterministic'"]
 
-    B -- pdf or unknown --> D[pypdf extract_text]
-    D --> E{text len &gt;= 50?}
+    B -->|pdf or unknown| D["pypdf extract_text"]
+    D --> E{"text length >= 50?"}
 
-    E -- yes --> F[Path B: text-LLM<br/>default ollama/llama3]
-    F --> Y[IngestResult<br/>source_method='llm']
+    E -->|yes| F["Path B: text-LLM<br/>default ollama/llama3"]
+    F --> Y["IngestResult<br/>source_method='llm'"]
 
-    E -- no --> G[Path C: vision-LLM<br/>opt-in via BSP_HYBRID_VISION_MODEL]
-    G --> X[IngestResult<br/>source_method='vision']
+    E -->|no| G["Path C: vision-LLM<br/>opt-in via BSP_HYBRID_VISION_MODEL"]
+    G --> X["IngestResult<br/>source_method='vision'"]
 
-    Z --> V[verify_balance<br/>Golden Rule]
+    Z --> V["verify_balance<br/>Golden Rule"]
     Y --> V
     X --> V
-    V --> R[VERIFIED / DISCREPANCY / UNVERIFIABLE / FAILED]
+    V --> R["VERIFIED / DISCREPANCY / UNVERIFIABLE / FAILED"]
 ```
 
 Every extracted row carries an immutable `transaction_hash`, an
@@ -332,7 +345,7 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 869 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 907 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
@@ -399,11 +412,13 @@ Process multiple files simultaneously across CPU cores:
 ```python
 from bankstatementparser import parse_files_parallel
 
-results = parse_files_parallel([
-    "statements/jan.xml",
-    "statements/feb.xml",
-    "statements/mar.xml",
-])
+results = parse_files_parallel(
+    [
+        "statements/jan.xml",
+        "statements/feb.xml",
+        "statements/mar.xml",
+    ]
+)
 
 for r in results:
     print(r.path, r.status, len(r.transactions), "rows")
@@ -652,13 +667,22 @@ versioned companion packages build on it — each is its own repository
 and Python package, so you install only what you need and the core
 stays dependency-light.
 
-| Package | PyPI | Role | What it adds |
-|---|---|---|---|
-| [`bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-mcp.svg)](https://pypi.org/project/bankstatementparser-mcp/) | AI agents | [Model Context Protocol](https://modelcontextprotocol.io) server — exposes detect / parse / validate / summarize as tools for Claude Desktop and other LLM clients |
-| [`bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-lsp.svg)](https://pypi.org/project/bankstatementparser-lsp/) | Editors | Language Server with live MT940 diagnostics (missing tags, malformed balance / `:61:` lines) over [pygls](https://github.com/openlawlibrary/pygls) |
-| [`bankstatementparser-writer-xlsx`](https://github.com/sebastienrousseau/bankstatementparser-writer-xlsx) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-xlsx.svg)](https://pypi.org/project/bankstatementparser-writer-xlsx/) | Output | Write parsed transactions (DataFrame, `Transaction` list, or dicts) to a polished Excel `.xlsx` workbook |
-| [`bankstatementparser-loader-mt942`](https://github.com/sebastienrousseau/bankstatementparser-loader-mt942) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-mt942.svg)](https://pypi.org/project/bankstatementparser-loader-mt942/) | Input | Parse SWIFT **MT942** interim transaction reports into `Transaction` objects (a format the core does not read) |
-| [`bankstatementparser-loader-bai2`](https://github.com/sebastienrousseau/bankstatementparser-loader-bai2) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-bai2.svg)](https://pypi.org/project/bankstatementparser-loader-bai2/) | Input | Parse **BAI2** cash-management files into `Transaction` objects (a format the core does not read) |
+| Package | GitHub Repository | PyPI | Role | Description |
+|---|---|---|---|---|
+| [`bankstatementparser`](https://github.com/sebastienrousseau/bankstatementparser) | [`sebastienrousseau/bankstatementparser`](https://github.com/sebastienrousseau/bankstatementparser) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser.svg)](https://pypi.org/project/bankstatementparser/) | Core Engine | Unified parser for CAMT (052/053), PAIN.001, CSV, OFX, QFX, MT940, and PDF statements |
+| [`bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | [`sebastienrousseau/bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-mcp.svg)](https://pypi.org/project/bankstatementparser-mcp/) | AI Protocol | Model Context Protocol (MCP) server exposing statement tools to LLMs & AI agents |
+| [`bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | [`sebastienrousseau/bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-lsp.svg)](https://pypi.org/project/bankstatementparser-lsp/) | Developer Tooling | Language Server Protocol (LSP) with live SWIFT MT940 statement validation & diagnostics |
+| [`bankstatementparser-transport-ebics`](https://github.com/sebastienrousseau/bankstatementparser-transport-ebics) | [`sebastienrousseau/bankstatementparser-transport-ebics`](https://github.com/sebastienrousseau/bankstatementparser-transport-ebics) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-transport-ebics.svg)](https://pypi.org/project/bankstatementparser-transport-ebics/) | Transport | Automated bank statement retrieval over EBICS 3.0 (`H005`) and 2.5 (`H004`) protocols |
+| [`bankstatementparser-writer-xlsx`](https://github.com/sebastienrousseau/bankstatementparser-writer-xlsx) | [`sebastienrousseau/bankstatementparser-writer-xlsx`](https://github.com/sebastienrousseau/bankstatementparser-writer-xlsx) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-xlsx.svg)](https://pypi.org/project/bankstatementparser-writer-xlsx/) | Output Writer | Formats and exports parsed banking transactions into styled Microsoft Excel (`.xlsx`) workbooks |
+| [`bankstatementparser-writer-qif`](https://github.com/sebastienrousseau/bankstatementparser-writer-qif) | [`sebastienrousseau/bankstatementparser-writer-qif`](https://github.com/sebastienrousseau/bankstatementparser-writer-qif) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-qif.svg)](https://pypi.org/project/bankstatementparser-writer-qif/) | Output Writer | Serializes transactions into standard Quicken Interchange Format (`.qif`) exchange files |
+| [`bankstatementparser-writer-ofx`](https://github.com/sebastienrousseau/bankstatementparser-writer-ofx) | [`sebastienrousseau/bankstatementparser-writer-ofx`](https://github.com/sebastienrousseau/bankstatementparser-writer-ofx) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-ofx.svg)](https://pypi.org/project/bankstatementparser-writer-ofx/) | Output Writer | Serializes transactions into standard Open Financial Exchange (`.ofx`) XML/SGML files |
+| [`bankstatementparser-writer-swift`](https://github.com/sebastienrousseau/bankstatementparser-writer-swift) | [`sebastienrousseau/bankstatementparser-writer-swift`](https://github.com/sebastienrousseau/bankstatementparser-writer-swift) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-swift.svg)](https://pypi.org/project/bankstatementparser-writer-swift/) | Output Writer | Exports transactions to SWIFT MT940 customer statements and MT942 interim reports |
+| [`bankstatementparser-loader-bai2`](https://github.com/sebastienrousseau/bankstatementparser-loader-bai2) | [`sebastienrousseau/bankstatementparser-loader-bai2`](https://github.com/sebastienrousseau/bankstatementparser-loader-bai2) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-bai2.svg)](https://pypi.org/project/bankstatementparser-loader-bai2/) | Input Loader | Parses BAI2 cash-management and account balance statements |
+| [`bankstatementparser-loader-mt942`](https://github.com/sebastienrousseau/bankstatementparser-loader-mt942) | [`sebastienrousseau/bankstatementparser-loader-mt942`](https://github.com/sebastienrousseau/bankstatementparser-loader-mt942) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-mt942.svg)](https://pypi.org/project/bankstatementparser-loader-mt942/) | Input Loader | Parses SWIFT MT942 interim transaction reports with credit/debit summary reconciliation |
+| [`bankstatementparser-loader-cfonb`](https://github.com/sebastienrousseau/bankstatementparser-loader-cfonb) | [`sebastienrousseau/bankstatementparser-loader-cfonb`](https://github.com/sebastienrousseau/bankstatementparser-loader-cfonb) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-cfonb.svg)](https://pypi.org/project/bankstatementparser-loader-cfonb/) | Input Loader | Parses French CFONB 120 / AFB120 120-byte fixed-width banking statement files |
+| [`bankstatementparser-loader-camt054`](https://github.com/sebastienrousseau/bankstatementparser-loader-camt054) | [`sebastienrousseau/bankstatementparser-loader-camt054`](https://github.com/sebastienrousseau/bankstatementparser-loader-camt054) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-camt054.svg)](https://pypi.org/project/bankstatementparser-loader-camt054/) | Input Loader | Ingests ISO 20022 CAMT.054 real-time debit/credit notification stream XML |
+| [`bankstatementparser-loader-sepa`](https://github.com/sebastienrousseau/bankstatementparser-loader-sepa) | [`sebastienrousseau/bankstatementparser-loader-sepa`](https://github.com/sebastienrousseau/bankstatementparser-loader-sepa) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-sepa.svg)](https://pypi.org/project/bankstatementparser-loader-sepa/) | Input Loader | Ingests ISO 20022 SEPA PAIN.002 payment status reports and PAIN.008 direct debit mandates |
+| [`bankstatementparser-loader-bacs`](https://github.com/sebastienrousseau/bankstatementparser-loader-bacs) | [`sebastienrousseau/bankstatementparser-loader-bacs`](https://github.com/sebastienrousseau/bankstatementparser-loader-bacs) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-bacs.svg)](https://pypi.org/project/bankstatementparser-loader-bacs/) | Input Loader | Parses UK BACS Standard 18 / Faster Payments 106-byte fixed-width transmission files |
 
 Loaders turn an additional source format into the same unified
 `Transaction` model; writers take parsed data back out to another
@@ -666,8 +690,8 @@ target. Each companion pins `bankstatementparser` as a dependency and
 ships its own 100%-coverage test suite.
 
 ```bash
-# Mix and match: e.g. read an MT942 file, then export to Excel
-pip install bankstatementparser-loader-mt942 bankstatementparser-writer-xlsx
+# Mix and match: e.g. fetch via EBICS 3.0, parse CAMT.053, and export to SWIFT MT940 or Excel
+pip install bankstatementparser-transport-ebics bankstatementparser-writer-swift bankstatementparser-writer-xlsx
 ```
 
 Loaders hand back the same `Transaction` model the core parsers
@@ -679,15 +703,15 @@ cleanly — see each companion's README for runnable examples.
 ## Project Layout
 
 ```text
-bankstatementparser/            Source code (32 modules)
+bankstatementparser/            Source code (38 modules)
 bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
-bankstatementparser/export/     hledger + beancount journal export
+bankstatementparser/export/     hledger + beancount journal export, Apache Parquet columnar export
 bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 9 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          869 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          907 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---

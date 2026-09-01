@@ -35,9 +35,11 @@ def _make_result(verified: bool = True) -> IngestResult:
         confidence=0.9,
     )
     verification = BalanceVerification(
-        status=VerificationStatus.VERIFIED
-        if verified
-        else VerificationStatus.DISCREPANCY,
+        status=(
+            VerificationStatus.VERIFIED
+            if verified
+            else VerificationStatus.DISCREPANCY
+        ),
         opening_balance=Decimal("0"),
         closing_balance=Decimal("10"),
         total_credits=Decimal("10"),

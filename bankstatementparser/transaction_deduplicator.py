@@ -115,9 +115,11 @@ class Deduplicator:
                 transaction.account_id or "",
                 transaction.currency or "",
                 transaction.amount_key(),
-                transaction.booking_date.isoformat()
-                if transaction.booking_date is not None
-                else "",
+                (
+                    transaction.booking_date.isoformat()
+                    if transaction.booking_date is not None
+                    else ""
+                ),
             ]
         )
         return hashlib.sha256(material.encode("utf-8")).hexdigest()

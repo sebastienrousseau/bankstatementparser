@@ -367,7 +367,8 @@ class TestCLICoverageExtra(unittest.TestCase):
         )
         with (
             patch(
-                "bankstatementparser.cli.Pain001Parser", return_value=parser
+                "bankstatementparser.cli.Pain001Parser",
+                return_value=parser,
             ),
             patch("builtins.print") as mock_print,
         ):
@@ -387,7 +388,8 @@ class TestCLICoverageExtra(unittest.TestCase):
         parser.parse.return_value = pd.DataFrame([{"Name": "Alice"}])
         with (
             patch(
-                "bankstatementparser.cli.Pain001Parser", return_value=parser
+                "bankstatementparser.cli.Pain001Parser",
+                return_value=parser,
             ),
             patch("builtins.print") as mock_print,
         ):

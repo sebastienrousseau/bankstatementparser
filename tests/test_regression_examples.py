@@ -151,7 +151,11 @@ def test_parse_pain001_basic() -> None:
 
 def test_parse_detected_formats() -> None:
     out = _run_example(EXAMPLES_DIR / "parse_detected_formats.py")
-    for fixture in ("sample_statement.csv", "sample.ofx", "sample.mt940"):
+    for fixture in (
+        "sample_statement.csv",
+        "sample.ofx",
+        "sample.mt940",
+    ):
         assert fixture in out
 
 
@@ -203,7 +207,9 @@ def test_export_camt(tmp_path: Path) -> None:
 
 def test_export_pain001(tmp_path: Path) -> None:
     out = _run_example(
-        EXAMPLES_DIR / "export_pain001.py", "--output-dir", str(tmp_path)
+        EXAMPLES_DIR / "export_pain001.py",
+        "--output-dir",
+        str(tmp_path),
     )
     assert "CSV exported to" in out
     assert "JSON exported to" in out

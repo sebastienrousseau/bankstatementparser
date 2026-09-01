@@ -80,7 +80,9 @@ def cyclonedx_component(package: dict[str, Any]) -> dict[str, Any]:
         "name": name,
         "version": version,
         "purl": package_ref(name, version),
-        "scope": "optional" if package.get("optional", False) else "required",
+        "scope": (
+            "optional" if package.get("optional", False) else "required"
+        ),
         "hashes": hashes,
         "properties": [
             {"name": "bankstatementparser:groups", "value": groups},

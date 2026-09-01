@@ -28,6 +28,7 @@ from .base_parser import BankStatementParser
 from .camt_parser import CamtParser
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
+from .plugins import get_registered_loaders
 from .record_types import SummaryRecord, TransactionRecord
 
 # Synonyms are matched after _normalized_name(), which lowercases,
@@ -119,9 +120,6 @@ CSV_COLUMN_GROUPS = {
 
 def _normalized_name(name: str) -> str:
     """Fold a header name to lowercase ASCII alphanumerics for matching."""
-    # NFKD + ASCII-encode folds accented characters to their base
-    # letter (é -> e) so French/Spanish headers match their
-    # unaccented synonym entries.
     folded = (
         unicodedata.normalize("NFKD", name)
         .encode("ascii", "ignore")
@@ -137,20 +135,13 @@ def _read_validated_text(file_name: str | Path) -> tuple[Path, str]:
     try:
         return path, path.read_text(encoding="utf-8")
     except UnicodeDecodeError as exc:
-        # Silently dropping undecodable bytes (errors="ignore")
-        # could corrupt amounts and descriptions mid-token.
         raise ValidationError(
             f"File is not valid UTF-8: {path} ({exc})"
         ) from exc
 
 
 def _parse_amount(value: object) -> Decimal | None:
-    """Tolerantly parse a locale-formatted amount into a Decimal.
-
-    Returns ``None`` when the value is blank or unparseable —
-    callers that require an amount must use :func:`_require_amount`
-    so garbage fails loudly instead of becoming ``0.0``.
-    """
+    """Tolerantly parse a locale-formatted amount into a Decimal."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None
     text = str(value).strip()
@@ -181,12 +172,7 @@ def _require_amount(value: object, *, context: str) -> Decimal:
 
 
 def _amount_or_zero(value: object, *, context: str) -> Decimal:
-    """Parse an amount where a blank cell legitimately means zero.
-
-    Used for CSV credit/debit column pairs, where an empty cell on
-    one side is the normal representation of "no entry". Non-blank
-    garbage still fails loudly.
-    """
+    """Parse an amount where a blank cell legitimately means zero."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return Decimal("0")
     if not str(value).strip():
@@ -198,15 +184,7 @@ class CsvStatementParser(BankStatementParser):
     """Parse bank statement CSV files with basic column normalization."""
 
     def __init__(self, file_name: str | Path) -> None:
-        """Validate and register the CSV file for parsing.
-
-        Args:
-            file_name: Path to the CSV statement file.
-
-        Raises:
-            ValidationError: If the path fails input validation.
-            FileNotFoundError: If the file does not exist.
-        """
+        """Validate and register the CSV file for parsing."""
         super().__init__(file_name)
         self._path, _ = _read_validated_text(file_name)
         self._parsed_df: pd.DataFrame | None = None
@@ -221,19 +199,7 @@ class CsvStatementParser(BankStatementParser):
         return None
 
     def parse(self) -> pd.DataFrame:
-        """Parse the CSV file into a normalized DataFrame.
-
-        Columns are mapped onto the logical names ``date``,
-        ``description``, ``amount``, ``currency``, ``balance``,
-        ``account_id``, and ``transaction_id`` where present. Results
-        are cached; repeat calls return a copy.
-
-        Returns:
-            pd.DataFrame: One row per transaction.
-
-        Raises:
-            ValidationError: If an amount cell cannot be parsed.
-        """
+        """Parse the CSV file into a normalized DataFrame."""
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
@@ -293,16 +259,7 @@ class CsvStatementParser(BankStatementParser):
         return self._parsed_df.copy()
 
     def get_summary(self) -> SummaryRecord:
-        """Summarize the parsed CSV statement.
-
-        Returns:
-            SummaryRecord: Account id, statement date, transaction
-            count, total amount, opening/closing balances (when a
-            balance column exists), and currency.
-
-        Raises:
-            ValidationError: If an amount cell cannot be parsed.
-        """
+        """Summarize the parsed CSV statement."""
         df = self.parse()
         balance = df["balance"] if "balance" in df.columns else pd.Series()
         return {
@@ -340,15 +297,7 @@ class OfxParser(BankStatementParser):
     """Parse OFX and QFX bank statement files."""
 
     def __init__(self, file_name: str | Path) -> None:
-        """Validate and read the OFX/QFX file.
-
-        Args:
-            file_name: Path to the OFX or QFX statement file.
-
-        Raises:
-            ValidationError: If the path fails input validation.
-            FileNotFoundError: If the file does not exist.
-        """
+        """Validate and read the OFX/QFX file."""
         super().__init__(file_name)
         self._path, self._text = _read_validated_text(file_name)
         self._parsed_df: pd.DataFrame | None = None
@@ -361,18 +310,7 @@ class OfxParser(BankStatementParser):
         return match.group(1).strip()
 
     def parse(self) -> pd.DataFrame:
-        """Parse ``<STMTTRN>`` blocks into a DataFrame.
-
-        Results are cached; repeat calls return a copy.
-
-        Returns:
-            pd.DataFrame: One row per transaction with ``date``,
-            ``description``, ``amount``, ``currency``, ``account_id``,
-            ``transaction_id``, and ``transaction_type`` columns.
-
-        Raises:
-            ValidationError: If a TRNAMT value cannot be parsed.
-        """
+        """Parse ``<STMTTRN>`` blocks into a DataFrame."""
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
@@ -411,16 +349,7 @@ class OfxParser(BankStatementParser):
         return self._parsed_df.copy()
 
     def get_summary(self) -> SummaryRecord:
-        """Summarize the parsed OFX/QFX statement.
-
-        Returns:
-            SummaryRecord: Account id, statement date, transaction
-            count, total amount, and currency. OFX carries no balance
-            records, so opening/closing balances are ``None``.
-
-        Raises:
-            ValidationError: If a TRNAMT value cannot be parsed.
-        """
+        """Summarize the parsed OFX/QFX statement."""
         df = self.parse()
         return {
             "account_id": (
@@ -450,18 +379,10 @@ class OfxParser(BankStatementParser):
 
 
 class Mt940Parser(BankStatementParser):
-    """Parse MT940 bank statement files."""
+    """Parse MT940 bank statement files with reversal and multiline support."""
 
     def __init__(self, file_name: str | Path) -> None:
-        """Validate and read the MT940 file.
-
-        Args:
-            file_name: Path to the MT940 statement file.
-
-        Raises:
-            ValidationError: If the path fails input validation.
-            FileNotFoundError: If the file does not exist.
-        """
+        """Validate and read the MT940 file."""
         super().__init__(file_name)
         self._path, self._text = _read_validated_text(file_name)
         self._parsed_df: pd.DataFrame | None = None
@@ -471,48 +392,56 @@ class Mt940Parser(BankStatementParser):
         self._currency: str | None = None
 
     def parse(self) -> pd.DataFrame:
-        """Parse ``:61:``/``:86:`` lines into a DataFrame.
-
-        Also captures the account id (``:25:``) and opening/closing
-        balances (``:60F:``/``:62F:``) for :meth:`get_summary`.
-        Results are cached; repeat calls return a copy.
-
-        Returns:
-            pd.DataFrame: One row per ``:61:`` transaction line.
-
-        Raises:
-            ValidationError: If a transaction amount cannot be parsed.
-        """
+        """Parse ``:61:``/``:86:`` lines into a DataFrame."""
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
         rows: list[TransactionRecord] = []
         current: TransactionRecord | None = None
+        current_account_id: str | None = None
+        current_currency: str | None = None
+        in_86 = False
 
         for raw_line in self._text.splitlines():
             line = raw_line.strip()
+            if not line:
+                continue
+
             if line.startswith(":25:"):
-                self._account_id = line[4:].strip() or None
-            elif line.startswith((":60F:", ":62F:")):
+                in_86 = False
+                current_account_id = line[4:].strip() or None
+                if self._account_id is None:
+                    self._account_id = current_account_id
+            elif line.startswith((":60F:", ":60M:", ":62F:", ":62M:")):
+                in_86 = False
                 match = re.match(
-                    r"^:(60F|62F):[CD](\d{6})([A-Z]{3})([0-9,]+)$", line
-                )
-                if match is not None:
-                    amount = _parse_amount(match.group(4))
-                    self._currency = match.group(3)
-                    if match.group(1) == "60F":
-                        self._opening_balance = amount
-                    else:
-                        self._closing_balance = amount
-            elif line.startswith(":61:"):
-                match = re.match(
-                    r"^:61:(\d{6})(?:\d{4})?([CD])([0-9,]+)(.*)$",
+                    r"^:(60F|60M|62F|62M):[CD](\d{6})([A-Z]{3})([0-9,]+)$",
                     line,
                 )
                 if match is not None:
+                    amount = _parse_amount(match.group(4))
+                    current_currency = match.group(3)
+                    if self._currency is None:
+                        self._currency = current_currency
+                    if (
+                        match.group(1).startswith("60")
+                        and self._opening_balance is None
+                    ):
+                        self._opening_balance = amount
+                    elif match.group(1).startswith("62"):
+                        self._closing_balance = amount
+            elif line.startswith(":61:"):
+                in_86 = False
+                match = re.match(
+                    r"^:61:(\d{6})(?:\d{4})?([A-Z]{1,2})([0-9,]+)(.*)$",
+                    line,
+                )
+                if match is not None:
+                    cd_mark = match.group(2).upper()
+                    # Debit marks: D, RD (Reversal Debit), ED (Electronic Debit)
                     sign = (
                         Decimal("-1")
-                        if match.group(2) == "D"
+                        if cd_mark in {"D", "RD", "ED"}
                         else Decimal("1")
                     )
                     current_record: TransactionRecord = {
@@ -523,29 +452,32 @@ class Mt940Parser(BankStatementParser):
                             context="MT940 :61: line",
                         ),
                         "transaction_id": match.group(4).strip() or None,
-                        "account_id": self._account_id,
-                        "currency": self._currency,
+                        "account_id": current_account_id or self._account_id,
+                        "currency": current_currency or self._currency,
                         "description": None,
                     }
                     current = current_record
                     rows.append(current_record)
             elif line.startswith(":86:") and current is not None:
                 current["description"] = line[4:].strip() or None
+                in_86 = True
+            elif in_86 and current is not None:
+                # Continuation line for :86: narrative
+                if re.match(
+                    r"^:[0-9]{2}[A-Z]?:", line
+                ) is None and not line.startswith("-"):
+                    desc = current.get("description") or ""
+                    current["description"] = (
+                        desc + " " + line
+                    ).strip() or None
+                else:
+                    in_86 = False
 
         self._parsed_df = pd.DataFrame(rows)
         return self._parsed_df.copy()
 
     def get_summary(self) -> SummaryRecord:
-        """Summarize the parsed MT940 statement.
-
-        Returns:
-            SummaryRecord: Account id, statement date, transaction
-            count, total amount, opening/closing balances, and
-            currency taken from the balance lines.
-
-        Raises:
-            ValidationError: If a transaction amount cannot be parsed.
-        """
+        """Summarize the parsed MT940 statement."""
         df = self.parse()
         return {
             "account_id": self._account_id,
@@ -570,17 +502,7 @@ QfxParser = OfxParser
 
 
 def detect_statement_format(file_name: str | Path) -> str:
-    """Detect the parser format for a bank statement file.
-
-    Returns:
-        str: One of ``camt``, ``pain001``, ``csv``, ``ofx``, or
-        ``mt940``.
-
-    Raises:
-        ValidationError: If the path fails input validation or the
-            format cannot be detected.
-        FileNotFoundError: If the file does not exist.
-    """
+    """Detect the parser format for a bank statement file."""
     path, text = _read_validated_text(file_name)
     suffix = path.suffix.lower()
     lowered = text.lower()
@@ -591,6 +513,10 @@ def detect_statement_format(file_name: str | Path) -> str:
         return "ofx"
     if suffix in {".mt940", ".sta"}:
         return "mt940"
+    if suffix == ".bai2" or text.startswith("01,") or "\n01," in text:
+        return "bai2"
+    if suffix == ".mt942" or (":34F:" in text and ":61:" in text):
+        return "mt942"
     if suffix == ".xml" and (
         "cstmrcdttrfinitn" in lowered or "pain.001" in lowered
     ):
@@ -601,6 +527,13 @@ def detect_statement_format(file_name: str | Path) -> str:
         return "ofx"
     if ":20:" in text and ":61:" in text:
         return "mt940"
+
+    # Check registered loader plugins
+    loaders = get_registered_loaders()
+    for name in loaders:
+        if suffix == f".{name}" or name in suffix:
+            return name
+
     raise ValidationError(f"Unable to detect statement format: {path}")
 
 
@@ -608,21 +541,7 @@ def create_parser(
     file_name: str | Path,
     format_name: str | None = None,
 ) -> BankStatementParser:
-    """Create a parser instance from an explicit or detected format.
-
-    Args:
-        file_name: Path to the statement file.
-        format_name: Explicit format name; when ``None``, the format
-            is detected via :func:`detect_statement_format`.
-
-    Returns:
-        BankStatementParser: A parser for the selected format.
-
-    Raises:
-        ValidationError: If the format is unsupported, the path fails
-            input validation, or the format cannot be detected.
-        FileNotFoundError: If the file does not exist.
-    """
+    """Create a parser instance from an explicit or detected format."""
     selected = (format_name or detect_statement_format(file_name)).lower()
     parser_map: dict[str, type[BankStatementParser]] = {
         "camt": CamtParser,
@@ -632,6 +551,9 @@ def create_parser(
         "qfx": QfxParser,
         "mt940": Mt940Parser,
     }
+    # Augment with dynamic plugins
+    parser_map.update(get_registered_loaders())
+
     if selected not in parser_map:
         raise ValidationError(f"Unsupported statement format: {selected}")
     parser_cls = parser_map[selected]

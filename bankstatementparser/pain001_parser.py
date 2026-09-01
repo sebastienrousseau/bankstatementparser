@@ -642,9 +642,11 @@ class Pain001Parser(BankStatementParser):
             return {
                 "account_id": header_data["InitgPty"],
                 "statement_date": header_data["CreDtTm"],
-                "transaction_count": int(header_data["NbOfTxs"])
-                if header_data["NbOfTxs"].isdigit()
-                else 0,
+                "transaction_count": (
+                    int(header_data["NbOfTxs"])
+                    if header_data["NbOfTxs"].isdigit()
+                    else 0
+                ),
                 "total_amount": total_amount,
                 "currency": currency,
                 "message_id": header_data["MsgId"],

@@ -237,10 +237,12 @@ def _build_result(
         bbox = _parse_bbox(item.get("bbox"), index)
         transactions.append(
             Transaction(
-                account_id=str(account_id) if account_id is not None else None,
-                currency=str(currency).upper()
-                if currency is not None
-                else None,
+                account_id=(
+                    str(account_id) if account_id is not None else None
+                ),
+                currency=(
+                    str(currency).upper() if currency is not None else None
+                ),
                 amount=amount,
                 booking_date=_safe_date(item.get("booking_date")),
                 value_date=_safe_date(item.get("value_date")),
@@ -259,13 +261,13 @@ def _build_result(
                     description_str, source_text
                 ),
                 source_bbox=bbox,
-                source_page=bbox.page_index if bbox is not None else None,
+                source_page=(bbox.page_index if bbox is not None else None),
             )
         )
 
     return LLMExtractionResult(
         account_id=str(account_id) if account_id is not None else None,
-        currency=str(currency).upper() if currency is not None else None,
+        currency=(str(currency).upper() if currency is not None else None),
         opening_balance=opening,
         closing_balance=closing,
         transactions=transactions,

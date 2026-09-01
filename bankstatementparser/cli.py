@@ -397,19 +397,19 @@ class BankStatementCLI:
             {
                 "transaction_hash": tx.transaction_hash,
                 "source_method": tx.source_method,
-                "source_page": tx.source_page
-                if tx.source_page is not None
-                else "",
-                "booking_date": tx.booking_date.isoformat()
-                if tx.booking_date
-                else "",
+                "source_page": (
+                    tx.source_page if tx.source_page is not None else ""
+                ),
+                "booking_date": (
+                    tx.booking_date.isoformat() if tx.booking_date else ""
+                ),
                 "description": tx.description or "",
                 "amount": str(tx.amount),
                 "currency": tx.currency or "",
                 "reference": tx.reference or "",
-                "confidence": tx.confidence
-                if tx.confidence is not None
-                else "",
+                "confidence": (
+                    tx.confidence if tx.confidence is not None else ""
+                ),
             }
             for tx in result.transactions
         ]

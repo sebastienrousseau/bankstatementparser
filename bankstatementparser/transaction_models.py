@@ -276,8 +276,8 @@ class Transaction(BaseModel):
         currency = _first_value(record, "Currency", "currency")
 
         return cls(
-            account_id=str(account_id) if account_id is not None else None,
-            currency=str(currency).upper() if currency is not None else None,
+            account_id=(str(account_id) if account_id is not None else None),
+            currency=(str(currency).upper() if currency is not None else None),
             amount=amount,
             booking_date=_parse_date(
                 _first_value(record, "BookgDt", "booking_date", "date")
@@ -285,7 +285,9 @@ class Transaction(BaseModel):
             value_date=_parse_date(
                 _first_value(record, "ValDt", "value_date", "date")
             ),
-            description=str(description) if description is not None else None,
+            description=(
+                str(description) if description is not None else None
+            ),
             normalized_description=normalize_description(
                 str(description) if description is not None else None
             ),
