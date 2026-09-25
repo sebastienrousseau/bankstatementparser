@@ -194,3 +194,58 @@ def test_reconcile_partial_amount_deduction_and_helpers() -> None:
     )
     assert low_ratio_rep.matched_count == 0
     assert low_ratio_rep.unmatched_payment_count == 1
+
+
+def test_reconciled_volume_preserves_currency_and_settled_amount() -> None:
+    """Never add native currencies or count unsettled fees as settled volume."""
+    payments = [
+        {"InstdAmt": "10.00", "Currency": "EUR", "EndToEndId": "eur-1"},
+        {"InstdAmt": "20.00", "Currency": "EUR", "EndToEndId": "eur-2"},
+        {"InstdAmt": "1.234", "Currency": "KWD", "EndToEndId": "kwd-1"},
+        {"InstdAmt": "999", "Currency": "USD", "EndToEndId": "missing"},
+    ]
+    statements = [
+        {"amount": "-9.50", "currency": "EUR", "reference": "eur-1"},
+        {"amount": "-20.00", "currency": "EUR", "reference": "eur-2"},
+        {"amount": "-1.234", "currency": "kwd", "reference": "kwd-1"},
+    ]
+    report = reconcile_payments_and_statements(
+        payments, statements, fee_tolerance=Decimal("0.50")
+    )
+    assert report.matched_count == 3
+    assert report.total_reconciled_volume is None
+    assert report.reconciled_volume_by_currency == {
+        "EUR": Decimal("29.50"),
+        "KWD": Decimal("1.234"),
+    }
+    assert report.to_dict()["total_reconciled_volume"] is None
+    assert report.to_dict()["reconciled_volume_by_currency"] == {
+        "EUR": "29.50",
+        "KWD": "1.234",
+    }
+    empty = reconcile_payments_and_statements([], [])
+    assert empty.total_reconciled_volume == Decimal("0.00")
+    assert empty.reconciled_volume_by_currency == {}
+
+
+@pytest.mark.parametrize(
+    "direction", ["D", "DR", "DEBIT", "DBIT", "C", "CR", "CREDIT", "CRDT"]
+)
+def test_reconciliation_respects_explicit_direction(direction: str) -> None:
+    """Direction aliases must not turn debits into credits during matching."""
+    row = {
+        "amount": "10",
+        "currency": "GBP",
+        "reference": "ref",
+        "credit_debit": direction,
+    }
+    sign = "-" if direction.startswith("D") else ""
+    statement = {"amount": f"{sign}10", "currency": "GBP", "reference": "ref"}
+    assert (
+        reconcile_payments_and_statements([row], [statement]).matched_count
+        == 1
+    )
+    with pytest.raises(ValueError, match="Unsupported credit/debit"):
+        reconcile_payments_and_statements(
+            [{**row, "credit_debit": "unknown"}], [statement]
+        )

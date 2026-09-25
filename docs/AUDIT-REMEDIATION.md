@@ -18,12 +18,12 @@ planning horizon, not observations from the future.
 | F04 OFX accounts | Transaction metadata scoped to each bank/card statement | Investment OFX and per-account summary API |
 | F05 CSV precision | Read textual cells before Decimal conversion; preserve leading zeros; reject missing amount columns | Explicit dialect and date-format configuration |
 | F06 transaction identity | Versioned account/currency-scoped hashes; distinct IDs excluded from fuzzy matching; description included in primary key | Occurrence-aware identity when bank IDs are missing and persisted-state migration tooling |
-| F07 reconciliation | Indexed candidate lookup; require currency/direction compatibility; exact references; explicit fee tolerance; reject ambiguous candidates and conflicting dates/accounts | Broader settlement corpus; many-to-one settlements; per-currency reconciled totals |
+| F07 reconciliation | Indexed candidate lookup; require currency/direction compatibility; exact references; explicit fee tolerance; reject ambiguous candidates and conflicting dates/accounts; per-currency settled volumes | Broader settlement corpus; many-to-one settlements |
 | F08 analytics | Recognize parser field aliases; reject invalid amounts; retain Decimal precision; unknown currency is explicit; recurrence isolates accounts/directions and requires distinct dates | Average daily balance and calendar-aware projections |
 | F09 API installation | Declare multipart dependency, resolve real FastAPI annotations, report package version; real API/Parquet CI covers Python 3.10, 3.12 and 3.14 | Enforce isolated installed-wheel tests in CI |
 | F10 API resources | Clean temporary files; ingest outside event loop; bound pre-multipart body size, admissions and receive time; retain cancelled workers until completion | Isolate/time-limit ingestion workers and provider calls |
 | F11 PDF forensics | Invalid/uninspected documents no longer imply authenticity; clean inspection means `NO_INDICATORS` | Calibrated risk scoring, signature verification and real-document corpus |
-| F12 privacy | CAMT opt-in redaction covers parties, identifiers and narratives; CLI displays use common sensitive-field vocabulary | End-to-end export/provenance policy and PAIN parity |
+| F12 privacy | CAMT opt-in redaction covers parties, identifiers and narratives; CLI displays use common sensitive-field vocabulary; PAIN eager/streaming/summary/CSV and compatibility-wrapper parity | End-to-end export/provenance policy |
 | F13 hybrid completeness | Reject over-budget PDFs; route mixed text/scanned files to vision; close native render resources; map crop coordinates to original pages; merge adjacent crop observations using identity and spatial evidence while preserving multiplicity | Worker/provider budgets; automatic balance verification; real PDF/model accuracy corpus |
 | F14 Parquet types | Preserve Arrow Decimal/date/timestamp types; fail unsupported columns explicitly | Explicit canonical schema and bounded streaming writer |
 | F15 SBOM validity | UUID serial numbers, textual marker properties, retain dependency references to all locked variants | Full schema validation in CI and marker-aware deployment-specific graphs |
@@ -145,3 +145,31 @@ although the Poetry lock correctly includes it for the API on Python 3.14.
 The corresponding hash-required installation rejects the incomplete export.
 Use the locked Poetry installation for that combination until the exporter is
 corrected; do not hand-edit the generated requirements or bypass hash checks.
+
+
+## Fourth implementation batch
+
+PAIN redaction now applies to eager records, streamed records, summaries and
+explicitly redacted CSV exports. Both XML compatibility wrappers use the shared
+field policy, including message/batch IDs, names, accounts and narratives.
+Missing values remain missing and repeated unredacted reads retain the original
+data. The eager PAIN parser now reads a standard sibling `DbtrAcct`, matching
+its streaming reader while retaining the legacy nested-account fallback.
+
+The CAMT wrapper joins balances on original account IDs before redaction.
+Masking before that join collapsed distinct accounts into a common key and
+could attach another account's balance. Regression coverage uses two accounts
+with different balances and verifies the redacted results stay separate.
+
+Reconciliation reports absolute settled volumes per currency. Mixed-currency
+matches set the legacy scalar total to `None` instead of adding incompatible
+units. Single-currency and empty reports retain their scalar behavior. Direction
+aliases are interpreted explicitly; unknown direction codes fail instead of
+being silently treated as credits. Fees excluded from settlement remain
+excluded from reconciled volumes.
+
+Fourth-batch local validation: `make verify` passed 1,051 tests with 100%
+line/branch coverage; Ruff, mypy and Bandit passed. Strict MkDocs and 100%
+public-docstring coverage passed. Regression cases exercise masked CSV output,
+repeated unredacted reads, account-specific balances, mixed currencies,
+three-decimal settled amounts, fee deductions and debit/credit aliases.

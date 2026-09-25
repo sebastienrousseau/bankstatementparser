@@ -24,6 +24,15 @@ PII_FIELDS = (
     "transaction_id",
     "endtoendid",
     "normalized_description",
+    "initgpty",
+    "initiating_party",
+    "msgid",
+    "message_id",
+    "pmtinfid",
+    "pmt_inf_id",
+    "instrid",
+    "statementid",
+    "statement_id",
 )
 
 
@@ -36,7 +45,8 @@ def redact_record(record: Mapping[str, Any]) -> dict[str, Any]:
     """
     return {
         key: "***REDACTED***"
-        if any(token in key.lower() for token in PII_FIELDS)
+        if value is not None
+        and any(token in key.lower() for token in PII_FIELDS)
         else value
         for key, value in record.items()
     }

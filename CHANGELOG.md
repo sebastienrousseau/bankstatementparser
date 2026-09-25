@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Apply PAIN redaction consistently to records, summaries, CSV output and its
+  compatibility wrapper. Read standard debtor accounts in eager parsing.
+- Join CAMT wrapper balances before masking account IDs so redaction cannot
+  combine unrelated accounts.
+- Report reconciled volumes per currency, emit a null legacy total for mixed
+  currencies, and reject unsupported debit/credit direction codes.
+
 - Separate recurring payments by account and direction; derive inflows from
   transaction direction and require distinct dates for cadence detection.
 - Bound raw API bodies before multipart decoding, cap admitted requests, enforce

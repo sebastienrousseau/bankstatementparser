@@ -46,9 +46,12 @@ a match when those fields are present. Missing fields do not prove consistency.
 
 Partial deductions require an explicit `fee_tolerance=Decimal("...")`; the
 default is zero. Ambiguous candidates remain unmatched. Verify unmatched counts
-and review outcomes before relying on automated downstream posting. The legacy
-aggregate reconciled-volume field must not be treated as a converted valuation
-across multiple currencies.
+and review outcomes before relying on automated downstream posting. `reconciled_volume_by_currency` reports absolute settled amounts separately
+for each matched currency, retaining Decimal precision (strings in JSON).
+The legacy `total_reconciled_volume` is now `None` / JSON `null` for mixed-currency
+matches. It remains a Decimal for a single matched currency and zero for no
+matches. No exchange rate is inferred. Recognized debit/credit aliases override
+amount signs; unsupported explicit direction codes now raise `ValueError`.
 
 ## API, privacy and forensic results
 
@@ -65,8 +68,13 @@ Cancellation retains the worker slot and input until ingestion exits. These
 limits multiply with the number of server processes; gateway authentication,
 rate limits and supervised worker execution deadlines remain deployment work.
 
-Python parsers return full records by default. Pass `redact_pii=True` for CAMT
-redaction. CLI console output masks identities and narratives; regular and hybrid file
+Python parsers return full records by default. Pass `redact_pii=True` for CAMT record redaction or PAIN eager parsing,
+streaming and summaries. PAIN's `parse(output_file=..., redact_pii=True)` now
+writes masked CSV data. Its compatibility wrapper also masks party names,
+accounts and narratives. Missing values stay missing. Redaction includes message,
+batch and statement identifiers, and never mutates the retained XML tree.
+The CAMT compatibility wrapper attaches account balances before masking IDs,
+so separate accounts remain separate even when their displayed IDs are equal. CLI console output masks identities and narratives; regular and hybrid file
 exports contain full records, while legacy CLI streaming exports follow
 `--show-pii`. Python exports reflect the supplied records. Masked records are not a
 claim of irreversible anonymization.

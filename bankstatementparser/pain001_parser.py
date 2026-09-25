@@ -34,6 +34,7 @@ from ._amounts import iso_decimal
 from .base_parser import BankStatementParser
 from .exceptions import Pain001ParseError
 from .input_validator import InputValidator, ValidationError
+from .privacy import redact_record
 from .record_types import PaymentRecord, SummaryRecord
 
 # Configuring the logging
@@ -220,6 +221,12 @@ class Pain001Parser(BankStatementParser):
                             dbtr_agt.text if dbtr_agt is not None else None
                         )
 
+                # Standard PAIN debtor accounts are siblings of Dbtr; retain
+                # the legacy nested lookup above for older bank exports.
+                debtor_account = pmt.find("DbtrAcct/Id/IBAN")
+                if debtor_account is not None:
+                    pmt_fields["DbtrIBAN"] = debtor_account.text
+
                 # Batch process all transactions for this payment
                 transactions = pmt.findall("CdtTrfTxInf")
                 for tx in transactions:
@@ -265,7 +272,9 @@ class Pain001Parser(BankStatementParser):
 
                     # Add header fields to each payment record
                     payment.update(header_fields)
-                    payments.append(payment)
+                    payments.append(
+                        redact_record(payment) if redact_pii else payment
+                    )
 
             # Create DataFrame from parsed data
             df = pd.DataFrame.from_records(payments)
@@ -295,7 +304,7 @@ class Pain001Parser(BankStatementParser):
         large files.
 
         Parameters:
-            redact_pii (bool): Whether to redact PII data (address fields).
+            redact_pii (bool): Whether to mask identities, identifiers and narratives.
 
         Yields:
             Dict[str, Any]: Individual payment transaction data.
@@ -530,7 +539,7 @@ class Pain001Parser(BankStatementParser):
             tx_elem (etree.Element): XML element representing a credit transfer transaction.
             payment_info (Dict[str, Any]): Payment-level information.
             header_fields (Dict[str, Any]): Header-level information.
-            redact_pii (bool): Whether to redact PII data (address fields).
+            redact_pii (bool): Whether to mask identities, identifiers and narratives.
 
         Returns:
             Dict[str, Any]: Parsed payment data.
@@ -573,10 +582,7 @@ class Pain001Parser(BankStatementParser):
 
         # Apply PII redaction if requested
         if redact_pii:
-            pii_fields = ["DbtrNm", "CdtrNm", "DbtrIBAN", "InitgPty"]
-            for field in pii_fields:
-                if payment.get(field):
-                    payment[field] = "***REDACTED***"
+            payment = redact_record(payment)
 
         return cast(PaymentRecord, payment)
 
@@ -639,7 +645,7 @@ class Pain001Parser(BankStatementParser):
                         if currency == "Unknown":
                             currency = amt_elem.get("Ccy", "Unknown")
 
-            return {
+            summary: SummaryRecord = {
                 "account_id": header_data["InitgPty"],
                 "statement_date": header_data["CreDtTm"],
                 "transaction_count": (
@@ -652,6 +658,11 @@ class Pain001Parser(BankStatementParser):
                 "message_id": header_data["MsgId"],
                 "initiating_party": header_data["InitgPty"],
             }
+            return (
+                cast(SummaryRecord, redact_record(summary))
+                if redact_pii
+                else summary
+            )
         except Exception as e:
             raise Pain001ParseError(
                 f"cannot summarise {self.file_name}: {e}"

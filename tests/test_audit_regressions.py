@@ -505,3 +505,106 @@ def test_camt_foreign_extension_entries_are_not_bank_transactions() -> None:
     assert rows == parser.parse().to_dict("records")
     assert len(rows) == 1
     assert rows[0]["Amount"] == Decimal("1")
+
+
+def test_pain_redaction_covers_records_summaries_and_csv(
+    tmp_path: Path,
+) -> None:
+    """Explicit redaction must cover every PAIN output path without mutation."""
+    from bankstatementparser.pain001_parser import Pain001Parser
+
+    path = tmp_path / "private-payments.xml"
+    path.write_text("""<Document><CstmrCdtTrfInitn>
+      <GrpHdr><MsgId>private-message</MsgId><CreDtTm>2026-09-25</CreDtTm>
+        <NbOfTxs>1</NbOfTxs><InitgPty><Nm>Alice Initiator</Nm></InitgPty></GrpHdr>
+      <PmtInf><PmtInfId>private-batch</PmtInfId><PmtMtd>TRF</PmtMtd>
+        <ReqdExctnDt>2026-09-25</ReqdExctnDt><Dbtr><Nm>Alice Debtor</Nm></Dbtr>
+        <DbtrAcct><Id><IBAN>PRIVATE-ACCOUNT</IBAN></Id></DbtrAcct>
+        <DbtrAgt><FinInstnId><BIC>PRIVATE-BANK</BIC></FinInstnId></DbtrAgt>
+        <CdtTrfTxInf><PmtId><EndToEndId>private-transfer</EndToEndId></PmtId>
+          <Amt><InstdAmt Ccy="KWD">12.345</InstdAmt></Amt>
+          <CdtrAgt><FinInstnId><BIC>OTHER-BANK</BIC></FinInstnId></CdtrAgt>
+          <Cdtr><Nm>Bob Creditor</Nm></Cdtr><RmtInf><Ustrd>Bob invoice</Ustrd></RmtInf>
+        </CdtTrfTxInf></PmtInf></CstmrCdtTrfInitn></Document>""")
+    parser = Pain001Parser(str(path))
+    original = parser.parse().to_dict("records")
+    assert original == list(parser.parse_streaming())
+    assert original[0]["DbtrIBAN"] == "PRIVATE-ACCOUNT"
+    csv = tmp_path / "masked.csv"
+    masked = parser.parse(output_file=str(csv), redact_pii=True).to_dict(
+        "records"
+    )
+    assert masked == list(parser.parse_streaming(redact_pii=True))
+    for key in (
+        "MsgId",
+        "InitgPty",
+        "PmtInfId",
+        "DbtrNm",
+        "DbtrIBAN",
+        "DbtrBIC",
+        "EndToEndId",
+        "CdtrBIC",
+        "CdtrNm",
+        "RmtInf",
+    ):
+        assert masked[0][key] == "***REDACTED***"
+        assert original[0][key] not in csv.read_text()
+    assert masked[0]["InstdAmt"] == "12.345"
+    assert masked[0]["Currency"] == "KWD"
+    assert masked[0]["ReqdExctnDt"] == "2026-09-25"
+    summary = parser.get_summary(redact_pii=True)
+    for key in ("account_id", "initiating_party", "message_id"):
+        assert summary[key] == "***REDACTED***"
+    assert summary["total_amount"] == Decimal("12.345")
+    assert parser.get_summary()["message_id"] == "private-message"
+    assert parser.parse().to_dict("records") == original
+    assert redact_record({"DbtrNm": None, "Amount": Decimal("0")}) == {
+        "DbtrNm": None,
+        "Amount": Decimal("0"),
+    }
+
+
+def test_compatibility_wrappers_redact_after_account_joins(
+    tmp_path: Path,
+) -> None:
+    """Masked account keys cannot merge balances belonging to different accounts."""
+    from bankstatementparser.bank_statement_parsers import Camt053Parser
+    from bankstatementparser.bank_statement_parsers import (
+        Pain001Parser as LegacyPain,
+    )
+
+    path = tmp_path / "accounts.xml"
+    statements = "".join(
+        f"<Stmt><Id>{account}</Id><Acct><Id><IBAN>{account}</IBAN></Id></Acct>"
+        f"<Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>"
+        f'<Amt Ccy="EUR">{amount}</Amt><CdtDbtInd>CRDT</CdtDbtInd>'
+        "<Dt><Dt>2026-09-25</Dt></Dt></Bal></Stmt>"
+        for account, amount in (("ACCOUNT-A", "10"), ("ACCOUNT-B", "20"))
+    )
+    path.write_text(
+        f"<Document><BkToCstmrStmt>{statements}</BkToCstmrStmt></Document>"
+    )
+    with pytest.warns(DeprecationWarning):
+        camt = Camt053Parser(path, redact_pii=True)
+    assert [row["OPBD"]["Amount"] for row in camt.statements] == ["10", "20"]
+    assert all(row["AccountId"] == "***REDACTED***" for row in camt.statements)
+    assert all(
+        row["StatementId"] == "***REDACTED***" for row in camt.statements
+    )
+    with pytest.warns(DeprecationWarning):
+        pain = LegacyPain(
+            Path(__file__).parent / "test_data/pain.001.001.03.xml",
+            redact_pii=True,
+        )
+    for payment in pain.payments:
+        for key in (
+            "Name",
+            "Reference",
+            "CreditorAccount",
+            "Address",
+            "debtor_name",
+            "debtor_account",
+        ):
+            assert payment[key] == "***REDACTED***"
+        assert isinstance(payment["Amount"], Decimal)
+        assert payment["Currency"] == "EUR"

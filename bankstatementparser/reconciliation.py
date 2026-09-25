@@ -14,7 +14,7 @@ from __future__ import annotations
 import difflib
 from collections import defaultdict
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import date
 from decimal import Decimal
 from enum import Enum
@@ -64,10 +64,13 @@ class ReconciliationReport:
     unmatched_statement_count: int
     partial_deduction_count: int
     match_rate: float
-    total_reconciled_volume: Decimal
+    total_reconciled_volume: Decimal | None
     matches: list[ReconciliationMatch]
     unmatched_payments: list[dict[str, Any]]
     unmatched_statements: list[dict[str, Any]]
+    reconciled_volume_by_currency: dict[str, Decimal] = field(
+        default_factory=dict
+    )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert report to serializable dictionary."""
@@ -79,7 +82,15 @@ class ReconciliationReport:
             "unmatched_statement_count": self.unmatched_statement_count,
             "partial_deduction_count": self.partial_deduction_count,
             "match_rate": self.match_rate,
-            "total_reconciled_volume": str(self.total_reconciled_volume),
+            "total_reconciled_volume": (
+                str(self.total_reconciled_volume)
+                if self.total_reconciled_volume is not None
+                else None
+            ),
+            "reconciled_volume_by_currency": {
+                currency: str(amount)
+                for currency, amount in self.reconciled_volume_by_currency.items()
+            },
             "matches": [m.to_dict() for m in self.matches],
             "unmatched_payments": self.unmatched_payments,
             "unmatched_statements": self.unmatched_statements,
@@ -143,6 +154,9 @@ def reconcile_payments_and_statements(
     fields must carry the same sign as the statement. Currency is required.
     Conflicting account IDs, references, dates, and ambiguous candidates remain
     unmatched. Missing dates/accounts cannot establish those dimensions.
+    Reconciled volumes are absolute settled amounts grouped by currency.
+    The legacy total is None when matches span multiple currencies; no FX
+    conversion is inferred. Unrecognized explicit directions raise ValueError.
 
     Returns:
         Structured ReconciliationReport.
@@ -153,7 +167,7 @@ def reconcile_payments_and_statements(
     matched_pmt_indices: set[int] = set()
     matched_stmt_indices: set[int] = set()
     matches: list[ReconciliationMatch] = []
-    reconciled_volume = Decimal("0.00")
+    volumes: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
 
     if not 0 <= fuzzy_threshold <= 1:
         raise ValueError("fuzzy_threshold must be between zero and one")
@@ -176,8 +190,14 @@ def reconcile_payments_and_statements(
         if payment and "InstdAmt" in record:
             amount = -abs(amount)
         direction = _get_val(record, "DrCr", "credit_debit").upper()
-        if direction:
-            amount = -abs(amount) if direction == "DBIT" else abs(amount)
+        if direction in {"DBIT", "DEBIT", "D", "DR"}:
+            amount = -abs(amount)
+        elif direction in {"CRDT", "CREDIT", "C", "CR"}:
+            amount = abs(amount)
+        elif direction:
+            raise ValueError(
+                f"Unsupported credit/debit direction: {direction!r}"
+            )
         currency = _get_val(record, "Currency", "currency", "curr").upper()
         reference = _get_val(
             record,
@@ -293,7 +313,7 @@ def reconcile_payments_and_statements(
             p_idx, status, confidence, diff = options[0]
             matched_pmt_indices.add(p_idx)
             matched_stmt_indices.add(s_idx)
-            reconciled_volume += abs(s_fields[s_idx][0])
+            volumes[s_fields[s_idx][1]] += abs(s_fields[s_idx][0])
             matches.append(
                 ReconciliationMatch(
                     status=status,
@@ -330,7 +350,12 @@ def reconcile_payments_and_statements(
         unmatched_statement_count=len(unmatched_stmts),
         partial_deduction_count=partial_count,
         match_rate=match_rate,
-        total_reconciled_volume=reconciled_volume,
+        total_reconciled_volume=(
+            next(iter(volumes.values()), Decimal("0.00"))
+            if len(volumes) <= 1
+            else None
+        ),
+        reconciled_volume_by_currency=dict(volumes),
         matches=matches,
         unmatched_payments=unmatched_pmts,
         unmatched_statements=unmatched_stmts,
