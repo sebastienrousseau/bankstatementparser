@@ -46,7 +46,7 @@ def _description_similarity(left: Transaction, right: Transaction) -> float:
 
 
 class ExactDuplicateGroup(BaseModel):
-    """Transactions that collide on the deterministic primary hash."""
+    """Matching fingerprints with an explicit, non-placeholder payment ID."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -243,7 +243,24 @@ class Deduplicator:
         """Group candidates by their primary hash."""
         groups: dict[str, list[_Candidate]] = defaultdict(list)
         for candidate in candidates:
-            groups[candidate.primary_hash].append(candidate)
+            # Equal descriptions, dates and amounts do not establish identity:
+            # preserve identical purchases when no bank/payment ID is present.
+            transaction_id = (
+                candidate.transaction.transaction_id or ""
+            ).strip()
+            identified = transaction_id.upper() not in {
+                "",
+                "NONREF",
+                "NOTPROVIDED",
+                "UNKNOWN",
+                "N/A",
+            }
+            key = (
+                candidate.primary_hash
+                if identified
+                else f"{candidate.primary_hash}:occurrence:{candidate.index}"
+            )
+            groups[key].append(candidate)
         return groups
 
     def _find_exact_duplicates(
@@ -278,7 +295,11 @@ class Deduplicator:
     ) -> tuple[list[MatchGroup], set[int]]:
         """Find probable and temporal match groups for operator review."""
         probable_groups, probable_indices = self._find_probable_matches(
-            candidates
+            [
+                candidate
+                for candidate in candidates
+                if candidate.index not in excluded_indices
+            ]
         )
         temporal_groups, temporal_indices = self._find_temporal_matches(
             [
@@ -309,7 +330,6 @@ class Deduplicator:
         for bucket in buckets.values():
             if len(bucket) < 2:
                 continue
-            similarities = []
             for left_index, left in enumerate(bucket):
                 for right in bucket[left_index + 1 :]:
                     similarity = _description_similarity(
@@ -326,29 +346,21 @@ class Deduplicator:
                         and left.transaction.normalized_description
                         != right.transaction.normalized_description
                     ):
-                        similarities.append(similarity)
-
-            if not similarities:
-                continue
-
-            matched_indices.update(candidate.index for candidate in bucket)
-            groups.append(
-                MatchGroup(
-                    transactions=sorted(
-                        (candidate.transaction for candidate in bucket),
-                        key=lambda item: (
-                            item.source_index or -1,
-                            item.reference or "",
-                        ),
-                    ),
-                    reason=(
-                        "Primary hash collision with description similarity "
-                        f"{max(similarities):.2f}"
-                    ),
-                    confidence=min(0.99, max(similarities) + 0.05),
-                    tier="probable",
-                )
-            )
+                        matched_indices.update((left.index, right.index))
+                        groups.append(
+                            MatchGroup(
+                                transactions=[
+                                    left.transaction,
+                                    right.transaction,
+                                ],
+                                reason=(
+                                    "Matching account, currency, amount and date "
+                                    f"with description similarity {similarity:.2f}"
+                                ),
+                                confidence=min(0.99, similarity + 0.05),
+                                tier="probable",
+                            )
+                        )
         return groups, matched_indices
 
     def _find_temporal_matches(

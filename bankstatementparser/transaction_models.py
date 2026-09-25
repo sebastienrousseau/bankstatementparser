@@ -172,6 +172,7 @@ class Transaction(BaseModel):
     normalized_description: str = Field(default="")
     reference: Optional[str] = None
     transaction_id: Optional[str] = None
+    end_to_end_id: Optional[str] = None
     counterparty: Optional[str] = None
     source: Optional[str] = None
     source_index: Optional[int] = None
@@ -284,6 +285,7 @@ class Transaction(BaseModel):
             "CreditorAccount",
         )
         currency = _first_value(record, "Currency", "currency")
+        end_to_end_id = _first_value(record, "EndToEndId", "end_to_end_id")
 
         return cls(
             account_id=(str(account_id) if account_id is not None else None),
@@ -302,6 +304,9 @@ class Transaction(BaseModel):
                 str(description) if description is not None else None
             ),
             reference=str(reference) if reference is not None else None,
+            end_to_end_id=(
+                str(end_to_end_id) if end_to_end_id is not None else None
+            ),
             transaction_id=(
                 str(
                     _first_value(
@@ -309,6 +314,7 @@ class Transaction(BaseModel):
                         "transaction_id",
                         "TransactionId",
                         "FITID",
+                        "AcctSvcrRef",
                         "EndToEndId",
                     )
                 )
@@ -317,6 +323,7 @@ class Transaction(BaseModel):
                     "transaction_id",
                     "TransactionId",
                     "FITID",
+                    "AcctSvcrRef",
                     "EndToEndId",
                 )
                 is not None

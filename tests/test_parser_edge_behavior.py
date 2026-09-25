@@ -25,7 +25,7 @@ from bankstatementparser.bank_statement_parsers import (
     process_camt053_folder,
 )
 from bankstatementparser.camt_parser import CamtParser
-from bankstatementparser.exceptions import ParserError
+from bankstatementparser.exceptions import Pain001ParseError, ParserError
 from bankstatementparser.pain001_parser import Pain001Parser
 
 
@@ -257,7 +257,7 @@ class TestPain001MissingGrpHdr(unittest.TestCase):
         try:
             parser = Pain001Parser(f)
             summary = parser.get_summary()
-            self.assertEqual(summary["account_id"], "Unknown")
+            self.assertEqual(summary["account_id"], "DE89370400440532013000")
             self.assertEqual(summary["message_id"], "Unknown")
         finally:
             os.unlink(f)
@@ -326,10 +326,11 @@ class TestPain001MissingInstdAmt(unittest.TestCase):
         f = _write_xml(PAIN_SUMMARY_NO_AMT)
         try:
             parser = Pain001Parser(f)
-            summary = parser.get_summary()
-            # Only the second tx carries InstdAmt (50.00)
-            self.assertEqual(summary["total_amount"], 50.0)
-            self.assertEqual(summary["currency"], "EUR")
+            # A partial sum would hide the payment missing InstdAmt.
+            with self.assertRaisesRegex(
+                Pain001ParseError, "every payment amount"
+            ):
+                parser.get_summary()
         finally:
             os.unlink(f)
 
@@ -410,8 +411,10 @@ class TestPain001GetSummaryEdgeCases(unittest.TestCase):
         f = _write_xml(PAIN_SUMMARY_NO_AMT)
         try:
             parser = Pain001Parser(f)
-            summary = parser.get_summary()
-            self.assertEqual(summary["total_amount"], 50.0)
+            with self.assertRaisesRegex(
+                Pain001ParseError, "every payment amount"
+            ):
+                parser.get_summary()
         finally:
             os.unlink(f)
 
@@ -467,10 +470,9 @@ class TestCamtStatsEntryMissingFields(unittest.TestCase):
         f = _write_xml(CAMT_ENTRY_MISSING_AMT)
         try:
             parser = CamtParser(f)
-            stats = parser.get_statement_stats()
-            self.assertEqual(stats.iloc[0]["NumTransactions"], 3)
-            # Only the third entry has both Amt and CdtDbtInd
-            self.assertEqual(stats.iloc[0]["NetAmount"], 300.0)
+            # A partial sum would hide entries missing required financial data.
+            with self.assertRaisesRegex(ParserError, "booked amount"):
+                parser.get_statement_stats()
         finally:
             os.unlink(f)
 
@@ -622,9 +624,10 @@ class TestPain001SummaryTxNoAmt(unittest.TestCase):
         f = _write_xml(xml)
         try:
             parser = Pain001Parser(f)
-            summary = parser.get_summary()
-            self.assertEqual(summary["total_amount"], 75.0)
-            self.assertEqual(summary["currency"], "EUR")
+            with self.assertRaisesRegex(
+                Pain001ParseError, "every payment amount"
+            ):
+                parser.get_summary()
         finally:
             os.unlink(f)
 

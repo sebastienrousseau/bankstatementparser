@@ -192,13 +192,13 @@ def test_mt940_reversals_and_multiline_86(tmp_path: Path) -> None:
     df = parser.parse()
     assert len(df) == 4
 
-    # RC (reversal of credit/debit -> credit = positive)
-    assert df.iloc[0]["amount"] == Decimal("150.00")
+    # RC reverses a credit, reducing the account balance.
+    assert df.iloc[0]["amount"] == Decimal("-150.00")
     assert "continuation line 1" in str(df.iloc[0]["description"])
     assert "continuation line 2" in str(df.iloc[0]["description"])
 
-    # RD (reversal debit = negative)
-    assert df.iloc[1]["amount"] == Decimal("-50.00")
+    # RD reverses a debit, increasing the account balance.
+    assert df.iloc[1]["amount"] == Decimal("50.00")
 
     # EC (electronic credit = positive)
     assert df.iloc[2]["amount"] == Decimal("200.00")
@@ -206,10 +206,11 @@ def test_mt940_reversals_and_multiline_86(tmp_path: Path) -> None:
     # ED (electronic debit = negative)
     assert df.iloc[3]["amount"] == Decimal("-75.00")
 
-    summary = parser.get_summary()
-    assert summary["transaction_count"] == 4
-    assert summary["opening_balance"] == Decimal("1000.00")
-    assert summary["closing_balance"] == Decimal("1275.00")
+    summaries = parser.get_summaries()
+    assert sum(row["transaction_count"] for row in summaries) == 4
+    assert len(summaries) == 2
+    with pytest.raises(ValueError, match="get_summaries"):
+        parser.get_summary()
 
 
 def test_detect_format_all_types(tmp_path: Path) -> None:

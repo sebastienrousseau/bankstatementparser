@@ -31,7 +31,7 @@ import pandas as pd
 from lxml import etree
 
 from ._amounts import iso_decimal
-from .base_parser import BankStatementParser
+from .base_parser import BankStatementParser, _single_summary
 from .exceptions import Pain001ParseError
 from .input_validator import InputValidator, ValidationError
 from .privacy import redact_record
@@ -586,7 +586,7 @@ class Pain001Parser(BankStatementParser):
 
         return cast(PaymentRecord, payment)
 
-    def get_summary(self, redact_pii: bool = False) -> SummaryRecord:
+    def get_summaries(self, redact_pii: bool = False) -> list[SummaryRecord]:
         """Get a summary of the parsed PAIN.001 statement data.
 
         Returns:
@@ -623,10 +623,14 @@ class Pain001Parser(BankStatementParser):
 
             # Batch extract all payment information and calculate totals
             payment_info_records = root.findall(".//CstmrCdtTrfInitn/PmtInf")
-            total_amount = Decimal("0")
-            currency = "Unknown"
+            groups: dict[tuple[str, str], SummaryRecord] = {}
 
             for pmt in payment_info_records:
+                account = (
+                    pmt.findtext("./DbtrAcct/Id/IBAN")
+                    or pmt.findtext("./Dbtr/DbtrAcct/Id/IBAN")
+                    or "Unknown"
+                )
                 # Pre-extract all transactions for this payment in one call
                 transactions = pmt.findall("CdtTrfTxInf")
                 for tx in transactions:
@@ -637,33 +641,49 @@ class Pain001Parser(BankStatementParser):
                             amt_elem = child.find("InstdAmt")
                             break
 
-                    if amt_elem is not None and amt_elem.text:
-                        total_amount += iso_decimal(
-                            amt_elem.text,
-                            context="InstdAmt element",
+                    if amt_elem is None or not amt_elem.text:
+                        raise Pain001ParseError(
+                            "Summary requires every payment amount"
                         )
-                        if currency == "Unknown":
-                            currency = amt_elem.get("Ccy", "Unknown")
+                    currency = amt_elem.get("Ccy", "Unknown")
+                    key = (account, currency)
+                    if key not in groups:
+                        groups[key] = {
+                            "account_id": account,
+                            "statement_date": header_data["CreDtTm"],
+                            "transaction_count": 0,
+                            "total_amount": Decimal("0"),
+                            "currency": currency,
+                            "message_id": header_data["MsgId"],
+                            "initiating_party": header_data["InitgPty"],
+                        }
+                    summary = groups[key]
+                    summary["transaction_count"] += 1
+                    summary["total_amount"] += iso_decimal(
+                        amt_elem.text, context="InstdAmt element"
+                    )
 
-            summary: SummaryRecord = {
-                "account_id": header_data["InitgPty"],
-                "statement_date": header_data["CreDtTm"],
-                "transaction_count": (
-                    int(header_data["NbOfTxs"])
-                    if header_data["NbOfTxs"].isdigit()
-                    else 0
-                ),
-                "total_amount": total_amount,
-                "currency": currency,
-                "message_id": header_data["MsgId"],
-                "initiating_party": header_data["InitgPty"],
-            }
+            summaries = list(groups.values()) or [
+                {
+                    "account_id": "Unknown",
+                    "statement_date": header_data["CreDtTm"],
+                    "transaction_count": 0,
+                    "total_amount": Decimal("0"),
+                    "currency": "Unknown",
+                    "message_id": header_data["MsgId"],
+                    "initiating_party": header_data["InitgPty"],
+                }
+            ]
             return (
-                cast(SummaryRecord, redact_record(summary))
+                [cast(SummaryRecord, redact_record(row)) for row in summaries]
                 if redact_pii
-                else summary
+                else summaries
             )
         except Exception as e:
             raise Pain001ParseError(
                 f"cannot summarise {self.file_name}: {e}"
             ) from e
+
+    def get_summary(self, redact_pii: bool = False) -> SummaryRecord:
+        """Return one account/currency scope; reject totals spanning scopes."""
+        return _single_summary(self.get_summaries(redact_pii=redact_pii))

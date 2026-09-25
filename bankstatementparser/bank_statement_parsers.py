@@ -263,22 +263,33 @@ class Camt053Parser:
                 else []
             )
 
-            # Add balance information to statements if available
+            # Add balance information to its owning statement before masking.
+            # Account IDs alone cannot distinguish consecutive periods.
             if not balances_df.empty:
-                balances_by_account: dict[str, dict[str, dict[str, str]]] = {}
-                for account_id, group in balances_df.groupby("AccountId"):
-                    balances_by_account[account_id] = {
-                        str(row["Code"]): {
+                for statement_index, group in balances_df.groupby(
+                    "StatementIndex"
+                ):
+                    stmt = self.statements[int(statement_index)]
+                    balances_by_currency: dict[
+                        str, dict[str, dict[str, str]]
+                    ] = {}
+                    for row in group.to_dict("records"):
+                        currency = str(row["Currency"])
+                        code = str(row["Code"])
+                        currency_balances = balances_by_currency.setdefault(
+                            currency, {}
+                        )
+                        if code in currency_balances:
+                            raise ValueError(
+                                "Ambiguous duplicate statement balance"
+                            )
+                        currency_balances[code] = {
                             "Amount": str(row["Amount"]),
                             "Description": str(row["Description"]),
                         }
-                        for row in group.to_dict("records")
-                    }
-
-                for stmt in self.statements:
-                    account_id = stmt.get("AccountId")
-                    if account_id in balances_by_account:
-                        stmt.update(balances_by_account[account_id])
+                    stmt["BalancesByCurrency"] = balances_by_currency
+                    if len(balances_by_currency) == 1:
+                        stmt.update(next(iter(balances_by_currency.values())))
             if redact_pii:
                 self.statements = [
                     redact_record(stmt) for stmt in self.statements

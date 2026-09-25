@@ -23,6 +23,8 @@ PII_FIELDS = (
     "raw_source",
     "transaction_id",
     "endtoendid",
+    "end_to_end_id",
+    "acctsvcrref",
     "normalized_description",
     "initgpty",
     "initiating_party",

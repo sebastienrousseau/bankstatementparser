@@ -115,3 +115,45 @@ not a salary keyword or a tax classification. Amounts remain positive magnitudes
 `min_occurrences` must be at least two and counts distinct booking dates.
 Same-day repeats remain in occurrence totals and transaction dates but cannot
 fabricate or shorten a schedule. Zero-value rows do not create patterns.
+
+
+## Scoped summaries and booked amounts
+
+Use `get_summaries()` for files containing multiple accounts, currencies or
+statement periods. `get_summary()` raises `ValueError` when more than one scope
+exists; it no longer selects the first statement or adds unrelated currencies.
+JSON exports include a `summaries` array and retain `summary` only for a single
+scope (otherwise null). External parsers retain their single-summary default.
+CSV and OFX totals group by account/currency; CAMT and MT940 retain statement
+boundaries. CAMT counts booked entries, not expanded payment details. PAIN
+counts actual payments instead of trusting the header count. CSV running
+balances do not establish opening balances, which now remain null.
+
+CAMT totals and transaction `Amount`/`Currency` use booked account amounts.
+Native records retain foreign `TransactionAmount`, `CounterValueAmount` and
+`InstructedAmount` with their currencies when present. A batch must provide
+unambiguous account-currency detail amounts that conserve its booked total.
+No exchange rate is inferred. `EndToEndId` and `AcctSvcrRef` are separate from
+remittance text; normalization retains the end-to-end ID for reconciliation.
+Missing detail fields cannot borrow values from another payment in the batch.
+
+MT940 `RC` is negative and `RD` positive; balance `D` is negative. The optional
+funds code following the debit/credit mark does not change its sign. Malformed
+transaction/balance lines and conflicting statement currencies or balances
+raise errors. Statement-level `:86:` after a closing balance cannot overwrite
+transaction narrative. Two-digit dates retain the documented 1969-2068 window.
+The reversal and funds-code interpretation follows the
+[ING MT940 format guide](https://business.ing.ro/ing2/ingdocuments/MT940-MT942-file-formats.pdf).
+
+
+The CAMT compatibility wrapper now joins balances by statement position and
+exposes `BalancesByCurrency`. Legacy top-level balance codes are populated only
+for single-currency balances. `get_account_balances()` adds `StatementIndex`.
+
+`Deduplicator.deduplicate()` requires a usable payment ID for exact duplicate
+groups. Identical purchases without an ID remain separate transactions;
+`NONREF`, `NOTPROVIDED`, `UNKNOWN` and `N/A` are not usable IDs. Probable groups
+contain only the matching pair, and exclude already identified exact duplicates.
+The separate `dedupe_by_hash()` incremental filter still uses occurrence counts
+against the supplied persisted set; without bank IDs, overlapping exports need
+operator validation because fingerprints alone cannot establish identity.

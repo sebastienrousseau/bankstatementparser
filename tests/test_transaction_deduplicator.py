@@ -74,6 +74,7 @@ def test_deduplicator_finds_exact_duplicate_primary_hash_collision() -> None:
                 "amount": "12.30",
                 "date": "2026-03-20",
                 "description": "Coffee shop",
+                "transaction_id": "BANK-1",
             },
             {
                 "account_id": "acct-1",
@@ -81,6 +82,7 @@ def test_deduplicator_finds_exact_duplicate_primary_hash_collision() -> None:
                 "amount": "12.30",
                 "date": "2026-03-20",
                 "description": "Coffee shop",
+                "transaction_id": "BANK-1",
             },
             {
                 "account_id": "acct-1",
@@ -122,7 +124,7 @@ def test_deduplicator_marks_probable_match_for_fuzzy_description() -> None:
     assert len(result.exact_duplicates) == 0
     assert len(result.suspected_matches) == 1
     assert result.suspected_matches[0].tier == "probable"
-    assert "Primary hash collision" in result.suspected_matches[0].reason
+    assert "description similarity" in result.suspected_matches[0].reason
     assert result.suspected_matches[0].confidence >= 0.9
 
 

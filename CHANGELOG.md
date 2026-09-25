@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve identical purchases without usable payment IDs in duplicate review;
+  limit probable-match groups to matching pairs.
+- Join compatibility-wrapper balances by statement position and expose mixed
+  currency balances separately.
+
+- Scope summaries by account, currency and available statement boundaries;
+  expose `get_summaries()` and reject ambiguous singular totals.
+- Use CAMT booked amounts for FX entries, preserve native foreign-amount
+  metadata, separate payment IDs from remittance and prevent sibling leakage.
+- Correct MT940 reversal and debit-balance signs; retain statement boundaries,
+  parse optional funds codes and reject malformed financial lines.
+
 - Apply PAIN redaction consistently to records, summaries, CSV output and its
   compatibility wrapper. Read standard debtor accounts in eager parsing.
 - Join CAMT wrapper balances before masking account IDs so redaction cannot

@@ -173,3 +173,30 @@ line/branch coverage; Ruff, mypy and Bandit passed. Strict MkDocs and 100%
 public-docstring coverage passed. Regression cases exercise masked CSV output,
 repeated unredacted reads, account-specific balances, mixed currencies,
 three-decimal settled amounts, fee deductions and debit/credit aliases.
+
+## Financial correctness: ordered follow-up
+
+Implemented scoped summary APIs for CSV, OFX, CAMT, PAIN and MT940. Singular
+summaries reject multiple scopes; JSON exports retain the complete scope list.
+CAMT/MT940 balances remain within statement periods and currencies, including
+in the compatibility wrapper. PAIN counts actual payments, and malformed
+financial lines/amounts cannot silently produce partial summaries.
+
+CAMT uses booked account amounts for FX entries, preserves foreign detail
+amounts in native records, and requires conserving account-currency detail
+amounts in batches. Payment identifiers are separate from remittance. Detail
+fallbacks cannot copy a sibling payment's parties or reference. MT940 reversal
+and debit-balance signs are corrected, and optional funds codes are supported.
+
+Duplicate review preserves unidentified repeated purchases and limits fuzzy
+review groups to matching pairs. Incremental persisted hash sets still require
+careful scope selection for unidentified overlapping exports; migration tooling
+and cross-file occurrence policy remain open. Bank-specific MT940 century
+configuration, investment OFX, additional real-bank fixtures and normalized FX
+metadata are also still open. These changes do not establish complete format
+coverage or production accuracy.
+
+Validation for this follow-up: `make verify` passed with 1,079 passed, five
+skipped and five slow tests deselected; 100% line/branch coverage, Ruff, mypy
+and Bandit passed. All five slow performance contracts passed separately.
+Strict MkDocs and 100% docstring checks passed. These are local results.

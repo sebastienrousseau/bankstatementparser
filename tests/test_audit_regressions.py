@@ -493,7 +493,7 @@ def test_camt_batch_must_conserve_booked_amount(
     parser = CamtParser.from_string(
         f'<Document><Stmt><Ntry><Amt Ccy="EUR">{total}</Amt><CdtDbtInd>{direction}</CdtDbtInd><NtryDtls><TxDtls><Amt Ccy="{currency}">10</Amt></TxDtls><TxDtls><Amt Ccy="EUR">20</Amt></TxDtls></NtryDtls></Ntry></Stmt></Document>'
     )
-    with pytest.raises(ParserError, match="conserve"):
+    with pytest.raises(ParserError, match=r"conserve|entry currency"):
         parser.parse()
 
 

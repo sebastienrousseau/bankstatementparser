@@ -24,7 +24,7 @@ def main() -> None:
     print(f"Input: {PAIN001_FIXTURE}")
     print(f"Payments parsed: {len(payments)}")
     print(payments.head().to_string(index=False))
-    print(parser.get_summary())
+    print(parser.get_summaries())
 
 
 if __name__ == "__main__":

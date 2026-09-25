@@ -34,6 +34,13 @@ if TYPE_CHECKING:
     import polars as pl
 
 
+def _single_summary(summaries: list[SummaryRecord]) -> SummaryRecord:
+    """Return one scope, rejecting implicit selection or cross-scope totals."""
+    if len(summaries) > 1:
+        raise ValueError("Multiple summary scopes; use get_summaries()")
+    return summaries[0] if summaries else {}
+
+
 class BankStatementParser(ABC):
     """Abstract base class for bank statement parsers.
 
@@ -89,6 +96,10 @@ class BankStatementParser(ABC):
                 - currency: Statement currency
         """
 
+    def get_summaries(self) -> list[SummaryRecord]:
+        """Return scoped summaries; compatibility default for external parsers."""
+        return [self.get_summary()]
+
     def export_csv(self, output_path: Union[str, Path]) -> None:
         """Export parsed data to a CSV file.
 
@@ -125,8 +136,10 @@ class BankStatementParser(ABC):
             df = self.parse()
 
             # Create structured JSON with summary and transactions
+            summaries = self.get_summaries()
             data = {
-                "summary": self.get_summary(),
+                "summary": summaries[0] if len(summaries) == 1 else None,
+                "summaries": summaries,
                 "transactions": df.to_dict("records"),
             }
 

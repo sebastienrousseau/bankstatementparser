@@ -31,6 +31,7 @@ class BalanceRecord(TypedDict, total=False):
     DrCr: str | None
     Date: str | None
     AccountId: str | None
+    StatementIndex: int
 
 
 class TransactionRecord(TypedDict, total=False):
@@ -46,6 +47,14 @@ class TransactionRecord(TypedDict, total=False):
     Debtor: str | None
     Creditor: str | None
     Reference: str | None
+    EndToEndId: str | None
+    AcctSvcrRef: str | None
+    TransactionAmount: Decimal
+    TransactionCurrency: str | None
+    CounterValueAmount: Decimal
+    CounterValueCurrency: str | None
+    InstructedAmount: Decimal
+    InstructedCurrency: str | None
     ValDt: str | None
     BookgDt: str | None
     AccountId: str | None
@@ -91,7 +100,8 @@ class StatementStatsRecord(TypedDict, total=False):
     AccountId: str | None
     StatementCreated: str | None
     NumTransactions: int
-    NetAmount: Decimal
+    NetAmount: Decimal | None
+    NetAmountByCurrency: dict[str, Decimal]
 
 
 class SummaryRecord(TypedDict, total=False):
@@ -99,6 +109,7 @@ class SummaryRecord(TypedDict, total=False):
 
     account_id: str | None
     statement_date: str | None
+    statement_id: str | None
     transaction_count: int
     total_amount: Decimal
     opening_balance: Decimal | None

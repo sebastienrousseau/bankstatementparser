@@ -123,8 +123,9 @@ class TestUnifiedParserInterface(unittest.TestCase):
         if self.pain001_parser:
             parsers.append(self.pain001_parser)
 
-        for parser in parsers:
-            summary = parser.get_summary()
+        for summary in (
+            row for candidate in parsers for row in candidate.get_summaries()
+        ):
             self.assertIsInstance(summary, dict)
 
             # Test required keys are present (based on ABC documentation)
@@ -234,8 +235,13 @@ class TestUnifiedParserInterface(unittest.TestCase):
                     self.assertIn("transactions", data)
 
                     # Verify summary structure
-                    summary = data["summary"]
-                    self.assertIsInstance(summary, dict)
+                    summaries = data["summaries"]
+                    self.assertIsInstance(summaries, list)
+                    self.assertTrue(summaries)
+                    self.assertEqual(
+                        data["summary"],
+                        summaries[0] if len(summaries) == 1 else None,
+                    )
 
                     # Verify transactions structure
                     transactions = data["transactions"]
@@ -570,10 +576,13 @@ class TestParserFactoryPattern(unittest.TestCase):
 
             # Test polymorphic usage
             df = parser.parse()
-            summary = parser.get_summary()
+            summaries = parser.get_summaries()
 
             self.assertIsInstance(df, pd.DataFrame)
-            self.assertIsInstance(summary, dict)
+            self.assertTrue(summaries)
+            self.assertTrue(
+                all(isinstance(summary, dict) for summary in summaries)
+            )
 
 
 if __name__ == "__main__":
