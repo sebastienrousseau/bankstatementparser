@@ -344,8 +344,8 @@ class CamtParser(BankStatementParser):
             # Validate: if statement has child elements but no proper balances
             # and no proper account structure, it may be malformed
             if not bal_list and len(statement) > 0:
-                has_account = bool(statement.findall("./Acct"))
-                has_entries = bool(statement.findall("./Ntry"))
+                has_account = bool(statement.findall("Acct"))
+                has_entries = bool(statement.findall("Ntry"))
                 has_bal = bool(statement.findall(".//Bal"))
                 # If statement has children but no standard CAMT elements,
                 # it's likely a malformed structure
@@ -495,7 +495,7 @@ class CamtParser(BankStatementParser):
         """
         # Find all entry elements (transactions) in the statement
         return self._get_transactions_for_entries(
-            statement.findall("./Ntry"),
+            statement.findall("Ntry"),
             statement.findtext("./Acct/Ccy") or "",
             redact_pii,
         )
@@ -513,6 +513,12 @@ class CamtParser(BankStatementParser):
         per-detail values in the booked currency; conversion is never inferred.
         """
         metadata: TransactionRecord = {}
+        if (
+            detail.find("Amt") is None
+            and detail.find("AmtDtls") is None
+            and not batched
+        ):
+            return entry_amount, metadata
         candidates: list[Decimal] = []
         for path in (
             "./Amt",
@@ -553,12 +559,13 @@ class CamtParser(BankStatementParser):
     ) -> TransactionRecord:
         """Keep bank identifiers separate from remittance narratives."""
         references: TransactionRecord = {}
-        end_to_end = element.findtext("./Refs/EndToEndId")
-        if end_to_end:
-            references["EndToEndId"] = end_to_end
-        bank_reference = element.findtext(
-            "./Refs/AcctSvcrRef"
-        ) or element.findtext("./AcctSvcrRef")
+        refs = element.find("Refs")
+        bank_reference = element.findtext("AcctSvcrRef")
+        if refs is not None:
+            end_to_end = refs.findtext("EndToEndId")
+            if end_to_end:
+                references["EndToEndId"] = end_to_end
+            bank_reference = refs.findtext("AcctSvcrRef") or bank_reference
         if bank_reference:
             references["AcctSvcrRef"] = bank_reference
         return references
@@ -579,8 +586,8 @@ class CamtParser(BankStatementParser):
 
         for entry in entries:
             # Essential transaction fields - skip entries missing required fields
-            amount_elems = entry.findall("./Amt")
-            cdt_dbt_elems = entry.findall("./CdtDbtInd")
+            amount_elems = entry.findall("Amt")
+            cdt_dbt_elems = entry.findall("CdtDbtInd")
 
             if not amount_elems:
                 raise ValueError("Transaction entry missing <Amt> element")
@@ -621,7 +628,7 @@ class CamtParser(BankStatementParser):
                         len(tx_dtls_elems) > 1,
                     )
                     currency = entry_currency
-                    cdt_dbt = tx_dtls.findtext("./CdtDbtInd") or entry_cdt_dbt
+                    cdt_dbt = tx_dtls.findtext("CdtDbtInd") or entry_cdt_dbt
                     if cdt_dbt not in {"CRDT", "DBIT"}:
                         raise ParserError(
                             "Invalid transaction detail CdtDbtInd"
@@ -880,15 +887,15 @@ class CamtParser(BankStatementParser):
         account_id = self._get_account_id(statement)
 
         # Batch these queries instead of calling _get_element_text multiple times
-        id_elems = statement.findall("./Id")
+        id_elems = statement.findall("Id")
         statement_id = id_elems[0].text if id_elems else ""
 
-        created_elems = statement.findall("./CreDtTm")
+        created_elems = statement.findall("CreDtTm")
         created = created_elems[0].text if created_elems else ""
 
         # Optimize: calculate transaction stats directly from XPath rather than
         # reprocessing through _get_transactions_for_statement
-        entry_elems = statement.findall("./Ntry")
+        entry_elems = statement.findall("Ntry")
         num_transactions = len(entry_elems)
 
         # Calculate booked totals per currency, never adding incompatible units.
@@ -1176,8 +1183,8 @@ class CamtParser(BankStatementParser):
             if currency not in groups:
                 groups[currency] = {
                     "account_id": account,
-                    "statement_id": statement.findtext("./Id") or "",
-                    "statement_date": statement.findtext("./CreDtTm") or "",
+                    "statement_id": statement.findtext("Id") or "",
+                    "statement_date": statement.findtext("CreDtTm") or "",
                     "transaction_count": 0,
                     "total_amount": Decimal("0"),
                     "currency": currency,
@@ -1186,9 +1193,9 @@ class CamtParser(BankStatementParser):
 
         # Calculate booked totals directly rather than reprocessing expanded
         # transaction details, which can carry instructed foreign amounts.
-        for entry in statement.findall("./Ntry"):
-            amount_element = entry.find("./Amt")
-            direction = entry.findtext("./CdtDbtInd")
+        for entry in statement.findall("Ntry"):
+            amount_element = entry.find("Amt")
+            direction = entry.findtext("CdtDbtInd")
             if amount_element is None or direction not in {"CRDT", "DBIT"}:
                 raise ParserError(
                     "Summary requires booked amount and valid CdtDbtInd"
