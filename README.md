@@ -345,17 +345,18 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 907 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 927 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
 ## PII Redaction
 
 PII (names, IBANs, addresses) is **redacted by default** in
-console output and streaming mode.
+CLI console output. Python parser methods return full records unless
+`redact_pii=True` is supplied.
 
 ```python
-# Redacted by default
+# Request redaction explicitly in Python
 for tx in parser.parse_streaming(redact_pii=True):
     print(tx)  # Names and addresses show as ***REDACTED***
 
@@ -364,8 +365,9 @@ for tx in parser.parse_streaming(redact_pii=False):
     print(tx)
 ```
 
-File exports (CSV, JSON, Excel) always contain the full unredacted
-data.
+Regular and hybrid file exports contain full records. Legacy CLI streaming
+exports follow `--show-pii`; Python exports reflect the records supplied.
+Choose redaction explicitly before sharing an exported file.
 
 ---
 
@@ -703,7 +705,7 @@ cleanly — see each companion's README for runnable examples.
 ## Project Layout
 
 ```text
-bankstatementparser/            Source code (38 modules)
+bankstatementparser/            Source code (39 modules)
 bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
 bankstatementparser/export/     hledger + beancount journal export, Apache Parquet columnar export
@@ -711,7 +713,7 @@ bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 9 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          907 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          927 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---
@@ -783,8 +785,9 @@ No. Zero network calls. XML parsers enforce `no_network=True`. No
 cloud, no telemetry.
 
 **Is PII redacted automatically?**
-Yes. Names, IBANs, and addresses are masked by default in console
-output and streaming. File exports retain full data.
+CLI console output masks personal fields by default. Python callers
+must request `redact_pii=True`. Regular file exports retain full data;
+legacy streaming exports follow `--show-pii`.
 
 **Is the extraction deterministic?**
 Yes. Same input produces byte-identical output. Critical for

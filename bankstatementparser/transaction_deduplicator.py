@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -110,19 +109,7 @@ class Deduplicator:
 
     def primary_hash(self, transaction: Transaction) -> str:
         """Return the stable primary hash for hard identity matching."""
-        material = "|".join(
-            [
-                transaction.account_id or "",
-                transaction.currency or "",
-                transaction.amount_key(),
-                (
-                    transaction.booking_date.isoformat()
-                    if transaction.booking_date is not None
-                    else ""
-                ),
-            ]
-        )
-        return hashlib.sha256(material.encode("utf-8")).hexdigest()
+        return transaction.transaction_hash
 
     def normalize_transactions(
         self,
@@ -311,7 +298,15 @@ class Deduplicator:
         """Match candidates by hash collision and description similarity."""
         groups = []
         matched_indices: set[int] = set()
-        for bucket in self._candidate_groups_by_primary(candidates).values():
+        buckets: dict[
+            tuple[str | None, str | None, str, date | None], list[_Candidate]
+        ] = defaultdict(list)
+        for candidate in candidates:
+            tx = candidate.transaction
+            buckets[
+                (tx.account_id, tx.currency, tx.amount_key(), tx.booking_date)
+            ].append(candidate)
+        for bucket in buckets.values():
             if len(bucket) < 2:
                 continue
             similarities = []
@@ -321,7 +316,13 @@ class Deduplicator:
                         left.transaction, right.transaction
                     )
                     if (
-                        similarity >= self.description_similarity_threshold
+                        not (
+                            left.transaction.transaction_id
+                            and right.transaction.transaction_id
+                            and left.transaction.transaction_id
+                            != right.transaction.transaction_id
+                        )
+                        and similarity >= self.description_similarity_threshold
                         and left.transaction.normalized_description
                         != right.transaction.normalized_description
                     ):
@@ -399,6 +400,16 @@ class Deduplicator:
                 )
                 if (
                     day_delta is not None
+                    and _description_similarity(
+                        prev.transaction, candidate.transaction
+                    )
+                    >= self.description_similarity_threshold
+                    and not (
+                        prev.transaction.transaction_id
+                        and candidate.transaction.transaction_id
+                        and prev.transaction.transaction_id
+                        != candidate.transaction.transaction_id
+                    )
                     and day_delta <= self.value_date_window_days
                     and prev.primary_hash != candidate.primary_hash
                 ):

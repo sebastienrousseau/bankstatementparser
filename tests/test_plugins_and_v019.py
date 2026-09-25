@@ -258,8 +258,9 @@ def test_camt_extract_transactions_batch_and_redact(
       <Id>STMT001</Id>
       <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>
       <Ntry>
-        <Amt Ccy="EUR">300.00</Amt>
-        <CdtDbtInd>CRDT</CdtDbtInd>
+        <!-- Net booking: credit 100 less debit 200 equals debit 100. -->
+        <Amt Ccy="EUR">100.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
         <ValDt><Dt>2026-01-01</Dt></ValDt>
         <BookgDt><Dt>2026-01-01</Dt></BookgDt>
         <NtryDtls>

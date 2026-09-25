@@ -35,6 +35,8 @@ from bankstatementparser.input_validator import (
     ValidationError,
 )
 
+from .privacy import PII_FIELDS
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -73,7 +75,7 @@ class BankStatementCLI:
         redacted_df = df.copy()
 
         # Define PII keywords to identify sensitive columns
-        pii_keywords = ["address", "iban", "account", "name", "bic"]
+        pii_keywords = PII_FIELDS
 
         # Check each column for PII keywords (case-insensitive)
         for column in redacted_df.columns:
@@ -428,7 +430,7 @@ class BankStatementCLI:
                 f"Source method: {result.source_method} "
                 f"(format: {result.source_format})"
             )
-            print(df)
+            print(self._redact_dataframe(df))
 
         if result.verification is not None:
             v = result.verification

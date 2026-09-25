@@ -3880,6 +3880,19 @@ files = [
 cli = ["click (>=5.0)"]
 
 [[package]]
+name = "python-multipart"
+version = "0.0.32"
+description = "A streaming multipart parser for Python"
+optional = true
+python-versions = ">=3.10"
+groups = ["main"]
+markers = "extra == \"api\""
+files = [
+    {file = "python_multipart-0.0.32-py3-none-any.whl", hash = "sha256:ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23"},
+    {file = "python_multipart-0.0.32.tar.gz", hash = "sha256:be54b7f3fa167bb83e4fcd936b887b708f4e57fe75911c02aebf53efaf8d938e"},
+]
+
+[[package]]
 name = "pytz"
 version = "2026.3.post1"
 description = "World timezone definitions, modern and historical"
@@ -5063,7 +5076,7 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more_it
 type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 
 [extras]
-api = ["fastapi", "uvicorn"]
+api = ["fastapi", "python-multipart", "uvicorn"]
 enrichment = ["litellm"]
 excel = ["openpyxl"]
 hybrid = ["litellm", "pypdf"]
@@ -5075,4 +5088,4 @@ polars = ["polars"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "ee8ee29827feb0e0a2a29eb268c72c2b1abc8544763279ce10d61756fc517e2c"
+content-hash = "0621d387ad9bf97b2a4f5e5b6caf37fbae2112143c536381fecbed2e857a5594"

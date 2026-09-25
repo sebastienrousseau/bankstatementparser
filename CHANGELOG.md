@@ -5,6 +5,38 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Preserve CSV decimal precision and account leading zeros; reject files without
+  amount columns. Normalize MT940 dates and scope OFX metadata per statement.
+- Handle CAMT namespace prefixes and quote styles. Share eager/streaming detail
+  expansion, recognize nested transaction amounts, and reject ambiguous or
+  nonconserving batches instead of duplicating booked totals.
+- Require compatible currency, direction, references, and available account/date
+  evidence during reconciliation. Leave ambiguous candidates unmatched and
+  require explicit fee tolerance for partial deductions.
+- Read native parser fields in analytics and retain Decimal precision in
+  analytics and Parquet exports. Invalid financial values fail explicitly.
+- Install the API multipart dependency, resolve real FastAPI endpoint types,
+  report the package version, clean rejected uploads, and move ingestion off the
+  event loop.
+- Distinguish invalid/uninspected PDFs from inspections without risk indicators;
+  no longer emit a claim of document authenticity. Expand display redaction to
+  parties, identifiers, narratives, and provenance text.
+- Emit valid SBOM UUIDs and string marker properties; retain dependency edges
+  across locked package variants.
+
+### Changed
+
+- Transaction hashes use account/currency-scoped `v2:` SHA-256 identities.
+  Persisted hash sets need rebuilding from retained transactions; see
+  [migration notes](docs/MIGRATION-v0.0.20.md).
+- Add regression cases, real API/Parquet CI checks, feature-branch documentation
+  builds, an aggregate quality status, and advisory scanning for all extras.
+- Track incomplete audit work in [the remediation register](docs/AUDIT-REMEDIATION.md).
+
 ## [0.0.19] - 2026-08-31
 
 ### Added

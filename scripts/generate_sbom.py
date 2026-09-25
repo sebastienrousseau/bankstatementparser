@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib.metadata
 import json
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
@@ -92,7 +93,9 @@ def cyclonedx_component(package: dict[str, Any]) -> dict[str, Any]:
             },
             {
                 "name": "bankstatementparser:markers",
-                "value": package.get("markers", ""),
+                "value": json.dumps(
+                    package.get("markers", ""), sort_keys=True
+                ),
             },
         ],
     }
@@ -105,12 +108,11 @@ def build_dependency_edges(
     packages: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Build CycloneDX dependency edges between locked packages."""
-    available_refs = {
-        normalize_distribution_name(package["name"]): package_ref(
-            package["name"], package["version"]
-        )
-        for package in packages
-    }
+    available_refs: dict[str, list[str]] = {}
+    for package in packages:
+        available_refs.setdefault(
+            normalize_distribution_name(package["name"]), []
+        ).append(package_ref(package["name"], package["version"]))
     edges = []
     for package in packages:
         dependency_refs = []
@@ -119,7 +121,7 @@ def build_dependency_edges(
                 normalize_distribution_name(dependency_name)
             )
             if ref is not None:
-                dependency_refs.append(ref)
+                dependency_refs.extend(ref)
         edges.append(
             {
                 "ref": package_ref(package["name"], package["version"]),
@@ -142,10 +144,7 @@ def build_sbom(
     return {
         "bomFormat": "CycloneDX",
         "specVersion": "1.5",
-        "serialNumber": (
-            "urn:uuid:bankstatementparser-"
-            f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-        ),
+        "serialNumber": f"urn:uuid:{uuid.uuid4()}",
         "version": 1,
         "metadata": {
             "timestamp": datetime.now(timezone.utc).isoformat(),

@@ -6,6 +6,8 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from bankstatementparser.analytics import (
     AnalyticsReport,
     AnomalyFinding,
@@ -278,8 +280,9 @@ def test_analytics_all_cadences_and_extractors() -> None:
 
     assert _extract_amount(100) == Decimal("100")
     assert _extract_amount(50.5) == Decimal("50.5")
-    assert _extract_amount("invalid_amount") == Decimal("0.00")
-    assert _extract_amount(None) == Decimal("0.00")
+    for invalid in ("invalid_amount", None):
+        with pytest.raises(ValueError):
+            _extract_amount(invalid)
 
     class DummyObj:
         custom_field = "custom_value"

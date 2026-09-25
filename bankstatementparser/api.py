@@ -40,7 +40,8 @@ floor enforced here:
 * Uploads are read in chunks; the request is rejected with HTTP
   413 once the cumulative size exceeds :data:`MAX_UPLOAD_BYTES`
   (default 25 MB, overridable via ``BSP_API_MAX_UPLOAD_BYTES``).
-  This stops a single curl from OOM-ing the worker.
+  Multipart decoding precedes this check; configure a request-body
+  limit at the gateway as well.
 * The uploaded filename is reduced to its basename — never trust
   caller-supplied path components — and the suffix is matched
   against :data:`InputValidator.ALLOWED_INPUT_EXTENSIONS` before
@@ -60,8 +61,7 @@ publicly reachable unless explicitly opted in.
 Gated behind the ``[api]`` install extra (fastapi + uvicorn).
 """
 
-from __future__ import annotations
-
+import asyncio
 import logging
 import os
 import tempfile
@@ -133,7 +133,7 @@ def _allowed_suffix(name: str) -> bool:
 def create_app(
     *,
     title: str = "Bank Statement Parser API",
-    version: str = "0.0.9",
+    version: Optional[str] = None,
     max_upload_bytes: Optional[int] = None,
 ) -> Any:
     """Create a FastAPI application wrapping :func:`smart_ingest`.
@@ -213,10 +213,13 @@ def create_app(
         suffix = Path(safe_name).suffix
         # ``delete=False`` so we can close, hand the path to
         # ``smart_ingest``, then unlink in the ``finally`` block.
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp_path = tmp.name
-            total = 0
-            try:
+        tmp_path: Optional[str] = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                suffix=suffix, delete=False
+            ) as tmp:
+                tmp_path = tmp.name
+                total = 0
                 while True:
                     chunk = await file.read(_UPLOAD_CHUNK_BYTES)
                     if not chunk:
@@ -231,13 +234,10 @@ def create_app(
                             status_code=413,
                         )
                     tmp.write(chunk)
-            finally:
                 # Defensive: ensure handle is closed before
                 # smart_ingest opens the path on Windows.
                 tmp.flush()
-
-        try:
-            result = smart_ingest(tmp_path)
+            result = await asyncio.to_thread(smart_ingest, tmp_path)
             return JSONResponse(
                 content=_result_to_dict(result),
                 status_code=200,
@@ -257,12 +257,13 @@ def create_app(
                 status_code=422,
             )
         finally:
-            Path(tmp_path).unlink(missing_ok=True)
+            if tmp_path is not None:
+                Path(tmp_path).unlink(missing_ok=True)
 
     @app.get("/health")  # type: ignore[untyped-decorator]
     async def health() -> dict[str, str]:
         """Health check endpoint."""
-        return {"status": "ok", "version": version}
+        return {"status": "ok", "version": resolved_version}
 
     return app
 

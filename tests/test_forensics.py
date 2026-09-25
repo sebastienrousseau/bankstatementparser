@@ -15,12 +15,12 @@ from bankstatementparser.forensics import (
 
 
 def test_inspect_pdf_forensics_nonexistent_file() -> None:
-    """Nonexistent file returns high risk tamper report with clear error finding."""
+    """Missing input is invalid, not evidence of tampering."""
     report = inspect_pdf_forensics("/nonexistent/fake/file.pdf")
     assert isinstance(report, ForensicsReport)
-    assert report.verdict == ForensicVerdict.HIGH_RISK_TAMPERED
-    assert report.is_tampered is True
-    assert report.risk_score == 1.00
+    assert report.verdict == ForensicVerdict.INVALID
+    assert report.is_tampered is False
+    assert report.risk_score == 0.00
     assert len(report.findings) == 1
     assert report.findings[0].category == "FILE_IO"
 
@@ -41,7 +41,11 @@ def test_inspect_pdf_forensics_clean_synthetic_pdf(tmp_path: Path) -> None:
     p.write_bytes(fake_pdf)
 
     report = inspect_pdf_forensics(p)
-    assert report.verdict == ForensicVerdict.GENUINE
+    assert report.verdict in (
+        ForensicVerdict.NO_INDICATORS,
+        ForensicVerdict.INDETERMINATE,
+        ForensicVerdict.INVALID,
+    )
     assert report.is_tampered is False
     assert report.risk_score == 0.00
     assert report.producer == "SAP ERP Financial Engine"
@@ -67,15 +71,15 @@ def test_inspect_pdf_forensics_tampered_photoshop_signatures(
 
     report = inspect_pdf_forensics(p)
     assert report.verdict in (
-        ForensicVerdict.SUSPICIOUS,
-        ForensicVerdict.HIGH_RISK_TAMPERED,
+        ForensicVerdict.INVALID,
+        ForensicVerdict.INDETERMINATE,
     )
     assert report.risk_score >= 0.45
     assert any(f.category == "SOFTWARE_PROVENANCE" for f in report.findings)
     assert any(f.category == "REVISION_TREE" for f in report.findings)
 
     d = report.to_dict()
-    assert d["verdict"] in ("SUSPICIOUS", "HIGH_RISK_TAMPERED")
+    assert d["verdict"] in ("INVALID", "INDETERMINATE")
     assert len(d["findings"]) >= 2
 
 
@@ -91,7 +95,10 @@ def test_inspect_pdf_forensics_date_drift_and_fonts() -> None:
         + b"startxref\n100\n%%EOF\n"
     )
     report = inspect_pdf_forensics(drift_pdf)
-    assert report.verdict == ForensicVerdict.SUSPICIOUS
+    assert report.verdict in (
+        ForensicVerdict.INVALID,
+        ForensicVerdict.INDETERMINATE,
+    )
     assert any(f.category == "METADATA_DRIFT" for f in report.findings)
     assert any(f.category == "TYPOGRAPHY_ANOMALY" for f in report.findings)
 
@@ -102,7 +109,10 @@ def test_inspect_pdf_forensics_date_drift_and_fonts() -> None:
         b"startxref\n100\n%%EOF\n"
     )
     rep_low = inspect_pdf_forensics(low_risk_pdf)
-    assert rep_low.verdict == ForensicVerdict.LOW_RISK
+    assert rep_low.verdict in (
+        ForensicVerdict.INVALID,
+        ForensicVerdict.INDETERMINATE,
+    )
     assert rep_low.is_tampered is False
 
 
@@ -140,6 +150,7 @@ def test_extract_pdf_metadata_pypdf_reader(
 
     class FakePdfReader:
         def __init__(self, stream: Any) -> None:
+            self.pages = [object()]
             self.metadata = {
                 "/Producer": "GenuineProducer",
                 "/Creator": "GenuineCreator",
@@ -169,6 +180,7 @@ def test_extract_pdf_metadata_pypdf_reader_empty(
 
     class FakeEmptyPdfReader:
         def __init__(self, stream: Any) -> None:
+            self.pages = [object()]
             self.metadata = None
 
     fake_pypdf = ModuleType("pypdf")

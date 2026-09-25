@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import uuid
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
@@ -46,6 +47,14 @@ def test_generate_sbom_script(tmp_path: Path) -> None:
     assert sbom["bomFormat"] == "CycloneDX"
     assert sbom["metadata"]["component"]["name"] == "bankstatementparser"
     assert sbom["components"]
+    uuid.UUID(sbom["serialNumber"].removeprefix("urn:uuid:"))
+    assert all(
+        isinstance(prop["value"], str)
+        for component in sbom["components"]
+        for prop in component["properties"]
+    )
+    refs = {component["bom-ref"] for component in sbom["components"]}
+    assert all(set(edge["dependsOn"]) <= refs for edge in sbom["dependencies"])
     assert report_path.read_text(encoding="utf-8").startswith(
         "# Dependency Report"
     )

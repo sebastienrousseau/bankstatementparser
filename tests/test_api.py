@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from bankstatementparser import __version__
 from bankstatementparser.api import APIError, create_app, main
 
 # ---------------------------------------------------------------------------
@@ -76,7 +77,7 @@ def test_create_app_returns_app_with_routes(
     _install_fake_fastapi(monkeypatch)
     app = create_app()
     assert app.title == "Bank Statement Parser API"
-    assert app.version == "0.0.9"
+    assert app.version == __version__
     assert "POST /ingest" in app._routes
     assert "GET /health" in app._routes
 
@@ -108,7 +109,7 @@ def test_health_endpoint(
 
     result = asyncio.run(health_fn())
     assert result["status"] == "ok"
-    assert result["version"] == "0.0.9"
+    assert result["version"] == __version__
 
 
 def test_main_raises_without_uvicorn(

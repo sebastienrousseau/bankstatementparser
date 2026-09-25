@@ -14,9 +14,11 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from enum import Enum
 from typing import Any
+
+from ._amounts import iso_decimal
 
 
 class RecurringCadence(str, Enum):
@@ -150,22 +152,28 @@ def _extract_date(val: Any) -> date | None:
 
 def _extract_amount(val: Any) -> Decimal:
     """Convert amount attribute to Decimal."""
-    if isinstance(val, Decimal):
-        return val
-    if isinstance(val, (int, float)):
-        return Decimal(str(val))
-    if isinstance(val, str):
-        try:
-            return Decimal(val.strip().replace(",", ".").replace(" ", ""))
-        except (InvalidOperation, ValueError):
-            return Decimal("0.00")
-    return Decimal("0.00")
+    return iso_decimal(
+        str(val).strip().replace(",", ".").replace(" ", ""),
+        context="analytics amount",
+    )
 
 
 def _get_attr(obj: Any, *keys: str, default: Any = None) -> Any:
     """Retrieve attribute or dict key across Transaction or dict instances."""
-    for key in keys:
-        if isinstance(obj, dict) and key in obj:
+    aliases = {
+        "amount": ("Amount", "InstdAmt"),
+        "currency": ("Currency",),
+        "booking_date": ("BookgDt",),
+        "value_date": ("ValDt",),
+        "description": ("Description", "Reference", "RmtInf"),
+        "credit_debit": ("DrCr",),
+        "account_id": ("AccountId", "DbtrIBAN"),
+    }
+    expanded = [
+        alias for key in keys for alias in (key, *aliases.get(key, ()))
+    ]
+    for key in expanded:
+        if isinstance(obj, dict) and key in obj and obj[key] not in (None, ""):
             return obj[key]
         if hasattr(obj, key):
             val = getattr(obj, key)
@@ -187,7 +195,7 @@ def compute_cash_flow_summary(
     """
     groups: dict[str, list[Any]] = defaultdict(list)
     for tx in transactions:
-        curr = _get_attr(tx, "currency", "curr", default="EUR")
+        curr = _get_attr(tx, "currency", "curr", default="UNKNOWN")
         groups[str(curr).upper()].append(tx)
 
     results: dict[str, CashFlowMetrics] = {}
@@ -206,7 +214,7 @@ def compute_cash_flow_summary(
         )
 
         for tx in txs:
-            amt = _extract_amount(_get_attr(tx, "amount", "amt", default=0))
+            amt = _extract_amount(_get_attr(tx, "amount", "amt", default=None))
             d_or_c = _get_attr(tx, "credit_debit", "drcr", "type", default="")
             d_or_c_str = str(d_or_c).upper()
 
@@ -259,32 +267,22 @@ def compute_cash_flow_summary(
             set(monthly_inflows.keys()) | set(monthly_outflows.keys())
         )
         active_months = max(1, active_months)
-        burn_rate = (total_outflow / Decimal(active_months)).quantize(
-            Decimal("0.01")
-        )
-        projected_run_rate = (net_cash / Decimal(active_months) * 12).quantize(
-            Decimal("0.01")
-        )
+        burn_rate = total_outflow / Decimal(active_months)
+        projected_run_rate = net_cash / Decimal(active_months) * 12
 
         results[curr] = CashFlowMetrics(
             currency=curr,
-            total_inflow=total_inflow.quantize(Decimal("0.01")),
-            total_outflow=total_outflow.quantize(Decimal("0.01")),
-            net_cash_flow=net_cash.quantize(Decimal("0.01")),
+            total_inflow=total_inflow,
+            total_outflow=total_outflow,
+            net_cash_flow=net_cash,
             transaction_count=tx_count,
             credit_count=credit_count,
             debit_count=debit_count,
-            average_inflow=avg_in.quantize(Decimal("0.01")),
-            average_outflow=avg_out.quantize(Decimal("0.01")),
-            average_transaction_amount=avg_amt.quantize(Decimal("0.01")),
-            monthly_inflows={
-                k: str(v.quantize(Decimal("0.01")))
-                for k, v in monthly_inflows.items()
-            },
-            monthly_outflows={
-                k: str(v.quantize(Decimal("0.01")))
-                for k, v in monthly_outflows.items()
-            },
+            average_inflow=avg_in,
+            average_outflow=avg_out,
+            average_transaction_amount=avg_amt,
+            monthly_inflows={k: str(v) for k, v in monthly_inflows.items()},
+            monthly_outflows={k: str(v) for k, v in monthly_outflows.items()},
             burn_rate_monthly=burn_rate,
             projected_annual_run_rate=projected_run_rate,
         )
@@ -328,10 +326,10 @@ def detect_recurring_transactions(
         )
         # Normalize whitespace and numbers for clustering
         norm_desc = " ".join(desc.split())
-        curr = str(_get_attr(tx, "currency", default="EUR")).upper()
+        curr = str(_get_attr(tx, "currency", default="UNKNOWN")).upper()
         amt = abs(
-            _extract_amount(_get_attr(tx, "amount", "amt", default=0))
-        ).quantize(Decimal("0.01"))
+            _extract_amount(_get_attr(tx, "amount", "amt", default=None))
+        )
         d = _extract_date(
             _get_attr(tx, "booking_date", "value_date", "date", default=None)
         )
@@ -443,7 +441,7 @@ def detect_anomalies_and_nsf(
                 default="",
             )
         ).upper()
-        amt = _extract_amount(_get_attr(tx, "amount", "amt", default=0))
+        amt = _extract_amount(_get_attr(tx, "amount", "amt", default=None))
         curr = _get_attr(tx, "currency", "curr", default=None)
         b_date = _get_attr(tx, "booking_date", "value_date", default=None)
         h = _get_attr(tx, "transaction_hash", "hash", default=None)
@@ -476,7 +474,7 @@ def detect_anomalies_and_nsf(
 
         for tx in tx_list:
             amt = abs(
-                _extract_amount(_get_attr(tx, "amount", "amt", default=0))
+                _extract_amount(_get_attr(tx, "amount", "amt", default=None))
             )
             if amt > threshold:
                 desc = str(

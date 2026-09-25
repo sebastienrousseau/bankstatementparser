@@ -1,0 +1,70 @@
+<!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
+
+# Migration notes for the v0.0.20 branch
+
+These notes describe the current remediation changes, before release.
+
+## Transaction identity
+
+`Transaction.transaction_hash` now returns `v2:` followed by a SHA-256 digest.
+The identity includes account, currency, effective date, normalized description,
+exact Decimal amount, and bank transaction ID/reference when available.
+`Deduplicator.primary_hash` uses that identity. An equal amount and booking date
+alone no longer establishes an exact duplicate.
+
+Rebuild persisted seen-hash sets from retained normalized transactions before
+re-ingestion. Old digests cannot be converted without their source records. Keep
+an export of the old state and reconcile counts during migration. Missing bank
+IDs still limit the certainty of duplicate detection; review suspected matches.
+
+## Parsing and financial output
+
+- CSV parsing retains text until numeric conversion, preserving account leading
+  zeros and exact decimal strings. A CSV without amount/debit/credit columns now
+  fails validation instead of producing zero-valued rows.
+- MT940 dates become ISO `YYYY-MM-DD` strings. The adapter currently uses the
+  standard Python two-digit-year window: 1969–2068. Use explicit four-digit dates
+  for archival data outside that window. Generic transaction models no longer
+  guess a year from a six-digit string.
+- OFX bank/card statement containers retain their own account and currency.
+- CAMT streaming expands transaction details like eager parsing. Missing
+  required entry fields and ambiguous batch detail amounts raise errors. Nested
+  booked transaction amounts are supported; FX conversion is not inferred.
+- Analytics accepts CAMT field names, rejects invalid amounts, and preserves
+  native Decimal precision. Missing currency is `UNKNOWN`, never guessed EUR.
+  Consumers needing display rounding must choose a currency-aware policy.
+- Parquet exports use Arrow logical decimal/date types instead of stringifying
+  object columns. Consumers expecting strings must explicitly cast them.
+
+## Reconciliation
+
+Currency is required for matching. `InstdAmt` represents an unsigned outgoing
+payment and is compared with a debit statement. Generic `amount` fields must be
+signed. References match exactly, placeholder references are ignored, and
+conflicting accounts or dates beyond `max_date_gap_days` (default seven) prevent
+a match when those fields are present. Missing fields do not prove consistency.
+
+Partial deductions require an explicit `fee_tolerance=Decimal("...")`; the
+default is zero. Ambiguous candidates remain unmatched. Verify unmatched counts
+and review outcomes before relying on automated downstream posting. The legacy
+aggregate reconciled-volume field must not be treated as a converted valuation
+across multiple currencies.
+
+## API, privacy and forensic results
+
+Install the `[api]` extra again to obtain the required multipart dependency.
+OpenAPI and health metadata now use the actual package version. Ingestion runs
+in a worker thread and oversized uploads clean up their temporary file. Deploy
+behind a gateway with request-body and concurrency limits until in-process
+admission and worker budgets are implemented.
+
+Python parsers return full records by default. Pass `redact_pii=True` for CAMT
+redaction. CLI console output masks identities and narratives; regular and hybrid file
+exports contain full records, while legacy CLI streaming exports follow
+`--show-pii`. Python exports reflect the supplied records. Masked records are not a
+claim of irreversible anonymization.
+
+PDF forensic verdicts add `INVALID`, `INDETERMINATE`, and `NO_INDICATORS`.
+`GENUINE` remains an enum member for compatibility but is no longer emitted.
+Heuristic risk findings, including the legacy `is_tampered` field, do not prove
+forgery or establish authenticity.

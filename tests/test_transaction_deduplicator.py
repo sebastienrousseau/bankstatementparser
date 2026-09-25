@@ -119,7 +119,7 @@ def test_deduplicator_marks_probable_match_for_fuzzy_description() -> None:
         ]
     )
 
-    assert len(result.exact_duplicates) == 1
+    assert len(result.exact_duplicates) == 0
     assert len(result.suspected_matches) == 1
     assert result.suspected_matches[0].tier == "probable"
     assert "Primary hash collision" in result.suspected_matches[0].reason
@@ -356,9 +356,8 @@ def test_deduplicator_temporal_matching_without_similarity_reason() -> None:
         ]
     )
 
-    assert len(result.suspected_matches) == 1
-    assert result.suspected_matches[0].tier == "suspected"
-    assert "description similarity" not in result.suspected_matches[0].reason
+    assert len(result.suspected_matches) == 0
+    assert len(result.unique_transactions) == 2
 
 
 def test_deduplicator_leaves_unmatched_candidates_with_missing_value_dates() -> (

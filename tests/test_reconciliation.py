@@ -6,6 +6,8 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from bankstatementparser.reconciliation import (
     ReconciliationReport,
     ReconciliationStatus,
@@ -128,16 +130,24 @@ def test_reconcile_partial_amount_deduction_and_helpers() -> None:
 
     # Partial amount match (e.g. 1000 payment with 985 statement net settlement due to 15 wire fee)
     payments = [
-        {"EndToEndId": "E2E-FEE-99", "InstdAmt": "1000.00", "CdtrNm": "Global"}
+        {
+            "EndToEndId": "E2E-FEE-99",
+            "InstdAmt": "1000.00",
+            "Currency": "EUR",
+            "CdtrNm": "Global",
+        }
     ]
     statements = [
         {
             "end_to_end_id": "E2E-FEE-99",
             "amount": "-985.00",
+            "currency": "EUR",
             "description": "Global net",
         }
     ]
-    rep = reconcile_payments_and_statements(payments, statements)
+    rep = reconcile_payments_and_statements(
+        payments, statements, fee_tolerance=Decimal("15")
+    )
     assert rep.matched_count == 1
     assert rep.partial_deduction_count == 1
     assert (
@@ -165,8 +175,9 @@ def test_reconcile_partial_amount_deduction_and_helpers() -> None:
     assert _extract_amount(Decimal("50.00")) == Decimal("50.00")
     assert _extract_amount(100) == Decimal("100")
     assert _extract_amount(25.5) == Decimal("25.5")
-    assert _extract_amount("invalid") == Decimal("0.00")
-    assert _extract_amount(None) == Decimal("0.00")
+    for invalid in ("invalid", None):
+        with pytest.raises(ValueError):
+            _extract_amount(invalid)
 
     # Pass 3 with zero amount payment
     zero_rep = reconcile_payments_and_statements(

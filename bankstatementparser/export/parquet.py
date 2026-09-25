@@ -51,21 +51,12 @@ def export_parquet(
                 records.append({"value": str(item)})
         df = pd.DataFrame(records)
 
-    # Normalize column types for Parquet compatibility
-    for col in df.columns:
-        # Convert Decimals and complex objects to string if pyarrow fails on object dtype
-        if df[col].dtype == "object":
-            df[col] = df[col].apply(
-                lambda x: (
-                    str(x)
-                    if x is not None and not isinstance(x, (str, bytes))
-                    else x
-                )
-            )
-
+    # Preserve Decimal, date, and timestamp values: Arrow infers their native
+    # logical types. Unsupported heterogeneous columns fail instead of silently
+    # converting financial values to strings.
     buf = io.BytesIO()
     try:
-        df.to_parquet(buf, compression=compression, engine="auto")
+        df.to_parquet(buf, compression=compression, engine="pyarrow")
     except ImportError as exc:
         raise ImportError(
             "Apache Parquet export requires 'pyarrow' or 'fastparquet'. "

@@ -12,11 +12,16 @@ reporting discrepancy matrices.
 from __future__ import annotations
 
 import difflib
+from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from decimal import Decimal, InvalidOperation
+from datetime import date
+from decimal import Decimal
 from enum import Enum
 from typing import Any, cast
+
+from ._amounts import iso_decimal
+from .transaction_models import _parse_date
 
 
 class ReconciliationStatus(str, Enum):
@@ -98,16 +103,9 @@ def _to_record_dict(item: Any) -> dict[str, Any]:
 
 def _extract_amount(val: Any) -> Decimal:
     """Convert value to Decimal."""
-    if isinstance(val, Decimal):
-        return val
-    if isinstance(val, (int, float)):
-        return Decimal(str(val))
-    if isinstance(val, str):
-        try:
-            return Decimal(val.strip().replace(",", ".").replace(" ", ""))
-        except (InvalidOperation, ValueError):
-            return Decimal("0.00")
-    return Decimal("0.00")
+    return iso_decimal(
+        str(val).strip().replace(",", "."), context="reconciliation amount"
+    )
 
 
 def _get_val(d: dict[str, Any], *keys: str) -> str:
@@ -122,6 +120,9 @@ def reconcile_payments_and_statements(
     payments: Iterable[Any],
     statements: Iterable[Any],
     fuzzy_threshold: float = 0.80,
+    *,
+    fee_tolerance: Decimal = Decimal("0"),
+    max_date_gap_days: int = 7,
 ) -> ReconciliationReport:
     """Reconcile payment orders against executed statement transactions.
 
@@ -135,6 +136,13 @@ def reconcile_payments_and_statements(
         payments: Sequence of payment instruction records (e.g. from PAIN.001).
         statements: Sequence of statement transaction records (e.g. from CAMT.053).
         fuzzy_threshold: String similarity score threshold (0.0 to 1.0) for fuzzy pass.
+        fee_tolerance: Explicit maximum settlement deduction; zero disables it.
+        max_date_gap_days: Maximum gap when both records provide dates.
+
+    Amounts in PAIN InstdAmt are unsigned outgoing instructions. Other amount
+    fields must carry the same sign as the statement. Currency is required.
+    Conflicting account IDs, references, dates, and ambiguous candidates remain
+    unmatched. Missing dates/accounts cannot establish those dimensions.
 
     Returns:
         Structured ReconciliationReport.
@@ -147,148 +155,155 @@ def reconcile_payments_and_statements(
     matches: list[ReconciliationMatch] = []
     reconciled_volume = Decimal("0.00")
 
-    # Pass 1: Exact Reference Match (EndToEndId / Reference)
-    for p_idx, p in enumerate(pmt_list):
-        p_ref = _get_val(
-            p, "EndToEndId", "end_to_end_id", "reference", "ref_id"
-        )
-        if not p_ref or len(p_ref) < 3:
-            continue
-
-        p_amt = abs(_extract_amount(_get_val(p, "InstdAmt", "amount", "amt")))
-
-        for s_idx, s in enumerate(stmt_list):
-            if s_idx in matched_stmt_indices:
-                continue
-            s_ref = _get_val(
-                s,
-                "end_to_end_id",
-                "reference",
-                "remittance_information",
-                "description",
-            )
-
-            if p_ref.lower() in s_ref.lower():
-                s_amt = abs(
-                    _extract_amount(
-                        _get_val(s, "amount", "amt", "instructed_amount")
-                    )
-                )
-                diff = abs(p_amt - s_amt)
-
-                matched_pmt_indices.add(p_idx)
-                matched_stmt_indices.add(s_idx)
-                reconciled_volume += s_amt
-
-                status = (
-                    ReconciliationStatus.EXACT_REFERENCE
-                    if diff == Decimal("0.00")
-                    else ReconciliationStatus.PARTIAL_AMOUNT_DEDUCTION
-                )
-                matches.append(
-                    ReconciliationMatch(
-                        status=status,
-                        confidence=1.00 if diff == Decimal("0.00") else 0.90,
-                        payment_record=p,
-                        statement_record=s,
-                        amount_difference=diff,
-                        matched_on=f"EndToEndId: {p_ref}",
-                    )
-                )
-                break
-
-    # Pass 2: Exact Amount + Exact Currency + Exact Counterparty Name
-    for p_idx, p in enumerate(pmt_list):
-        if p_idx in matched_pmt_indices:
-            continue
-        p_amt = abs(_extract_amount(_get_val(p, "InstdAmt", "amount", "amt")))
-        p_curr = _get_val(p, "Currency", "currency", "curr").upper()
-        p_name = _get_val(
-            p, "CdtrNm", "creditor_name", "recipient", "debtor_name"
-        ).upper()
-
-        if not p_name or p_amt == Decimal("0.00"):
-            continue
-
-        for s_idx, s in enumerate(stmt_list):
-            if s_idx in matched_stmt_indices:
-                continue
-            s_amt = abs(
-                _extract_amount(
-                    _get_val(s, "amount", "amt", "instructed_amount")
-                )
-            )
-            s_curr = _get_val(s, "currency", "curr", "Currency").upper()
-            s_name = _get_val(
-                s, "creditor_name", "debtor_name", "description"
-            ).upper()
-
-            if (
-                p_amt == s_amt
-                and (not p_curr or not s_curr or p_curr == s_curr)
-                and (p_name in s_name or s_name in p_name)
-            ):
-                matched_pmt_indices.add(p_idx)
-                matched_stmt_indices.add(s_idx)
-                reconciled_volume += s_amt
-
-                matches.append(
-                    ReconciliationMatch(
-                        status=ReconciliationStatus.EXACT_AMOUNT_AND_PARTY,
-                        confidence=0.98,
-                        payment_record=p,
-                        statement_record=s,
-                        amount_difference=Decimal("0.00"),
-                        matched_on=f"Amount: {p_amt} {p_curr} + Party: {p_name}",
-                    )
-                )
-                break
-
-    # Pass 3: Exact Amount + Fuzzy Name / Remittance Similarity
-    for p_idx, p in enumerate(pmt_list):
-        if p_idx in matched_pmt_indices:
-            continue
-        p_amt = abs(_extract_amount(_get_val(p, "InstdAmt", "amount", "amt")))
-        p_name = _get_val(
-            p, "CdtrNm", "creditor_name", "recipient", "description"
+    if not 0 <= fuzzy_threshold <= 1:
+        raise ValueError("fuzzy_threshold must be between zero and one")
+    if (
+        not fee_tolerance.is_finite()
+        or fee_tolerance < 0
+        or max_date_gap_days < 0
+    ):
+        raise ValueError(
+            "fee tolerance and date gap must be finite and nonnegative"
         )
 
-        if p_amt == Decimal("0.00"):
-            continue
+    def fields(
+        record: dict[str, Any], payment: bool
+    ) -> tuple[Decimal, str, str, str, str, date | None]:
+        """Normalize financial matching keys once per input record."""
+        amount = _extract_amount(
+            _get_val(record, "InstdAmt", "Amount", "amount", "amt")
+        )
+        if payment and "InstdAmt" in record:
+            amount = -abs(amount)
+        direction = _get_val(record, "DrCr", "credit_debit").upper()
+        if direction:
+            amount = -abs(amount) if direction == "DBIT" else abs(amount)
+        currency = _get_val(record, "Currency", "currency", "curr").upper()
+        reference = _get_val(
+            record,
+            "EndToEndId",
+            "end_to_end_id",
+            "reference",
+            "Reference",
+            "ref_id",
+        ).casefold()
+        if reference in {"notprovided", "nonref"}:
+            reference = ""
+        party = _get_val(
+            record,
+            "CdtrNm",
+            "Creditor",
+            "counterparty",
+            "creditor_name",
+            "recipient",
+            "description",
+            "Description",
+        ).casefold()
+        account = _get_val(record, "DbtrIBAN", "AccountId", "account_id")
+        day = _get_val(
+            record, "booking_date", "BookgDt", "ReqdExctnDt", "date"
+        )
+        parsed_day = _parse_date(day)
+        return amount, currency, reference, party, account, parsed_day
 
-        for s_idx, s in enumerate(stmt_list):
-            if s_idx in matched_stmt_indices:
+    p_fields = [fields(p, True) for p in pmt_list]
+    s_fields = [fields(s, False) for s in stmt_list]
+    ref_index: dict[tuple[str, Any], list[int]] = defaultdict(list)
+    amount_index: dict[tuple[str, Any], list[int]] = defaultdict(list)
+    for i, (amount, curr, ref, *_rest) in enumerate(s_fields):
+        if ref:
+            ref_index[(curr, ref)].append(i)
+        amount_index[(curr, amount)].append(i)
+
+    def compatible(
+        p: tuple[Decimal, str, str, str, str, date | None],
+        s: tuple[Decimal, str, str, str, str, date | None],
+    ) -> bool:
+        """Reject contradictory identity and settlement evidence."""
+        return bool(
+            p[1]
+            and p[1] == s[1]
+            and p[0] * s[0] > 0
+            and (not p[4] or not s[4] or p[4] == s[4])
+            and (
+                not p[5]
+                or not s[5]
+                or abs((p[5] - s[5]).days) <= max_date_gap_days
+            )
+            and (not p[2] or not s[2] or p[2] == s[2])
+        )
+
+    # Pass 1: Exact Reference Match (EndToEndId / Reference).
+    # Pass 2: Exact Amount + Exact Currency + Exact Counterparty Name.
+    # Pass 3: Exact Amount + Fuzzy Name / Remittance Similarity.
+    # Indexed candidates avoid scanning unrelated amounts and currencies.
+    for match_pass in range(3):
+        proposals: dict[
+            int, list[tuple[int, ReconciliationStatus, float, Decimal]]
+        ] = defaultdict(list)
+        for p_idx, p in enumerate(p_fields):
+            if p_idx in matched_pmt_indices:
                 continue
-            s_amt = abs(
-                _extract_amount(
-                    _get_val(s, "amount", "amt", "instructed_amount")
+            candidates = (
+                ref_index.get((p[1], p[2]), [])
+                if match_pass == 0 and p[2]
+                else amount_index.get((p[1], p[0]), [])
+                if match_pass > 0
+                else []
+            )
+            eligible = []
+            for s_idx in candidates:
+                s = s_fields[s_idx]
+                if s_idx in matched_stmt_indices or not compatible(p, s):
+                    continue
+                diff = abs(p[0]) - abs(s[0])
+                if match_pass == 0:
+                    if not 0 <= diff <= fee_tolerance:
+                        continue
+                    status = (
+                        ReconciliationStatus.EXACT_REFERENCE
+                        if diff == 0
+                        else ReconciliationStatus.PARTIAL_AMOUNT_DEDUCTION
+                    )
+                    confidence = 1.0 if diff == 0 else 0.9
+                elif not p[3] or not s[3]:
+                    continue
+                elif match_pass == 1:
+                    if p[3] != s[3]:
+                        continue
+                    status, confidence = (
+                        ReconciliationStatus.EXACT_AMOUNT_AND_PARTY,
+                        0.98,
+                    )
+                else:
+                    confidence = difflib.SequenceMatcher(
+                        None, p[3], s[3]
+                    ).ratio()
+                    if confidence < fuzzy_threshold:
+                        continue
+                    status = ReconciliationStatus.FUZZY_MATCH
+                eligible.append((s_idx, status, confidence, diff))
+            if len(eligible) == 1:
+                s_idx, status, confidence, diff = eligible[0]
+                proposals[s_idx].append((p_idx, status, confidence, diff))
+        # Require uniqueness in both directions: never take the first of ties.
+        for s_idx, options in proposals.items():
+            if len(options) != 1:
+                continue
+            p_idx, status, confidence, diff = options[0]
+            matched_pmt_indices.add(p_idx)
+            matched_stmt_indices.add(s_idx)
+            reconciled_volume += abs(s_fields[s_idx][0])
+            matches.append(
+                ReconciliationMatch(
+                    status=status,
+                    confidence=round(confidence, 2),
+                    payment_record=pmt_list[p_idx],
+                    statement_record=stmt_list[s_idx],
+                    amount_difference=diff,
+                    matched_on=status.value,
                 )
             )
-
-            if p_amt == s_amt:
-                s_desc = _get_val(
-                    s, "description", "creditor_name", "remittance_information"
-                )
-                ratio = difflib.SequenceMatcher(
-                    None, p_name.lower(), s_desc.lower()
-                ).ratio()
-
-                if ratio >= fuzzy_threshold:
-                    matched_pmt_indices.add(p_idx)
-                    matched_stmt_indices.add(s_idx)
-                    reconciled_volume += s_amt
-
-                    matches.append(
-                        ReconciliationMatch(
-                            status=ReconciliationStatus.FUZZY_MATCH,
-                            confidence=round(ratio, 2),
-                            payment_record=p,
-                            statement_record=s,
-                            amount_difference=Decimal("0.00"),
-                            matched_on=f"Amount: {p_amt} + Fuzzy Name Ratio: {ratio:.2f}",
-                        )
-                    )
-                    break
 
     unmatched_pmts = [
         p for idx, p in enumerate(pmt_list) if idx not in matched_pmt_indices
@@ -315,7 +330,7 @@ def reconcile_payments_and_statements(
         unmatched_statement_count=len(unmatched_stmts),
         partial_deduction_count=partial_count,
         match_rate=match_rate,
-        total_reconciled_volume=reconciled_volume.quantize(Decimal("0.01")),
+        total_reconciled_volume=reconciled_volume,
         matches=matches,
         unmatched_payments=unmatched_pmts,
         unmatched_statements=unmatched_stmts,

@@ -272,3 +272,42 @@ jobs:
           BSP_HYBRID_MODEL: ${{ vars.BSP_EVAL_MODEL }}
           BSP_HYBRID_API_BASE: ${{ secrets.BSP_EVAL_API_BASE }}
         run: poetry run python scripts/run_llm_eval.py
+
+  optional-integrations:
+    name: Real API and Parquet Integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+      - name: Install locked optional dependencies
+        run: poetry install --with dev -E api -E parquet -E hybrid
+      - name: Verify optional imports and regressions
+        run: |
+          poetry run python -c "import fastapi, python_multipart, httpx, pyarrow, pypdf"
+          poetry run pytest --no-cov tests/test_audit_regressions.py tests/test_api.py tests/test_parquet_export.py tests/test_forensics.py
+
+  required-quality:
+    name: Required Quality Gates
+    if: always()
+    needs: [lint-and-typecheck, unit-tests, integration-tests, platform-parity, optional-integrations]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful quality jobs
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PYTHON'
+          import json, os
+          results = json.loads(os.environ["RESULTS"])
+          failed = [name for name, job in results.items() if job["result"] != "success"]
+          if failed:
+              raise SystemExit("Required jobs did not succeed: " + ", ".join(failed))
+          PYTHON

@@ -111,3 +111,5 @@ jobs:
         run: |
           poetry export --format=requirements.txt --without-hashes --with dev > /tmp/requirements-audit.txt
           pip-audit -r /tmp/requirements-audit.txt
+          poetry export --format=requirements.txt --without-hashes --all-extras --with dev > /tmp/requirements-all-extras.txt
+          pip-audit -r /tmp/requirements-all-extras.txt

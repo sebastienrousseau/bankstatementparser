@@ -55,6 +55,7 @@ class TestPIIRedaction(unittest.TestCase):
         )
 
         self.expected_redacted_columns = [
+            "transaction_id",
             "account_number",
             "debtor_name",
             "creditor_name",
@@ -63,7 +64,6 @@ class TestPIIRedaction(unittest.TestCase):
             "bic",
         ]
         self.expected_unredacted_columns = [
-            "transaction_id",
             "amount",
             "currency",
             "date",
@@ -130,7 +130,7 @@ class TestPIIRedaction(unittest.TestCase):
         """Test redaction with DataFrame containing no PII columns."""
         safe_data = pd.DataFrame(
             {
-                "transaction_id": ["TXN001", "TXN002"],
+                "row_number": [1, 2],
                 "amount": [100.0, 200.0],
                 "currency": ["EUR", "USD"],
                 "status": ["completed", "pending"],

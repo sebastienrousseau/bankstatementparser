@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -203,7 +204,13 @@ class CsvStatementParser(BankStatementParser):
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
-        raw_df = pd.read_csv(self._path, sep=None, engine="python")
+        raw_df = pd.read_csv(
+            self._path,
+            sep=None,
+            engine="python",
+            dtype=str,
+            keep_default_na=False,
+        )
         parsed = pd.DataFrame(index=raw_df.index)
 
         date_col = self._find_column(raw_df, "date")
@@ -224,6 +231,10 @@ class CsvStatementParser(BankStatementParser):
         else:
             credit_col = self._find_column(raw_df, "credit")
             debit_col = self._find_column(raw_df, "debit")
+            if not credit_col and not debit_col:
+                raise ValidationError(
+                    "CSV requires an amount, debit, or credit column"
+                )
             zero = pd.Series([Decimal("0")] * len(raw_df), index=raw_df.index)
             credit = (
                 raw_df[credit_col].map(
@@ -314,36 +325,44 @@ class OfxParser(BankStatementParser):
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
-        currency = self._tag_value(self._text, "CURDEF")
-        account_id = self._tag_value(self._text, "ACCTID")
         rows: list[TransactionRecord] = []
-        blocks = re.findall(
-            r"<STMTTRN>(.*?)(?:</STMTTRN>|(?=<STMTTRN>|</BANKTRANLIST>))",
+        # OFX may contain multiple bank and credit-card statements. Metadata
+        # belongs to each statement container, never the entire document.
+        statements = re.findall(
+            r"<(STMTRS|CCSTMTRS)>(.*?)</\1>",
             self._text,
             flags=re.IGNORECASE | re.DOTALL,
         )
-        for block in blocks:
-            posted = self._tag_value(block, "DTPOSTED") or ""
-            transaction_id = self._tag_value(block, "FITID")
-            rows.append(
-                {
-                    "date": posted[:8],
-                    "description": (
-                        self._tag_value(block, "MEMO")
-                        or self._tag_value(block, "NAME")
-                    ),
-                    "amount": _require_amount(
-                        self._tag_value(block, "TRNAMT"),
-                        context=(
-                            f"OFX STMTTRN {transaction_id or '(no FITID)'}"
-                        ),
-                    ),
-                    "currency": currency,
-                    "account_id": account_id,
-                    "transaction_id": transaction_id,
-                    "transaction_type": self._tag_value(block, "TRNTYPE"),
-                }
+        for statement in [body for _, body in statements] or [self._text]:
+            currency = self._tag_value(statement, "CURDEF")
+            account_id = self._tag_value(statement, "ACCTID")
+            blocks = re.findall(
+                r"<STMTTRN>(.*?)(?:</STMTTRN>|(?=<STMTTRN>|</BANKTRANLIST>))",
+                statement,
+                flags=re.IGNORECASE | re.DOTALL,
             )
+            for block in blocks:
+                posted = self._tag_value(block, "DTPOSTED") or ""
+                transaction_id = self._tag_value(block, "FITID")
+                rows.append(
+                    {
+                        "date": posted[:8],
+                        "description": (
+                            self._tag_value(block, "MEMO")
+                            or self._tag_value(block, "NAME")
+                        ),
+                        "amount": _require_amount(
+                            self._tag_value(block, "TRNAMT"),
+                            context=(
+                                f"OFX STMTTRN {transaction_id or '(no FITID)'}"
+                            ),
+                        ),
+                        "currency": currency,
+                        "account_id": account_id,
+                        "transaction_id": transaction_id,
+                        "transaction_type": self._tag_value(block, "TRNTYPE"),
+                    }
+                )
 
         self._parsed_df = pd.DataFrame(rows)
         return self._parsed_df.copy()
@@ -445,7 +464,9 @@ class Mt940Parser(BankStatementParser):
                         else Decimal("1")
                     )
                     current_record: TransactionRecord = {
-                        "date": match.group(1),
+                        "date": datetime.strptime(match.group(1), "%y%m%d")
+                        .date()
+                        .isoformat(),
                         "amount": sign
                         * _require_amount(
                             match.group(3),
