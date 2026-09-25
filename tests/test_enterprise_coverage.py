@@ -234,7 +234,7 @@ class TestCamtParserCoverageExtra(unittest.TestCase):
         with (
             patch.object(
                 parser,
-                "_get_transactions_for_statement",
+                "_get_transactions_for_entries",
                 side_effect=RuntimeError("broken"),
             ),
             patch("bankstatementparser.camt_parser.logger.error") as err,

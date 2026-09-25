@@ -402,18 +402,30 @@ def test_smart_ingest_routes_scanned_pdf_to_vision(
     fake = types.ModuleType("pypdfium2")
 
     class _Bitmap:
+        def close(self) -> None:
+            pass
+
         def to_pil(self) -> Any:
             class _P:
+                def close(self) -> None:
+                    pass
+
                 def save(self, buf: Any, format: str) -> None:
                     buf.write(b"PNG")
 
             return _P()
 
     class _Page:
+        def close(self) -> None:
+            pass
+
         def render(self, scale: float) -> _Bitmap:
             return _Bitmap()
 
     class _Doc:
+        def close(self) -> None:
+            pass
+
         def __init__(self, _p: str) -> None:
             pass
 
@@ -804,3 +816,25 @@ def test_smart_ingest_attaches_page_provenance_to_text_rows(
     # None; a bbox-supplied page_index wins without a text search.
     pages = [tx.source_page for tx in result.transactions]
     assert pages == [0, 1, None, None, None, 1]
+
+
+@pytest.mark.parametrize("pages", [["Rich searchable text " * 100, ""], []])
+def test_mixed_or_empty_pdf_routes_to_vision(
+    monkeypatch: pytest.MonkeyPatch, pages: list[str]
+) -> None:
+    sentinel = object()
+    monkeypatch.setattr(orchestrator, "extract_text_pages", lambda path: pages)
+    monkeypatch.setattr(
+        orchestrator, "_run_vision", lambda *args, **kwargs: sentinel
+    )
+    warnings = []
+    result = orchestrator._run_pdf_fallbacks(
+        Path("mixed.pdf"),
+        extractor=None,
+        vision_extractor=None,
+        opening_balance=None,
+        closing_balance=None,
+        warnings=warnings,
+    )
+    assert result is sentinel
+    assert any("LOW_TEXT_DENSITY" in warning for warning in warnings)

@@ -68,3 +68,22 @@ PDF forensic verdicts add `INVALID`, `INDETERMINATE`, and `NO_INDICATORS`.
 `GENUINE` remains an enum member for compatibility but is no longer emitted.
 Heuristic risk findings, including the legacy `is_tampered` field, do not prove
 forgery or establish authenticity.
+
+
+## PDF completeness and crop provenance
+
+`VisionExtractor(max_pages=5)` now rejects a document exceeding its page budget
+before rendering or sending data to a model. Increase the explicit budget when
+appropriate; the previous behavior silently returned only the first pages.
+
+A single sparse-text page now routes the entire PDF to vision, even when other
+pages have abundant searchable text. This includes blank or cover pages because
+text extraction alone cannot distinguish them safely from scanned content. A
+configured vision model is required for this path.
+
+Strip-mode rows carry the actual original page index and remapped page-relative
+bounding boxes. Identity alone no longer removes a row: overlap merging needs
+strong spatial overlap with a matching observation from the adjacent strip.
+Repeated observations without boxes remain in the result. Review unverifiable
+statements and balance discrepancies; neither model output nor inferred boxes
+are guaranteed to identify every bank transaction correctly.

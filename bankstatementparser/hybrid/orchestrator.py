@@ -380,10 +380,18 @@ def _run_pdf_fallbacks(
     text = "\n".join(pages)
     stripped_len = len(text.strip())
 
-    if stripped_len < LOW_TEXT_DENSITY_THRESHOLD:
+    # A text-rich page must not hide scanned pages elsewhere in the document.
+    # Route the whole PDF to vision so page order and complete coverage survive.
+    sparse_pages = [
+        index + 1
+        for index, page in enumerate(pages)
+        if len(page.strip()) < LOW_TEXT_DENSITY_THRESHOLD
+    ]
+    if not pages or sparse_pages:
         warnings.append(
-            f"LOW_TEXT_DENSITY: extracted {stripped_len} chars "
-            f"(threshold {LOW_TEXT_DENSITY_THRESHOLD}). "
+            f"LOW_TEXT_DENSITY: sparse pages {sparse_pages}; "
+            f"{stripped_len} total chars, per-page threshold "
+            f"{LOW_TEXT_DENSITY_THRESHOLD}. "
             "Routing to vision model."
         )
         logger.warning(

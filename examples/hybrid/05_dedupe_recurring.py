@@ -14,10 +14,10 @@ v0.0.5 fixes this in two layers:
   1. `normalize_description()` strips inline dates, times, and long
      alphanumeric IDs before lowercasing.
 
-  2. `Transaction.transaction_hash` is MD5 of
-     `(booking_date | normalized_description | amount)`. So two
-     visits to the same merchant on the same date with rotating
-     reference IDs produce the *same* hash.
+  2. `Transaction.transaction_hash` uses versioned SHA-256 over
+     account, currency, date, normalized description, amount, and
+     available bank identity. Narrative noise is ignored while distinct
+     accounts, currencies, and transaction IDs remain separate.
 
   3. `Deduplicator.dedupe_by_hash()` is a strict identity filter
      designed for incremental ingestion (sync to a database, append

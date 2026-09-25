@@ -24,7 +24,7 @@ planning horizon, not observations from the future.
 | F10 API resources | Clean temporary files on oversized uploads; run ingestion outside event loop | Limit request body before multipart parsing, bound concurrent jobs and isolate/time-limit workers |
 | F11 PDF forensics | Invalid/uninspected documents no longer imply authenticity; clean inspection means `NO_INDICATORS` | Calibrated risk scoring, signature verification and real-document corpus |
 | F12 privacy | CAMT opt-in redaction covers parties, identifiers and narratives; CLI displays use common sensitive-field vocabulary | End-to-end export/provenance policy and PAIN parity |
-| F13 hybrid completeness | No implementation in this batch | Page budgets must fail explicitly; mixed PDF routing; strip coordinates and occurrence-preserving merge; worker/provider budgets; automatic balance verification |
+| F13 hybrid completeness | Reject over-budget PDFs; route mixed text/scanned files to vision; close native render resources; map crop coordinates to original pages; merge adjacent crop observations using identity and spatial evidence while preserving multiplicity | Worker/provider budgets; automatic balance verification; real PDF/model accuracy corpus |
 | F14 Parquet types | Preserve Arrow Decimal/date/timestamp types; fail unsupported columns explicitly | Explicit canonical schema and bounded streaming writer |
 | F15 SBOM validity | UUID serial numbers, textual marker properties, retain dependency references to all locked variants | Full schema validation in CI and marker-aware deployment-specific graphs |
 
@@ -76,3 +76,34 @@ change output and matching even though most call signatures remain compatible.
 
 These are local results. The workflow changes provide future CI enforcement;
 branch protection and release acceptance remain separate from these results.
+
+
+## Second implementation batch
+
+The first commit's remote quality matrix exposed CAMT throughput below the
+existing 5,000 transactions/second threshold on several covered test runners.
+The parser now expands entries directly without allocating/copying a synthetic
+statement tree per entry. Namespace handling avoids repeated QName work for
+unnamespaced elements, and direct attribute access replaces hot XPath queries.
+The performance thresholds and coverage requirement remain unchanged.
+
+A three-run local comparison on 10,000 generated transactions measured median
+streaming throughput of approximately 9,600 before and 14,500 after the change.
+This is a local throughput comparison, not an end-to-end memory or latency
+claim; eager construction remains in the follow-up list.
+
+PDF changes reject page-budget overflow before rendering or calling a model,
+route an entire mixed PDF to vision when any page has sparse text, and close
+PDF, page, bitmap, PIL, and crop resources on success and failure. Crop metadata
+maps bounding boxes back to the correct page. Overlap merging requires matching
+identity and at least 80% bounding-box intersection-over-union in adjacent
+strips, consuming one previous observation per match. Repeated rows on the same
+strip or different pages and rows without spatial evidence remain distinct.
+Model-provided boxes are evidence, not proof; calibrated real-bank validation
+and provider deadlines remain outstanding.
+
+Second-batch local validation: `make verify` passed 1,016 tests with 100%
+line/branch coverage; all five slow performance contracts, strict MkDocs,
+and 100% documentation coverage passed. A native PDFium smoke check rendered
+a two-page PDF in both modes and rejected an over-budget document in both modes.
+Remote quality-matrix confirmation is required for the throughput regression.

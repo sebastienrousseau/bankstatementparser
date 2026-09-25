@@ -75,7 +75,7 @@ def main() -> int:
         f"  - source_method='{result.transactions[0].source_method}' (audit trail)"
     )
     print(
-        "  - transaction_hash (idempotent fingerprint, MD5 of date|desc|amount)"
+        "  - transaction_hash (versioned, account-scoped SHA-256 fingerprint)"
     )
     print(
         f"  - confidence={result.transactions[0].confidence} (None for deterministic rows)"

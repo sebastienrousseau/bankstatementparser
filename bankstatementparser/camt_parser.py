@@ -463,8 +463,19 @@ class CamtParser(BankStatementParser):
             list: List of parsed transaction dictionaries.
         """
         # Find all entry elements (transactions) in the statement
-        entries = statement.findall("./Ntry")
+        return self._get_transactions_for_entries(
+            statement.findall("./Ntry"),
+            statement.findtext("./Acct/Ccy") or "",
+            redact_pii,
+        )
 
+    def _get_transactions_for_entries(
+        self,
+        entries: list[etree._Element],
+        statement_currency: str,
+        redact_pii: bool = False,
+    ) -> list[TransactionRecord]:
+        """Expand entry elements directly, without copying their XML subtrees."""
         if not entries:
             return []
 
@@ -475,14 +486,12 @@ class CamtParser(BankStatementParser):
         for entry in entries:
             # Essential transaction fields - skip entries missing required fields
             amount_elems = entry.findall("./Amt")
-            currency_elems = entry.xpath("./Amt/@Ccy")
             cdt_dbt_elems = entry.findall("./CdtDbtInd")
 
             if not amount_elems:
                 raise ValueError("Transaction entry missing <Amt> element")
-            if not currency_elems:
-                currency_elems = statement.xpath("./Acct/Ccy/text()")
-            if not currency_elems or not currency_elems[0]:
+            entry_currency = amount_elems[0].get("Ccy") or statement_currency
+            if not entry_currency:
                 raise ParserError("transaction entry missing currency (Ccy)")
             if not cdt_dbt_elems:
                 raise ParserError("transaction entry missing CdtDbtInd")
@@ -491,18 +500,17 @@ class CamtParser(BankStatementParser):
                 amount_elems[0].text,
                 context="transaction entry",
             )
-            entry_currency = currency_elems[0]
             entry_cdt_dbt = cdt_dbt_elems[0].text
 
             # Dates on entry level
-            val_date_elems = entry.findall("./ValDt/Dt") or entry.xpath(
+            val_date_elems = entry.findall("./ValDt/Dt") or entry.findall(
                 "./ValDt/DtTm"
             )
             entry_val_date = val_date_elems[0].text if val_date_elems else ""
 
-            booking_date_elems = entry.findall("./BookgDt/Dt") or entry.xpath(
-                "./BookgDt/DtTm"
-            )
+            booking_date_elems = entry.findall(
+                "./BookgDt/Dt"
+            ) or entry.findall("./BookgDt/DtTm")
             entry_book_date = (
                 booking_date_elems[0].text if booking_date_elems else ""
             )
@@ -510,9 +518,11 @@ class CamtParser(BankStatementParser):
             tx_dtls_elems = entry.findall(".//TxDtls")
             if tx_dtls_elems:
                 for tx_dtls in tx_dtls_elems:
-                    tx_amt_elems = tx_dtls.xpath("./Amt | ./AmtDtls/TxAmt/Amt")
-                    tx_ccy_elems = tx_dtls.xpath(
-                        "./Amt/@Ccy | ./AmtDtls/TxAmt/Amt/@Ccy"
+                    tx_amt_elems = tx_dtls.findall("./Amt") or tx_dtls.findall(
+                        "./AmtDtls/TxAmt/Amt"
+                    )
+                    tx_currency = (
+                        tx_amt_elems[0].get("Ccy") if tx_amt_elems else None
                     )
                     tx_cdt_dbt_elems = tx_dtls.findall("./CdtDbtInd")
 
@@ -528,9 +538,7 @@ class CamtParser(BankStatementParser):
                         if tx_amt_elems
                         else entry_amount
                     )
-                    currency = (
-                        tx_ccy_elems[0] if tx_ccy_elems else entry_currency
-                    )
+                    currency = tx_currency or entry_currency
                     cdt_dbt = (
                         tx_cdt_dbt_elems[0].text
                         if tx_cdt_dbt_elems
@@ -564,7 +572,7 @@ class CamtParser(BankStatementParser):
                         )
                     reference = " ".join([r.text for r in ref_elems if r.text])
 
-                    tx_val_elems = tx_dtls.xpath(
+                    tx_val_elems = tx_dtls.findall(
                         "./ValDt/Dt"
                     ) or tx_dtls.findall("./ValDt/DtTm")
                     val_date = (
@@ -573,7 +581,7 @@ class CamtParser(BankStatementParser):
                         else entry_val_date
                     )
 
-                    tx_book_elems = tx_dtls.xpath(
+                    tx_book_elems = tx_dtls.findall(
                         "./BookgDt/Dt"
                     ) or tx_dtls.findall("./BookgDt/DtTm")
                     book_date = (
@@ -669,14 +677,14 @@ class CamtParser(BankStatementParser):
                     [ref.text for ref in ref_elems if ref.text]
                 )
 
-                debtor_addr_elems = entry.xpath(
+                debtor_addr_elems = entry.findall(
                     ".//Dbtr/PstlAdr/AdrLine"
                 ) or entry.findall(".//Dbtr/PstlAdr/StrtNm")
                 debtor_addr = (
                     debtor_addr_elems[0].text if debtor_addr_elems else ""
                 )
 
-                creditor_addr_elems = entry.xpath(
+                creditor_addr_elems = entry.findall(
                     ".//Cdtr/PstlAdr/AdrLine"
                 ) or entry.findall(".//Cdtr/PstlAdr/StrtNm")
                 creditor_addr = (
@@ -867,11 +875,12 @@ class CamtParser(BankStatementParser):
             huge_tree=False,
         ):
             # Start/end events are elements; comment and PI events are not requested.
-            name = etree.QName(elem)
-            if name.namespace and name.namespace.startswith(
-                "urn:iso:std:iso:20022:tech:xsd:camt."
-            ):
-                elem.tag = name.localname
+            if event == "start" and elem.tag.startswith("{"):
+                name = etree.QName(elem)
+                if name.namespace and name.namespace.startswith(
+                    "urn:iso:std:iso:20022:tech:xsd:camt."
+                ):
+                    elem.tag = name.localname
             if event == "start" and elem.tag == "Stmt":
                 current_account_id = ""
                 current_currency = ""
@@ -892,18 +901,10 @@ class CamtParser(BankStatementParser):
                 # streaming behaviour and the R-007 control documented in
                 # docs/compliance/RISK_REGISTER.md.
                 try:
-                    statement = etree.Element("Stmt")
-                    account = etree.SubElement(statement, "Acct")
-                    etree.SubElement(account, "Ccy").text = current_currency
-                    # Copy this bounded entry; keep iterparse's parent intact
-                    # until its normal cleanup below.
-                    from copy import deepcopy
-
-                    statement.append(deepcopy(elem))
-                    for (
-                        transaction_data
-                    ) in self._get_transactions_for_statement(
-                        statement, redact_pii
+                    # Read the bounded entry in place; keep iterparse's parent
+                    # intact until its normal cleanup below.
+                    for transaction_data in self._get_transactions_for_entries(
+                        [elem], current_currency, redact_pii
                     ):
                         transaction_data["AccountId"] = current_account_id
                         yield (

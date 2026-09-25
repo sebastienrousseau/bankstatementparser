@@ -469,3 +469,13 @@ def test_camt_batch_must_conserve_booked_amount(
     )
     with pytest.raises(ParserError, match="conserve"):
         parser.parse()
+
+
+def test_camt_foreign_extension_entries_are_not_bank_transactions() -> None:
+    parser = CamtParser.from_string(
+        '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08" xmlns:ext="urn:vendor:extension"><Stmt><Ntry><Amt Ccy="EUR">1</Amt><CdtDbtInd>CRDT</CdtDbtInd></Ntry><ext:Ntry><Amt Ccy="EUR">999</Amt><CdtDbtInd>CRDT</CdtDbtInd></ext:Ntry></Stmt></Document>'
+    )
+    rows = list(parser.parse_streaming())
+    assert rows == parser.parse().to_dict("records")
+    assert len(rows) == 1
+    assert rows[0]["Amount"] == Decimal("1")

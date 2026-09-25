@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Emit valid SBOM UUIDs and string marker properties; retain dependency edges
   across locked package variants.
 
+- Reject oversized vision page budgets without truncation, route mixed PDFs
+  through vision, close rendering resources, and preserve repeated payments
+  during spatially constrained strip merging.
+- Remove CAMT per-entry XML copying and repeated namespace/XPath work to restore
+  throughput without weakening performance checks.
+
 ### Changed
 
 - Transaction hashes use account/currency-scoped `v2:` SHA-256 identities.
