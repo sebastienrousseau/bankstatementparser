@@ -37,6 +37,7 @@ mypy = ">=1.5,<3"
 bandit = "^1.7.0"
 hypothesis = ">=6.82,<7"
 interrogate = "^1.7.0"
+httpx = "^0.28.1"
 
 [tool.poetry.group.docs]
 optional = true

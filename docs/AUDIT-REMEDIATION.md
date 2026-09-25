@@ -132,3 +132,16 @@ real multipart ingestion and typed Parquet round trips. API regressions cover
 chunked/false-length bodies, prefixed deployments, admission exhaustion,
 receive deadlines, disconnects, exception cleanup and repeated cancellation.
 The real API/Parquet CI matrix now covers Python 3.10, 3.12 and 3.14.
+
+The expanded matrix exposed an undeclared HTTPX test dependency on Python 3.14,
+where the optional model client is excluded. HTTPX is now an explicit development
+dependency; the lockfile and hashed requirements were regenerated without
+changing locked package versions. A clean Poetry environment on Python 3.14
+passed all 91 tests from the optional-integration job.
+
+F15 follow-up now includes a reproduced exporter limitation: combining `api`
+and `hybrid` in a requirements export narrowed `annotated-doc` to Python <3.14,
+although the Poetry lock correctly includes it for the API on Python 3.14.
+The corresponding hash-required installation rejects the incomplete export.
+Use the locked Poetry installation for that combination until the exporter is
+corrected; do not hand-edit the generated requirements or bypass hash checks.
