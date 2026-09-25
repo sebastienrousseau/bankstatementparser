@@ -53,6 +53,7 @@ from typing import Any, Optional, Union
 from pydantic import ValidationError
 
 from ..additional_parsers import create_parser, detect_statement_format
+from ..privacy import redact_record
 from ..transaction_models import Transaction
 from .llm_extractor import LLMExtractionResult, LLMExtractor
 from .pdf_text import extract_text_pages
@@ -97,16 +98,27 @@ class IngestResult:
     warnings: tuple[str, ...] = ()
     audit_trail: tuple[dict[str, Any], ...] = ()
 
-    def to_json(self, *, indent: Optional[int] = 2) -> str:
+    def to_json(
+        self, *, indent: Optional[int] = 2, redact_pii: bool = False
+    ) -> str:
         """Serialize to a stable JSON string.
 
         The output round-trips losslessly through :meth:`from_json`,
         including ``Decimal`` amounts (encoded as strings to avoid
         float drift), ``date`` fields (ISO format), the
         :class:`VerificationStatus` enum, and any ``audit_trail``
-        entries the review CLI has appended.
+        entries the review CLI has appended. With ``redact_pii=True``, mask
+        identities and provenance, diagnostics and review history. Such exports
+        are for sharing, not lossless round-tripping or identity matching.
         """
-        return json.dumps(self._to_dict(), indent=indent, sort_keys=False)
+        payload = self._to_dict()
+        if redact_pii:
+            payload = redact_record(payload)
+            payload["warnings"] = ["***REDACTED***" for _ in self.warnings]
+            payload["audit_trail"] = [
+                {"redacted": True} for _ in self.audit_trail
+            ]
+        return json.dumps(payload, indent=indent, sort_keys=False)
 
     def _to_dict(self) -> dict[str, Any]:
         """Build the JSON-serializable dict representation."""

@@ -258,3 +258,31 @@ Validation: `make verify` passed with 1,101 passed, five skipped and five slow
 tests deselected, 100% line/branch coverage, Ruff, mypy and Bandit. Strict MkDocs
 and 100% docstring coverage passed; the final API-focused run passed all 48
 cases, including real subprocess ingestion and termination.
+
+## Export and privacy follow-up
+
+CLI streaming CSV uses typed-record columns, writes rows without per-row
+DataFrames, selects lazy XML parsing and preserves existing output on failure.
+Optional fields that appear late cannot shift values under the wrong header.
+The new `export_parquet_stream()` requires an explicit Arrow schema, validates
+field coverage and required values, writes bounded batches and atomically
+replaces the destination. Existing byte-returning Parquet APIs remain eager.
+
+CSV, JSON, Parquet, CAMT Excel, ledger and hybrid JSON exports expose explicit
+redaction. The common policy includes nested identity fields, source paths,
+filenames and transaction hashes. Hybrid snapshots mask diagnostics and review
+history; ledger snapshots use generic posting accounts. CLI CAMT, PAIN and
+hybrid-ingest exports consistently honor `--show-pii`. Redacted data retains
+amounts/dates/currencies but is not suitable for identity matching or lossless
+review round-trips; masking is not irreversible anonymization.
+
+Validation: `make verify` passed with 1,119 passed, five skipped and five slow
+tests deselected, 100% line/branch coverage, Ruff, mypy and Bandit. Strict MkDocs
+and 100% docstring coverage passed. Real Arrow tests verify Decimal scale,
+redaction and atomic rejection of unrepresentable amounts. Batching tests prove
+rows are written before the next batch is consumed.
+
+A macOS/Python 3.10 CI throughput regression was repaired separately by avoiding
+unneeded CAMT amount/reference traversal and using direct child lookups. The
+unchanged throughput and coverage gates passed across the complete remote
+matrix after that correction.

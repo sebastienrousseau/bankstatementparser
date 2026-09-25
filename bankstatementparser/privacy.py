@@ -35,6 +35,13 @@ PII_FIELDS = (
     "instrid",
     "statementid",
     "statement_id",
+    "filename",
+    "file_name",
+    "source_path",
+    "source_file",
+    "raw_text",
+    "provenance",
+    "transaction_hash",
 )
 
 
@@ -48,7 +55,19 @@ def redact_record(record: Mapping[str, Any]) -> dict[str, Any]:
     return {
         key: "***REDACTED***"
         if value is not None
-        and any(token in key.lower() for token in PII_FIELDS)
-        else value
+        and (
+            key.lower() in {"source", "path", "message"}
+            or any(token in key.lower() for token in PII_FIELDS)
+        )
+        else _redact_nested(value)
         for key, value in record.items()
     }
+
+
+def _redact_nested(value: Any) -> Any:
+    """Apply the same policy inside metadata without mutating caller objects."""
+    if isinstance(value, Mapping):
+        return redact_record(value)
+    if isinstance(value, list):
+        return [_redact_nested(item) for item in value]
+    return value

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Write streaming CSV with stable typed-record columns and atomic failure
+  cleanup; select lazy XML construction in the CLI.
+- Add explicit-schema, bounded-batch Parquet export with atomic replacement.
+- Apply opt-in export redaction across CSV, JSON, Parquet, Excel, ledger and
+  hybrid snapshots, including provenance and diagnostics. CLI exports respect
+  `--show-pii` consistently.
+
 - Isolate API ingestion in disposable Python processes with a configurable
   execution deadline; kill and reap timed-out or cancelled workers before
   releasing capacity and temporary inputs.

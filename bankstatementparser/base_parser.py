@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Union, cast
 import pandas as pd
 
 from .exceptions import ExportError
+from .privacy import redact_record
 from .record_types import SummaryRecord
 
 if TYPE_CHECKING:
@@ -100,11 +101,14 @@ class BankStatementParser(ABC):
         """Return scoped summaries; compatibility default for external parsers."""
         return [self.get_summary()]
 
-    def export_csv(self, output_path: Union[str, Path]) -> None:
+    def export_csv(
+        self, output_path: Union[str, Path], *, redact_pii: bool = False
+    ) -> None:
         """Export parsed data to a CSV file.
 
         Args:
             output_path (Union[str, Path]): Path where CSV file should be saved.
+            redact_pii: Mask identities, narratives and provenance fields.
 
         Raises:
             IOError: If file cannot be written.
@@ -112,6 +116,11 @@ class BankStatementParser(ABC):
         temp_path = Path(f"{output_path}.tmp")
         try:
             df = self.parse()
+            if redact_pii:
+                df = pd.DataFrame(
+                    [redact_record(row) for row in df.to_dict("records")],
+                    columns=df.columns,
+                )
             df.to_csv(temp_path, index=False)
 
             # Atomic rename to prevent corruption
@@ -122,11 +131,14 @@ class BankStatementParser(ABC):
                 temp_path.unlink()
             raise ExportError(f"Failed to export CSV: {exc}") from exc
 
-    def export_json(self, output_path: Union[str, Path]) -> None:
+    def export_json(
+        self, output_path: Union[str, Path], *, redact_pii: bool = False
+    ) -> None:
         """Export parsed data to a JSON file.
 
         Args:
             output_path (Union[str, Path]): Path where JSON file should be saved.
+            redact_pii: Mask records and summaries using the common policy.
 
         Raises:
             IOError: If file cannot be written.
@@ -137,10 +149,17 @@ class BankStatementParser(ABC):
 
             # Create structured JSON with summary and transactions
             summaries = self.get_summaries()
+            records = df.to_dict("records")
+            if redact_pii:
+                summaries = [
+                    cast(SummaryRecord, redact_record(row))
+                    for row in summaries
+                ]
+                records = [redact_record(row) for row in records]
             data = {
                 "summary": summaries[0] if len(summaries) == 1 else None,
                 "summaries": summaries,
-                "transactions": df.to_dict("records"),
+                "transactions": records,
             }
 
             with open(temp_path, "w", encoding="utf-8") as f:
@@ -191,12 +210,15 @@ class BankStatementParser(ABC):
         self,
         output_path: Union[str, Path, None] = None,
         compression: str = "snappy",
+        *,
+        redact_pii: bool = False,
     ) -> bytes:
         """Export parsed statement transactions to Apache Parquet format.
 
         Args:
             output_path (Union[str, Path, None]): Optional file path to write to.
             compression (str): Compression codec ('snappy', 'gzip', 'zstd', None).
+            redact_pii: Mask identities, narratives and provenance fields.
 
         Returns:
             bytes: Binary content of the Parquet dataset.
@@ -209,7 +231,10 @@ class BankStatementParser(ABC):
         try:
             df = self.parse()
             return export_parquet(
-                df, output_path=output_path, compression=compression
+                df,
+                output_path=output_path,
+                compression=compression,
+                redact_pii=redact_pii,
             )
         except Exception as exc:
             raise ExportError(f"Failed to export Parquet: {exc}") from exc

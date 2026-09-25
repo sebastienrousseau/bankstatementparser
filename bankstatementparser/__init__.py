@@ -46,7 +46,7 @@ from .exceptions import (
     Pain001ParseError,
     ParserError,
 )
-from .export.parquet import export_parquet
+from .export.parquet import export_parquet, export_parquet_stream
 from .field86_parser import Field86Structure, parse_field_86
 from .forensics import (
     ForensicFinding,
@@ -137,6 +137,7 @@ __all__ = [
     "discover_loaders",
     "discover_writers",
     "export_parquet",
+    "export_parquet_stream",
     "inspect_pdf_forensics",
     "iter_files_parallel",
     "iter_secure_statement_entries",

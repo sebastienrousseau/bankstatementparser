@@ -77,7 +77,7 @@ def test_run_ingest_console_output(
     captured = capsys.readouterr()
     assert "Source method: llm" in captured.out
     assert "VERIFIED" in captured.out
-    assert "Warning: a warning" in captured.out
+    assert "Warning: details redacted" in captured.out
 
 
 def test_run_ingest_writes_csv(
@@ -94,7 +94,7 @@ def test_run_ingest_writes_csv(
 
     monkeypatch.setattr(hybrid_pkg, "smart_ingest", lambda _p: _make_result())
 
-    instance.run_ingest(file_path, output_path)
+    instance.run_ingest(file_path, output_path, show_pii=True)
 
     assert output_path.exists()
     text = output_path.read_text()

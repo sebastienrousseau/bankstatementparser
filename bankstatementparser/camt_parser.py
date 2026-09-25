@@ -1232,11 +1232,14 @@ class CamtParser(BankStatementParser):
         """Return one statement/currency scope; use get_summaries for mixed files."""
         return _single_summary(self.get_summaries(redact_pii=redact_pii))
 
-    def camt_to_excel(self, filename: str) -> None:
+    def camt_to_excel(
+        self, filename: str, *, redact_pii: bool = False
+    ) -> None:
         """Exports parsed CAMT data to an Excel file.
 
         Parameters:
             filename (str): Path to the output Excel file.
+            redact_pii: Mask identities, narratives and provenance on all sheets.
 
         Raises:
             ImportError: If the optional ``openpyxl`` dependency is
@@ -1253,9 +1256,9 @@ class CamtParser(BankStatementParser):
 
         # Retrieve dataframes for balances, transactions, and statement
         # statistics
-        balances = self.get_account_balances()
-        transactions = self.get_transactions()
-        stats = self.get_statement_stats()
+        balances = self.get_account_balances(redact_pii=redact_pii)
+        transactions = self.get_transactions(redact_pii=redact_pii)
+        stats = self.get_statement_stats(redact_pii=redact_pii)
 
         # Write the dataframes to the Excel file using the openpyxl engine
         # pylint: disable=E0110

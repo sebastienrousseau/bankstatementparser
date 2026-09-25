@@ -202,3 +202,33 @@ For explicitly trusted embedded deployments, `ingest_timeout=None` opts into
 the old thread worker with no execution deadline. A terminated local worker
 cannot guarantee cancellation of computation already accepted by a remote model
 provider. Direct library calls and parallel batch workers have no new deadline.
+
+
+## Export schemas and privacy
+
+Streaming XML CSV output uses a stable column set from the parser's typed
+record definition, including optional fields first encountered in later rows.
+Unknown fields fail explicitly; failure preserves the previous destination.
+The CLI now selects lazy XML construction for `--streaming`. CSV export no
+longer constructs a DataFrame for every row.
+
+Library CSV/JSON/Parquet exports, CAMT Excel, hledger/beancount and
+`IngestResult.to_json()` accept `redact_pii=True`; their defaults retain full
+data. The common policy also masks source paths, filenames, transaction hashes
+and nested identity fields. Hybrid JSON masks diagnostic text and replaces
+review history with redaction markers. Ledger redaction uses generic posting
+accounts. These are sharing snapshots, not inputs for reconciliation,
+deduplication, lossless round-trips or irreversible-anonymization guarantees.
+
+CLI CAMT, PAIN and hybrid-ingest exports now follow `--show-pii` consistently:
+identities are masked unless that flag is supplied. Hybrid console diagnostics
+are masked too. Amounts, dates, currencies and extraction method remain visible.
+
+`export_parquet_stream(records, path, schema=arrow_schema, batch_size=10000)`
+accepts an iterable of mappings, writes bounded batches to a temporary file,
+and atomically replaces the destination only after successful completion. It
+returns a row count rather than retaining output bytes. Define every permitted
+field in the Arrow schema and choose sufficient Decimal precision/scale;
+unknown fields, missing non-nullable values and incompatible amounts fail.
+Use string fields for identities when enabling redaction. Existing
+`export_parquet()` and `parser.to_parquet()` remain eager byte-returning APIs.
