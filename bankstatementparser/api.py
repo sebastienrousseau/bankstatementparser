@@ -317,6 +317,7 @@ async def _ingest_in_process(path: str, timeout: float) -> dict[str, Any]:
             process = await asyncio.wait_for(
                 asyncio.create_subprocess_exec(
                     sys.executable,
+                    "-I",
                     "-c",
                     "import sys; from bankstatementparser.api import _run_ingest_worker; "
                     "_run_ingest_worker(sys.argv[1], sys.argv[2])",

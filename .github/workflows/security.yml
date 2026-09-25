@@ -84,7 +84,6 @@ jobs:
       - name: Install project and audit tools
         run: |
           poetry install --with dev
-          poetry self add poetry-plugin-export@">=1.8"
           python -m pip install --upgrade pip
           python -m pip install bandit pip-audit
 
@@ -93,7 +92,7 @@ jobs:
 
       - name: Verify hashed dependency export
         run: |
-          poetry export --format=requirements.txt --with dev > /tmp/requirements-hashed.txt
+          poetry run python scripts/export_locked_requirements.py --with dev --output /tmp/requirements-hashed.txt
           diff -u requirements.txt /tmp/requirements-hashed.txt
           python -m pip install --dry-run --require-hashes -r /tmp/requirements-hashed.txt
 
@@ -106,10 +105,11 @@ jobs:
           poetry run python scripts/generate_sbom.py \
             --output /tmp/sbom.cyclonedx.json \
             --markdown-output /tmp/dependency-report.md
+          poetry run python scripts/validate_sbom.py /tmp/sbom.cyclonedx.json
 
       - name: Pip audit
         run: |
-          poetry export --format=requirements.txt --without-hashes --with dev > /tmp/requirements-audit.txt
+          poetry run python scripts/export_locked_requirements.py --with dev --output /tmp/requirements-audit.txt
           pip-audit -r /tmp/requirements-audit.txt
-          poetry export --format=requirements.txt --without-hashes --all-extras --with dev > /tmp/requirements-all-extras.txt
+          poetry run python scripts/export_locked_requirements.py --with dev --all-extras --output /tmp/requirements-all-extras.txt
           pip-audit -r /tmp/requirements-all-extras.txt

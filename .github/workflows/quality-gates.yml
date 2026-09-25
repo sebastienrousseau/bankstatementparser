@@ -296,7 +296,17 @@ jobs:
       - name: Verify optional imports and regressions
         run: |
           poetry run python -c "import fastapi, python_multipart, httpx, pyarrow, pypdf"
-          poetry run pytest --no-cov tests/test_audit_regressions.py tests/test_api.py tests/test_parquet_export.py tests/test_forensics.py
+          poetry run pytest --no-cov tests/test_audit_regressions.py tests/test_api.py tests/test_parquet_export.py tests/test_export_privacy_streaming.py tests/test_forensics.py
+      - name: Verify isolated installed wheel
+        shell: bash
+        run: |
+          poetry build
+          poetry run python scripts/export_locked_requirements.py --with dev -E api -E parquet -E hybrid --output "$RUNNER_TEMP/requirements-wheel.txt"
+          python -m venv "$RUNNER_TEMP/bsp-wheel"
+          "$RUNNER_TEMP/bsp-wheel/bin/python" -m pip install --require-hashes -r "$RUNNER_TEMP/requirements-wheel.txt"
+          "$RUNNER_TEMP/bsp-wheel/bin/python" -m pip install --no-deps dist/bankstatementparser-*.whl
+          "$RUNNER_TEMP/bsp-wheel/bin/python" -m pip check
+          "$RUNNER_TEMP/bsp-wheel/bin/python" -I scripts/verify_installed_wheel.py --expected-version "$(poetry version --short)"
 
   required-quality:
     name: Required Quality Gates

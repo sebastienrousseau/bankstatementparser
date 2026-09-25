@@ -20,13 +20,13 @@ planning horizon, not observations from the future.
 | F06 transaction identity | Versioned account/currency-scoped hashes; distinct IDs excluded from fuzzy matching; description included in primary key | Occurrence-aware identity when bank IDs are missing and persisted-state migration tooling |
 | F07 reconciliation | Indexed candidate lookup; require currency/direction compatibility; exact references; explicit fee tolerance; reject ambiguous candidates and conflicting dates/accounts; per-currency settled volumes | Broader settlement corpus; many-to-one settlements |
 | F08 analytics | Recognize parser field aliases; reject invalid amounts; retain Decimal precision; unknown currency is explicit; recurrence isolates accounts/directions and requires distinct dates | Average daily balance and calendar-aware projections |
-| F09 API installation | Declare multipart dependency, resolve real FastAPI annotations, report package version; real API/Parquet CI covers Python 3.10, 3.12 and 3.14 | Enforce isolated installed-wheel tests in CI |
+| F09 API installation | Declare multipart dependency, resolve real FastAPI annotations, report package version; real API/Parquet CI covers Python 3.10, 3.12 and 3.14 | Installed-wheel matrix enforced; optional model stack remains Python <3.14 |
 | F10 API resources | Clean temporary files; ingest outside event loop; bound pre-multipart body size, admissions and receive time; retain cancelled workers until completion | Provider-side cancellation and deployment memory limits |
 | F11 PDF forensics | Invalid/uninspected documents no longer imply authenticity; clean inspection means `NO_INDICATORS` | Calibrated risk scoring, signature verification and real-document corpus |
 | F12 privacy | CAMT opt-in redaction covers parties, identifiers and narratives; CLI displays use common sensitive-field vocabulary; PAIN eager/streaming/summary/CSV and compatibility-wrapper parity | End-to-end export/provenance policy |
 | F13 hybrid completeness | Reject over-budget PDFs; route mixed text/scanned files to vision; close native render resources; map crop coordinates to original pages; merge adjacent crop observations using identity and spatial evidence while preserving multiplicity | Worker/provider budgets; automatic balance verification; real PDF/model accuracy corpus |
 | F14 Parquet types | Preserve Arrow Decimal/date/timestamp types; fail unsupported columns explicitly | Explicit canonical schema and bounded streaming writer |
-| F15 SBOM validity | UUID serial numbers, textual marker properties, retain dependency references to all locked variants | Full schema validation in CI and marker-aware deployment-specific graphs |
+| F15 SBOM validity | UUID serial numbers, textual marker properties, retain dependency references to all locked variants | Offline full-schema validation enforced; marker-aware deployment-specific graphs remain |
 
 ## Performance and engineering follow-up
 
@@ -143,8 +143,8 @@ F15 follow-up now includes a reproduced exporter limitation: combining `api`
 and `hybrid` in a requirements export narrowed `annotated-doc` to Python <3.14,
 although the Poetry lock correctly includes it for the API on Python 3.14.
 The corresponding hash-required installation rejects the incomplete export.
-Use the locked Poetry installation for that combination until the exporter is
-corrected; do not hand-edit the generated requirements or bypass hash checks.
+This reproduced limitation is corrected in the packaging follow-up below; do
+not hand-edit generated requirements or bypass hash checks.
 
 
 ## Fourth implementation batch
@@ -286,3 +286,34 @@ A macOS/Python 3.10 CI throughput regression was repaired separately by avoiding
 unneeded CAMT amount/reference traversal and using direct child lookups. The
 unchanged throughput and coverage gates passed across the complete remote
 matrix after that correction.
+
+
+## Packaging follow-up
+
+The requirements generator now projects selected extras from Poetry 2.1 lock
+markers before rendering Python/platform conditions. It retains every locked
+SHA-256 hash, rejects unsupported sources and does not resolve new versions.
+The API/hybrid combination installs with hash verification on Python 3.14.
+Regeneration tests cover Boolean alternatives, group markers and platform
+conditions. Development dependencies explicitly include the export and schema
+validation libraries; locked package versions are unchanged.
+
+CI builds the wheel, installs hash-verified dependencies into separate Python
+3.10/3.12/3.14 environments, checks dependency compatibility and exercises
+financial CSV precision, lazy XML, typed streaming Parquet and actual API
+subprocess ingestion. The wheel includes its PEP 561 marker. Isolated API
+workers cannot import a working-directory module that shadows the package.
+
+Security and release-integrity jobs validate generated SBOMs against the
+official CycloneDX 1.5 schemas, vendored at a pinned upstream commit with
+checksums and license. Schema validation is offline and rejects invalid UUIDs
+and malformed property values. The SBOM remains an inventory of the complete
+lock rather than a deployment-specific dependency graph.
+
+Local packaging validation: 67 packaging/API regression cases passed; the
+final documentation/packaging subset passed 51 cases. Clean hash-required
+Python 3.10 and 3.14 environments passed dependency checks and installed-wheel
+smokes. Strict MkDocs, 100% docstring coverage, Ruff, mypy and Bandit passed.
+The all-extras hashed dependency audit found no known vulnerabilities. Local
+full-suite throughput checks failed under concurrent machine load; thresholds
+were retained, and remote CI performance acceptance must be checked separately.

@@ -232,3 +232,26 @@ field in the Arrow schema and choose sufficient Decimal precision/scale;
 unknown fields, missing non-nullable values and incompatible amounts fail.
 Use string fields for identities when enabling redaction. Existing
 `export_parquet()` and `parser.to_parquet()` remain eager byte-returning APIs.
+
+
+## Locked exports and installed artifacts
+
+Poetry remains the dependency resolver. Regenerate hashed requirements with
+`poetry run python scripts/export_locked_requirements.py --with dev --output requirements.txt`.
+Use repeated `-E` options or `--all-extras` for optional dependencies. The
+generator requires lock format 2.1 and rejects unsupported sources or hashes.
+It evaluates extra conditions before retaining platform/Python conditions,
+fixing incomplete API/hybrid exports on Python 3.14. Keep hash verification
+enabled when installing these artifacts.
+
+The wheel includes `py.typed`. CI installs locked, hash-verified dependencies
+and the built wheel into separate environments on Python 3.10, 3.12 and 3.14,
+then checks metadata, typed Parquet and real subprocess API ingestion. API
+workers use isolated Python mode: working-directory modules, `PYTHONPATH` and
+user site packages cannot override the installed distribution. Install plugins
+and worker dependencies in the service environment.
+
+Security and release-integrity workflows validate generated CycloneDX 1.5
+SBOMs against vendored, checksum-verified official schemas without network
+retrieval. The SBOM still inventories the complete lock; it is not a graph of
+one deployment's selected extras and platform.
