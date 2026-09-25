@@ -315,3 +315,69 @@ def test_analytics_all_cadences_and_extractors() -> None:
         transaction_hash=None,
     )
     assert "amount" not in f_none.to_dict()
+
+
+@pytest.mark.parametrize("minimum", [0, 1, -1])
+def test_recurrence_requires_multiple_dates(minimum: int) -> None:
+    """Reject thresholds that cannot provide an interval."""
+    with pytest.raises(ValueError, match="at least 2"):
+        detect_recurring_transactions([], min_occurrences=minimum)
+
+
+def test_recurrence_scopes_account_and_direction() -> None:
+    """Refunds and unrelated accounts must not create payment schedules."""
+    base = {"description": "INTEREST", "currency": "GBP", "amount": "10"}
+    first = {**base, "date": "2026-01-01", "account_id": "A"}
+    second = {**base, "date": "2026-02-01", "account_id": "B"}
+    assert detect_recurring_transactions([first, second]) == []
+    assert (
+        detect_recurring_transactions([first, {**second, "account_id": None}])
+        == []
+    )
+    refund = {**second, "account_id": "A", "amount": "-10"}
+    assert detect_recurring_transactions([first, refund]) == []
+    # A debit labelled INTEREST is an expense; bank direction beats raw sign.
+    debit_rows = [
+        {**first, "DrCr": "DBIT"},
+        {**refund, "DrCr": "DBIT"},
+    ]
+    pattern = detect_recurring_transactions(debit_rows)[0]
+    assert not pattern.is_income
+    assert pattern.amount == Decimal("10")
+    assert pattern.to_dict()["account_id"] == "A"
+    credits = [
+        {**row, "DrCr": "CRDT", "description": "TRANSFER"}
+        for row in debit_rows
+    ]
+    assert detect_recurring_transactions(credits)[0].is_income
+
+
+def test_recurrence_uses_distinct_dates_preserving_multiplicity() -> None:
+    """Same-day repeats cannot fabricate or shorten a monthly cadence."""
+    first = {"description": "Rent", "amount": "-500", "date": "2026-01-01"}
+    second = {**first, "date": "2026-02-01"}
+    assert detect_recurring_transactions([first, first]) == []
+    pattern = detect_recurring_transactions([first, first, second])[0]
+    assert pattern.cadence == RecurringCadence.MONTHLY
+    assert pattern.occurrence_count == 3
+    assert pattern.account_id is None
+    assert detect_recurring_transactions([first, first, second], 3) == []
+    assert (
+        detect_recurring_transactions(
+            [{**first, "amount": "0"}, {**second, "amount": "0"}]
+        )
+        == []
+    )
+
+
+def test_zero_value_direction_preserves_cash_flow_counts() -> None:
+    """Explicit zero debits remain debits when sharing recurrence helpers."""
+    metrics = compute_cash_flow_summary(
+        [
+            {"amount": "0", "DrCr": "DBIT"},
+            {"amount": "0", "DrCr": "CRDT"},
+            {"amount": "-0"},
+        ]
+    )["UNKNOWN"]
+    assert metrics.debit_count == 1
+    assert metrics.credit_count == 2

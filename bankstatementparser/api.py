@@ -40,8 +40,12 @@ floor enforced here:
 * Uploads are read in chunks; the request is rejected with HTTP
   413 once the cumulative size exceeds :data:`MAX_UPLOAD_BYTES`
   (default 25 MB, overridable via ``BSP_API_MAX_UPLOAD_BYTES``).
-  Multipart decoding precedes this check; configure a request-body
-  limit at the gateway as well.
+  A raw request-body limit (file cap plus 64 KiB multipart overhead)
+  is enforced before multipart decoding, including chunked uploads.
+* At most four ingestion requests are admitted per application process;
+  excess requests receive HTTP 503. Request bodies have a 60-second receive
+  deadline. Configure these via ``create_app``. Cancelled requests retain
+  their worker slot and input file until ingestion finishes.
 * The uploaded filename is reduced to its basename — never trust
   caller-supplied path components — and the suffix is matched
   against :data:`InputValidator.ALLOWED_INPUT_EXTENSIONS` before
@@ -62,7 +66,9 @@ Gated behind the ``[api]`` install extra (fastapi + uvicorn).
 """
 
 import asyncio
+import json
 import logging
+import math
 import os
 import tempfile
 import uuid
@@ -130,11 +136,156 @@ def _allowed_suffix(name: str) -> bool:
     return suffix.lower() in allowed
 
 
+class _IngestLimits:
+    """Bound admitted request bodies before a multipart parser can spool them.
+
+    Limits are per application process. A disk-backed buffer avoids retaining
+    all admitted bodies in memory. The extra copy trades disk I/O for a bound
+    that also covers malformed multipart bodies and missing Content-Length.
+    """
+
+    def __init__(
+        self,
+        app: Any,
+        *,
+        max_body_bytes: int,
+        max_concurrent: int,
+        upload_timeout: float,
+    ) -> None:
+        """Configure per-process admission, body size and receive deadline."""
+        self.app = app
+        self.max_body_bytes = max_body_bytes
+        self.max_concurrent = max_concurrent
+        self.upload_timeout = upload_timeout
+        self.active = 0
+
+    async def _reject(self, send: Any, status: int, error: str) -> None:
+        """Send a small JSON error without invoking the downstream parser."""
+        body = json.dumps({"error": error}).encode()
+        await send(
+            {
+                "type": "http.response.start",
+                "status": status,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": body})
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        """Admit, buffer and replay one bounded ingestion request."""
+        path = scope.get("path", "").removeprefix(scope.get("root_path", ""))
+        if (scope["type"], scope.get("method"), path) != (
+            "http",
+            "POST",
+            "/ingest",
+        ):
+            await self.app(scope, receive, send)
+            return
+        if self.active >= self.max_concurrent:
+            await self._reject(send, 503, "ingestion capacity exhausted")
+            return
+        self.active += 1
+        try:
+            lengths = [
+                value
+                for key, value in scope.get("headers", [])
+                if key.lower() == b"content-length"
+            ]
+            if lengths:
+                if len(lengths) != 1 or not lengths[0].isdigit():
+                    await self._reject(send, 400, "invalid Content-Length")
+                    return
+                declared = lengths[0].lstrip(b"0") or b"0"
+                limit = str(self.max_body_bytes).encode()
+                if (len(declared), declared) > (len(limit), limit):
+                    await self._reject(
+                        send, 413, "request body exceeds maximum size"
+                    )
+                    return
+            deadline = asyncio.get_running_loop().time() + self.upload_timeout
+            with tempfile.TemporaryFile() as body:
+                total = 0
+                while True:
+                    try:
+                        message = await asyncio.wait_for(
+                            receive(),
+                            timeout=max(
+                                0, deadline - asyncio.get_running_loop().time()
+                            ),
+                        )
+                    except asyncio.TimeoutError:
+                        await self._reject(
+                            send, 408, "upload deadline exceeded"
+                        )
+                        return
+                    if message["type"] == "http.disconnect":
+                        return
+                    chunk = message.get("body", b"")
+                    total += len(chunk)
+                    if total > self.max_body_bytes:
+                        await self._reject(
+                            send, 413, "request body exceeds maximum size"
+                        )
+                        return
+                    body.write(chunk)
+                    if not message.get("more_body", False):
+                        break
+                body.seek(0)
+                remaining = total
+                delivered = False
+
+                async def replay() -> Any:
+                    """Replay the validated body in bounded chunks."""
+                    nonlocal remaining, delivered
+                    if delivered and remaining == 0:
+                        return await receive()
+                    delivered = True
+                    chunk = body.read(_UPLOAD_CHUNK_BYTES)
+                    remaining -= len(chunk)
+                    return {
+                        "type": "http.request",
+                        "body": chunk,
+                        "more_body": remaining > 0,
+                    }
+
+                await self.app(scope, replay, send)
+        finally:
+            self.active -= 1
+
+
+async def _ingest_in_thread(ingest: Any, path: str) -> Any:
+    """Keep the input and admission slot alive until a cancelled worker exits.
+
+    Python cannot stop a running thread. Shielding and draining it prevents
+    cancellation from releasing capacity while ingestion is still running.
+    A hard execution deadline requires a separately supervised process.
+    """
+    worker = asyncio.create_task(asyncio.to_thread(ingest, path))
+    cancelled = False
+    while not worker.done():
+        try:
+            await asyncio.shield(worker)
+        except asyncio.CancelledError:
+            cancelled = True
+        except Exception:
+            break
+    if cancelled:
+        # Retrieve exceptions even when the caller no longer needs a result.
+        worker.exception()
+        raise asyncio.CancelledError
+    return worker.result()
+
+
 def create_app(
     *,
     title: str = "Bank Statement Parser API",
     version: Optional[str] = None,
     max_upload_bytes: Optional[int] = None,
+    max_concurrent_ingests: int = 4,
+    upload_timeout: float = 60.0,
 ) -> Any:
     """Create a FastAPI application wrapping :func:`smart_ingest`.
 
@@ -145,6 +296,10 @@ def create_app(
         max_upload_bytes: Override the upload size cap. When
             ``None``, falls back to ``BSP_API_MAX_UPLOAD_BYTES``
             then :data:`DEFAULT_MAX_UPLOAD_BYTES`.
+        max_concurrent_ingests: Maximum admitted uploads and ingestion jobs
+            per application process; excess requests receive HTTP 503.
+        upload_timeout: Seconds allowed to receive the entire request body.
+            Does not impose an execution deadline on the ingestion worker.
 
     Returns:
         A FastAPI ``app`` instance. Raises :class:`APIError` if
@@ -170,7 +325,21 @@ def create_app(
         else _resolve_max_upload_bytes()
     )
 
+    if (
+        upload_cap <= 0
+        or max_concurrent_ingests <= 0
+        or upload_timeout <= 0
+        or not math.isfinite(upload_timeout)
+    ):
+        raise ValueError("API resource limits must be positive")
+
     app = FastAPI(title=title, version=resolved_version)
+    app.add_middleware(
+        _IngestLimits,
+        max_body_bytes=upload_cap + 64 * 1024,
+        max_concurrent=max_concurrent_ingests,
+        upload_timeout=upload_timeout,
+    )
 
     _file_field = File(...)
 
@@ -191,7 +360,9 @@ def create_app(
         Responses:
             * ``200`` — parse succeeded.
             * ``400`` — disallowed extension.
-            * ``413`` — upload exceeded ``MAX_UPLOAD_BYTES``.
+            * ``408`` — request-body receive deadline exceeded.
+            * ``413`` — upload or raw request body exceeded its cap.
+            * ``503`` — ingestion admission capacity exhausted.
             * ``422`` — parse failed; response carries a correlation
               id, the raw error is logged server-side only.
         """
@@ -237,7 +408,7 @@ def create_app(
                 # Defensive: ensure handle is closed before
                 # smart_ingest opens the path on Windows.
                 tmp.flush()
-            result = await asyncio.to_thread(smart_ingest, tmp_path)
+            result = await _ingest_in_thread(smart_ingest, tmp_path)
             return JSONResponse(
                 content=_result_to_dict(result),
                 status_code=200,

@@ -19,9 +19,9 @@ planning horizon, not observations from the future.
 | F05 CSV precision | Read textual cells before Decimal conversion; preserve leading zeros; reject missing amount columns | Explicit dialect and date-format configuration |
 | F06 transaction identity | Versioned account/currency-scoped hashes; distinct IDs excluded from fuzzy matching; description included in primary key | Occurrence-aware identity when bank IDs are missing and persisted-state migration tooling |
 | F07 reconciliation | Indexed candidate lookup; require currency/direction compatibility; exact references; explicit fee tolerance; reject ambiguous candidates and conflicting dates/accounts | Broader settlement corpus; many-to-one settlements; per-currency reconciled totals |
-| F08 analytics | Recognize parser field aliases; reject invalid amounts; retain Decimal precision; unknown currency is explicit | Average daily balance, recurrence account/direction isolation and calendar-aware projections |
-| F09 API installation | Declare multipart dependency, resolve real FastAPI annotations, report package version | Expand installed-wheel and minimum-Python integration matrix |
-| F10 API resources | Clean temporary files on oversized uploads; run ingestion outside event loop | Limit request body before multipart parsing, bound concurrent jobs and isolate/time-limit workers |
+| F08 analytics | Recognize parser field aliases; reject invalid amounts; retain Decimal precision; unknown currency is explicit; recurrence isolates accounts/directions and requires distinct dates | Average daily balance and calendar-aware projections |
+| F09 API installation | Declare multipart dependency, resolve real FastAPI annotations, report package version; real API/Parquet CI covers Python 3.10, 3.12 and 3.14 | Enforce isolated installed-wheel tests in CI |
+| F10 API resources | Clean temporary files; ingest outside event loop; bound pre-multipart body size, admissions and receive time; retain cancelled workers until completion | Isolate/time-limit ingestion workers and provider calls |
 | F11 PDF forensics | Invalid/uninspected documents no longer imply authenticity; clean inspection means `NO_INDICATORS` | Calibrated risk scoring, signature verification and real-document corpus |
 | F12 privacy | CAMT opt-in redaction covers parties, identifiers and narratives; CLI displays use common sensitive-field vocabulary | End-to-end export/provenance policy and PAIN parity |
 | F13 hybrid completeness | Reject over-budget PDFs; route mixed text/scanned files to vision; close native render resources; map crop coordinates to original pages; merge adjacent crop observations using identity and spatial evidence while preserving multiplicity | Worker/provider budgets; automatic balance verification; real PDF/model accuracy corpus |
@@ -106,4 +106,29 @@ Second-batch local validation: `make verify` passed 1,016 tests with 100%
 line/branch coverage; all five slow performance contracts, strict MkDocs,
 and 100% documentation coverage passed. A native PDFium smoke check rendered
 a two-page PDF in both modes and rejected an over-budget document in both modes.
-Remote quality-matrix confirmation is required for the throughput regression.
+Remote quality, security, documentation and signature checks passed for commit
+`5356990`, including the unchanged throughput gate across the quality matrix.
+
+
+## Third implementation batch
+
+Recurrence keys include account identity and signed amounts. Bank direction takes
+precedence over raw amount sign, using the same interpretation as cash-flow
+summaries. Distinct dates establish cadence while preserving row multiplicity.
+Unknown accounts remain a separate group; zero amounts do not establish patterns.
+
+API admission starts before multipart decoding. A disk-backed spool validates
+actual body bytes, including chunked uploads and false Content-Length headers.
+The body budget includes 64 KiB above the file cap for multipart overhead.
+Default admission is four requests per process and the body receive deadline is
+60 seconds. Parser/model execution still needs supervised worker deadlines.
+Cancellation does not free the input file or admission slot while its thread
+continues running. This design adds a bounded disk copy before decoding.
+
+Third-batch validation: `make verify` passed 1,040 tests with 100% line/branch
+coverage; Ruff, mypy and Bandit passed. Strict MkDocs and 100% public-docstring
+coverage passed. The isolated Python 3.10 installed wheel passed OpenAPI,
+real multipart ingestion and typed Parquet round trips. API regressions cover
+chunked/false-length bodies, prefixed deployments, admission exhaustion,
+receive deadlines, disconnects, exception cleanup and repeated cancellation.
+The real API/Parquet CI matrix now covers Python 3.10, 3.12 and 3.14.

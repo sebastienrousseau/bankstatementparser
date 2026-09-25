@@ -226,8 +226,9 @@ def test_redaction_removes_names_narratives_and_provenance() -> None:
     assert row["Debtor"] == "Alice"
 
 
+@pytest.mark.parametrize("root_path", ["", "/gateway"])
 def test_real_api_openapi_ingestion_and_upload_cleanup(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, root_path: str
 ) -> None:
     pytest.importorskip("fastapi")
     pytest.importorskip("python_multipart")
@@ -240,11 +241,15 @@ def test_real_api_openapi_ingestion_and_upload_cleanup(
     from bankstatementparser.api import create_app
 
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
-    with TestClient(create_app(max_upload_bytes=100)) as client:
-        assert client.get("/openapi.json").status_code == 200
-        assert client.get("/health").json()["version"] == __version__
+    with TestClient(
+        create_app(max_upload_bytes=100), root_path=root_path
+    ) as client:
+        assert client.get(f"{root_path}/openapi.json").status_code == 200
+        assert (
+            client.get(f"{root_path}/health").json()["version"] == __version__
+        )
         response = client.post(
-            "/ingest",
+            f"{root_path}/ingest",
             files={
                 "file": (
                     "data.csv",
@@ -257,10 +262,31 @@ def test_real_api_openapi_ingestion_and_upload_cleanup(
         assert response.json()["transaction_count"] == 1
         assert (
             client.post(
-                "/ingest", files={"file": ("large.csv", b"x" * 101)}
+                f"{root_path}/ingest",
+                files={"file": ("large.csv", b"x" * 101)},
             ).status_code
             == 413
         )
+        # Reject raw oversized multipart bodies before the decoder starts,
+        # whether the transport supplies a length or streams chunks.
+        from unittest.mock import AsyncMock
+
+        from starlette.formparsers import MultiPartParser
+
+        parse = AsyncMock(side_effect=AssertionError("multipart decoder ran"))
+        monkeypatch.setattr(MultiPartParser, "parse", parse)
+        for content in (b"x" * 66000, iter([b"x" * 33000] * 2)):
+            assert (
+                client.post(
+                    f"{root_path}/ingest",
+                    content=content,
+                    headers={
+                        "content-type": "multipart/form-data; boundary=test"
+                    },
+                ).status_code
+                == 413
+            )
+        parse.assert_not_called()
     assert list(tmp_path.iterdir()) == []
 
 

@@ -81,6 +81,7 @@ class RecurringPattern:
     occurrence_count: int
     transaction_dates: list[str]
     sample_hashes: list[str]
+    account_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert recurring pattern to dictionary."""
@@ -182,6 +183,19 @@ def _get_attr(obj: Any, *keys: str, default: Any = None) -> Any:
     return default
 
 
+def _amount_and_direction(tx: Any) -> tuple[Decimal, bool]:
+    """Resolve explicit bank direction before falling back to amount sign."""
+    amount = _extract_amount(_get_attr(tx, "amount", "amt", default=None))
+    direction = str(
+        _get_attr(tx, "credit_debit", "drcr", "type", default="")
+    ).upper()
+    if direction in ("CRDT", "CREDIT", "C", "CR"):
+        return amount, True
+    if direction in ("DBIT", "DEBIT", "D", "DR"):
+        return amount, False
+    return amount, amount >= 0
+
+
 def compute_cash_flow_summary(
     transactions: Iterable[Any],
 ) -> dict[str, CashFlowMetrics]:
@@ -214,18 +228,8 @@ def compute_cash_flow_summary(
         )
 
         for tx in txs:
-            amt = _extract_amount(_get_attr(tx, "amount", "amt", default=None))
-            d_or_c = _get_attr(tx, "credit_debit", "drcr", "type", default="")
-            d_or_c_str = str(d_or_c).upper()
-
-            # Determine sign based on credit_debit or amount sign
-            is_credit = False
-            if d_or_c_str in ("CRDT", "CREDIT", "C", "CR"):
-                is_credit = True
-            elif d_or_c_str in ("DBIT", "DEBIT", "D", "DR"):
-                is_credit = False
-            else:
-                is_credit = amt >= Decimal("0.00")
+            # Determine sign based on credit_debit or amount sign.
+            amt, is_credit = _amount_and_direction(tx)
 
             abs_amt = abs(amt)
             d = _extract_date(
@@ -296,19 +300,23 @@ def detect_recurring_transactions(
 ) -> list[RecurringPattern]:
     """Detect recurring salaries, utility payments, and subscriptions.
 
-    Clusters transactions by description and amount, computing day
-    differences to deduce standard cadences (WEEKLY, MONTHLY, ANNUAL, etc.).
+    Clusters by account, currency, direction, description and amount.
+    Cadence uses distinct booking dates; same-day repetitions remain in
+    occurrence counts but do not imply a daily schedule. Unknown accounts
+    share a separate bucket and are never merged with known accounts.
 
     Args:
         transactions: Sequence of transactions to evaluate.
-        min_occurrences: Minimum number of occurrences required to classify.
+        min_occurrences: Minimum distinct booking dates required (at least 2).
 
     Returns:
         List of identified RecurringPattern items.
     """
-    clusters: dict[tuple[str, str, Decimal], list[tuple[date, str]]] = (
-        defaultdict(list)
-    )
+    if min_occurrences < 2:
+        raise ValueError("min_occurrences must be at least 2")
+    clusters: dict[
+        tuple[str | None, str, str, Decimal], list[tuple[date, str]]
+    ] = defaultdict(list)
 
     for tx in transactions:
         desc = (
@@ -324,23 +332,26 @@ def detect_recurring_transactions(
             .strip()
             .upper()
         )
-        # Normalize whitespace and numbers for clustering
+        # Normalize whitespace for clustering
         norm_desc = " ".join(desc.split())
         curr = str(_get_attr(tx, "currency", default="UNKNOWN")).upper()
-        amt = abs(
-            _extract_amount(_get_attr(tx, "amount", "amt", default=None))
-        )
+        raw_amount, is_credit = _amount_and_direction(tx)
+        amt = abs(raw_amount) if is_credit else -abs(raw_amount)
+        if amt == 0:
+            continue
+        account = _get_attr(tx, "account_id", default=None)
+        account_id = str(account) if account is not None else None
         d = _extract_date(
             _get_attr(tx, "booking_date", "value_date", "date", default=None)
         )
         h = str(_get_attr(tx, "transaction_hash", "hash", default=""))
 
         if d is not None:
-            clusters[(norm_desc, curr, amt)].append((d, h))
+            clusters[(account_id, norm_desc, curr, amt)].append((d, h))
 
     patterns: list[RecurringPattern] = []
 
-    for (desc, curr, amt), dates_and_hashes in clusters.items():
+    for (account_id, desc, curr, amt), dates_and_hashes in clusters.items():
         if len(dates_and_hashes) < min_occurrences:
             continue
 
@@ -348,9 +359,13 @@ def detect_recurring_transactions(
         dates = [x[0] for x in sorted_entries]
         hashes = [x[1] for x in sorted_entries if x[1]]
 
-        # Calculate intervals in days
+        # Calculate intervals between distinct dates in days.
+        distinct_dates = sorted(set(dates))
+        if len(distinct_dates) < min_occurrences:
+            continue
         intervals: list[int] = [
-            (dates[i + 1] - dates[i]).days for i in range(len(dates) - 1)
+            (distinct_dates[i + 1] - distinct_dates[i]).days
+            for i in range(len(distinct_dates) - 1)
         ]
 
         avg_interval = sum(intervals) / len(intervals)
@@ -378,16 +393,14 @@ def detect_recurring_transactions(
             cadence = RecurringCadence.IRREGULAR
             conf = 0.60
 
-        is_income = any(
-            kw in desc
-            for kw in ("SALARY", "PAYROLL", "WAGES", "DIVIDEND", "INTEREST")
-        )
+        is_income = amt > 0
 
         patterns.append(
             RecurringPattern(
                 description=desc,
-                amount=amt,
+                amount=abs(amt),
                 currency=curr,
+                account_id=account_id,
                 is_income=is_income,
                 cadence=cadence,
                 confidence=conf,

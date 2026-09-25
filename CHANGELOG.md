@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Separate recurring payments by account and direction; derive inflows from
+  transaction direction and require distinct dates for cadence detection.
+- Bound raw API bodies before multipart decoding, cap admitted requests, enforce
+  upload deadlines, and retain cancelled workers' capacity until they finish.
+
 - Preserve CSV decimal precision and account leading zeros; reject files without
   amount columns. Normalize MT940 dates and scope OFX metadata per statement.
 - Handle CAMT namespace prefixes and quote styles. Share eager/streaming detail

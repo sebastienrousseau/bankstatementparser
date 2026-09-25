@@ -55,8 +55,15 @@ across multiple currencies.
 Install the `[api]` extra again to obtain the required multipart dependency.
 OpenAPI and health metadata now use the actual package version. Ingestion runs
 in a worker thread and oversized uploads clean up their temporary file. Deploy
-behind a gateway with request-body and concurrency limits until in-process
-admission and worker budgets are implemented.
+with the new per-process defaults: four admitted requests, a 60-second body
+receive deadline, and a raw body cap of the file limit plus 64 KiB multipart
+overhead. Configure `max_concurrent_ingests` and `upload_timeout` on `create_app`.
+Excess capacity returns 503, body timeout 408, malformed Content-Length 400,
+and oversized bodies 413 before multipart decoding. The exact file cap remains
+in force after decoding. A disk-backed request spool adds bounded disk I/O.
+Cancellation retains the worker slot and input until ingestion exits. These
+limits multiply with the number of server processes; gateway authentication,
+rate limits and supervised worker execution deadlines remain deployment work.
 
 Python parsers return full records by default. Pass `redact_pii=True` for CAMT
 redaction. CLI console output masks identities and narratives; regular and hybrid file
@@ -87,3 +94,16 @@ strong spatial overlap with a matching observation from the adjacent strip.
 Repeated observations without boxes remain in the result. Review unverifiable
 statements and balance discrepancies; neither model output nor inferred boxes
 are guaranteed to identify every bank transaction correctly.
+
+
+## Recurring-payment analytics
+
+Recurrence groups now include account and payment direction. `RecurringPattern`
+adds an optional `account_id` field, also present in serialized output. Unknown
+accounts share their own bucket and cannot be attributed to known accounts.
+`is_income` now means a cash inflow determined by bank direction or amount sign,
+not a salary keyword or a tax classification. Amounts remain positive magnitudes.
+
+`min_occurrences` must be at least two and counts distinct booking dates.
+Same-day repeats remain in occurrence totals and transaction dates but cannot
+fabricate or shorten a schedule. Zero-value rows do not create patterns.

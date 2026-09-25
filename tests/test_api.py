@@ -35,6 +35,9 @@ def _install_fake_fastapi(monkeypatch: pytest.MonkeyPatch) -> None:
             self.title = kwargs.get("title")
             self.version = kwargs.get("version")
 
+        def add_middleware(self, *args: Any, **kwargs: Any) -> None:
+            self.middleware = (args, kwargs)
+
         def post(self, path: str) -> Any:
             def decorator(fn: Any) -> Any:
                 self._routes[f"POST {path}"] = fn
@@ -401,3 +404,209 @@ def test_ingest_failure_returns_correlation_id(
     # The raw error message must NOT leak to the client.
     assert "secret" not in str(response.content)
     assert len(response.content["correlation_id"]) == 32
+
+
+@pytest.mark.parametrize(
+    "limits",
+    [
+        {"max_upload_bytes": 0},
+        {"max_concurrent_ingests": 0},
+        {"upload_timeout": 0},
+        {"upload_timeout": float("nan")},
+        {"upload_timeout": float("inf")},
+    ],
+)
+def test_api_rejects_invalid_limits(
+    monkeypatch: pytest.MonkeyPatch, limits: dict
+) -> None:
+    """Invalid configuration must not silently disable resource bounds."""
+    _install_fake_fastapi(monkeypatch)
+    with pytest.raises(ValueError, match="positive"):
+        create_app(**limits)
+
+
+@pytest.mark.parametrize(
+    ("headers", "chunks", "status"),
+    [
+        ([], [b"123", b"456"], 413),
+        ([(b"content-length", b"1")], [b"123456"], 413),
+        ([(b"content-length", b"6")], [], 413),
+        ([(b"Content-Length", b"9" * 5000)], [], 413),
+        ([(b"content-length", b"-1")], [], 400),
+        ([(b"content-length", b"abc")], [], 400),
+        ([(b"content-length", b"1"), (b"content-length", b"1")], [], 400),
+        ([(b"content-length", b"00005")], [b"12", b"345"], 200),
+        ([], [b""], 200),
+    ],
+)
+def test_request_limits_before_parser(
+    headers: list,
+    chunks: list[bytes],
+    status: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Count raw chunks even without a trustworthy Content-Length header."""
+    import asyncio
+
+    from bankstatementparser.api import _IngestLimits
+
+    monkeypatch.setattr("bankstatementparser.api._UPLOAD_CHUNK_BYTES", 2)
+
+    async def scenario() -> None:
+        events = []
+        pending = list(chunks)
+        reached = False
+
+        async def receive() -> dict:
+            if not pending:
+                return {"type": "http.disconnect"}
+            return {
+                "type": "http.request",
+                "body": pending.pop(0),
+                "more_body": bool(pending),
+            }
+
+        async def send(message: dict) -> None:
+            events.append(message)
+
+        async def downstream(scope: dict, replay: Any, send: Any) -> None:
+            nonlocal reached
+            reached = True
+            body = b""
+            while True:
+                message = await replay()
+                body += message["body"]
+                if not message["more_body"]:
+                    break
+            assert body == b"".join(chunks)
+            assert (await replay())["type"] == "http.disconnect"
+            await send({"type": "http.response.start", "status": 200})
+
+        app = _IngestLimits(
+            downstream, max_body_bytes=5, max_concurrent=1, upload_timeout=1
+        )
+        await app(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/ingest",
+                "headers": headers,
+            },
+            receive,
+            send,
+        )
+        assert events[0]["status"] == status
+        assert reached is (status == 200)
+        assert app.active == 0
+
+    asyncio.run(scenario())
+
+
+def test_request_admission_timeout_disconnect_and_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Health stays available under load and every exit releases admission."""
+    import asyncio
+    import tempfile
+
+    from bankstatementparser.api import _IngestLimits
+
+    opened = []
+    original = tempfile.TemporaryFile
+
+    def track_file(*args: Any, **kwargs: Any) -> Any:
+        handle = original(*args, **kwargs)
+        opened.append(handle)
+        return handle
+
+    monkeypatch.setattr(tempfile, "TemporaryFile", track_file)
+
+    async def scenario() -> None:
+        events = []
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        scope = {"type": "http", "method": "POST", "path": "/ingest"}
+
+        async def downstream(scope: dict, receive: Any, send: Any) -> None:
+            if scope.get("path") == "/ingest":
+                entered.set()
+                await release.wait()
+                raise RuntimeError("parse failure")
+            await send({"status": 200})
+
+        async def receive() -> dict:
+            return {"type": "http.request", "body": b"ok"}
+
+        async def disconnect() -> dict:
+            return {"type": "http.disconnect"}
+
+        async def stalled() -> dict:
+            await asyncio.sleep(10)
+            return {}
+
+        async def send(message: dict) -> None:
+            events.append(message)
+
+        app = _IngestLimits(
+            downstream, max_body_bytes=5, max_concurrent=1, upload_timeout=5
+        )
+        first = asyncio.create_task(app(scope, receive, send))
+        await asyncio.wait_for(entered.wait(), timeout=5)
+        await app(scope, receive, send)
+        assert events[0]["status"] == 503
+        await app({**scope, "path": "/health", "method": "GET"}, receive, send)
+        assert events[-1]["status"] == 200
+        release.set()
+        with pytest.raises(RuntimeError, match="parse failure"):
+            await first
+        assert app.active == 0
+        await app(scope, disconnect, send)
+        assert app.active == 0
+        events.clear()
+        app.upload_timeout = 0.01
+        await app(scope, stalled, send)
+        assert events[0]["status"] == 408
+        assert app.active == 0
+        assert all(handle.closed for handle in opened)
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_cancelled_ingest_waits_for_worker(fail: bool) -> None:
+    """Repeated cancellation cannot release a still-running ingestion job."""
+    import asyncio
+    import threading
+
+    from bankstatementparser.api import _ingest_in_thread
+
+    async def scenario() -> None:
+        started = threading.Event()
+        release = threading.Event()
+        finished = threading.Event()
+
+        def ingest(path: str) -> str:
+            started.set()
+            try:
+                assert release.wait(timeout=5)
+                if fail:
+                    raise ValueError("worker failed")
+                return path
+            finally:
+                finished.set()
+
+        task = asyncio.create_task(_ingest_in_thread(ingest, "input.csv"))
+        try:
+            assert await asyncio.to_thread(started.wait, 5)
+            task.cancel()
+            await asyncio.sleep(0)
+            task.cancel()
+            await asyncio.sleep(0)
+            assert not task.done()
+        finally:
+            release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert finished.is_set()
+
+    asyncio.run(scenario())
