@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Compute average daily balances for explicit account/currency periods,
+  including quiet days and exact Decimal amounts.
+- Include quiet calendar months in run rates, prorate explicit partial periods
+  and withhold projections for undated transactions. Recognize month-end
+  recurrence with skipped months and reject inconsistent interval averages.
+
 - Preserve extra/Python marker alternatives when exporting hashed requirements,
   including API dependencies on Python 3.14. Validate installed wheels in CI.
 - Ship the PEP 561 typing marker and isolate API worker imports from the server

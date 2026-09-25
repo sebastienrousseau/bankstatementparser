@@ -255,3 +255,28 @@ Security and release-integrity workflows validate generated CycloneDX 1.5
 SBOMs against vendored, checksum-verified official schemas without network
 retrieval. The SBOM still inventories the complete lock; it is not a graph of
 one deployment's selected extras and platform.
+
+
+## Calendar analytics
+
+`compute_average_daily_balance()` requires an opening balance immediately
+before `period_start`, an inclusive `period_end`, and an explicit currency.
+Pass `account_id` for identified accounts; the default accepts only unidentified
+records. Supply every posted transaction in the period. Mixed scopes, missing
+booking dates and out-of-period rows fail. Same-day repeated rows remain
+separate. Balances are measured at day end; no daily rounding is introduced.
+
+`compute_cash_flow_summary()` includes quiet calendar months between the first
+and last dated transactions, assuming complete months when no reporting period
+is supplied. Optional `period_start` and `period_end` specify a complete
+observation window, prorating edge months by their actual calendar lengths.
+Explicit windows reject undated/outside records. Without a window, any missing
+date makes `burn_rate_monthly` and `projected_annual_run_rate` null instead of
+claiming a one-month observation period. Totals remain available. Historical
+run rates are extrapolations, not predictive forecasts.
+
+Monthly recurrence accepts matching calendar days clipped to month end, with
+up to two missing months when a one-month interval is also observed. Other
+cadences require every observed interval to fit their window; averaging
+unrelated gaps no longer fabricates a cadence. Confidence remains a heuristic
+score, not a calibrated probability.

@@ -317,3 +317,17 @@ smokes. Strict MkDocs, 100% docstring coverage, Ruff, mypy and Bandit passed.
 The all-extras hashed dependency audit found no known vulnerabilities. Local
 full-suite throughput checks failed under concurrent machine load; thresholds
 were retained, and remote CI performance acceptance must be checked separately.
+
+Packaging remote acceptance: all Quality Gates, Security, Docs and signature
+workflows passed for `3f07002`, including unchanged coverage/throughput gates
+and installed-wheel checks on Python 3.10, 3.12 and 3.14.
+
+## Calendar analytics follow-up
+
+Implemented an explicit-period, account/currency-scoped end-of-day average
+balance calculation with Decimal amounts and no allocation per calendar day.
+Run rates include quiet months and prorate explicit partial reporting periods.
+Undated transactions retain totals but no longer produce fabricated rates.
+Month-end recurrence tolerates limited missing months; inconsistent intervals
+cannot establish cadence solely through their average. Input completeness
+remains the caller's responsibility, and recurrence confidence is uncalibrated.
