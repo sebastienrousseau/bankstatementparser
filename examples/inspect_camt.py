@@ -23,7 +23,7 @@ def main() -> None:
     balances = parser.get_account_balances()
     transactions = parser.get_transactions(redact_pii=True)
     stats = parser.get_statement_stats()
-    summary = parser.get_summary()
+    summary = parser.get_summaries()
 
     print("Balances")
     print(balances.to_string(index=False))

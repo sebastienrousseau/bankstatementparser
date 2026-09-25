@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import Mapping
 from datetime import date, datetime
@@ -38,7 +39,10 @@ def _coerce_decimal(value: object) -> Decimal:
     text = str(value).strip()
     if not text:
         raise ValueError("amount is required")
-    return Decimal(text)
+    amount = Decimal(text)
+    if not amount.is_finite():
+        raise ValueError("amount must be finite")
+    return amount
 
 
 def _parse_date(value: object) -> date | None:
@@ -54,7 +58,8 @@ def _parse_date(value: object) -> date | None:
     if len(text) >= 10:
         text = text[:10]
 
-    for fmt in ("%Y-%m-%d", "%Y%m%d", "%d/%m/%Y", "%Y/%m/%d"):
+    formats = {10: ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d"), 8: ("%Y%m%d",)}
+    for fmt in formats.get(len(text), ()):
         try:
             return datetime.strptime(text, fmt).date()
         except ValueError:
@@ -95,7 +100,9 @@ def normalize_description(value: str | None) -> str:
         text = pattern.sub(" ", text)
     collapsed = re.sub(r"\s+", " ", text).strip().lower()
     stripped_ids = _LONG_ALNUM_ID.sub(" ", collapsed)
-    cleaned = re.sub(r"[^a-z ]+", " ", stripped_ids)
+    cleaned = "".join(
+        c if c.isalpha() or c.isspace() else " " for c in stripped_ids
+    )
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
@@ -165,6 +172,7 @@ class Transaction(BaseModel):
     normalized_description: str = Field(default="")
     reference: Optional[str] = None
     transaction_id: Optional[str] = None
+    end_to_end_id: Optional[str] = None
     counterparty: Optional[str] = None
     source: Optional[str] = None
     source_index: Optional[int] = None
@@ -192,14 +200,15 @@ class Transaction(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def transaction_hash(self) -> str:
-        """Idempotent fingerprint of date|normalized_description|amount|id.
+        """Versioned, account-scoped fingerprint of transaction identity.
 
         Generated from normalized fields so the same transaction
         produces the same hash regardless of source (deterministic
         parser vs. LLM extraction). The bank-assigned transaction_id
         (or reference) is included when present so two distinct
-        same-day, same-amount transactions never collide. MD5 is used
-        for a compact, non-cryptographic identity key.
+        same-day, same-amount transactions remain distinct. Version 2
+        includes account and currency and uses SHA-256. Existing persisted
+        keys must be rebuilt from retained transactions before ingestion.
         """
         date_part = (
             self.booking_date.isoformat()
@@ -210,18 +219,20 @@ class Transaction(BaseModel):
                 else ""
             )
         )
-        material = "|".join(
+        material = json.dumps(
             [
+                "bsp-transaction-v2",
+                self.account_id or "",
+                (self.currency or "").upper(),
                 date_part,
-                self.normalized_description,
+                normalize_description(self.description),
                 self.amount_key(),
                 self.transaction_id or self.reference or "",
-            ]
+            ],
+            ensure_ascii=False,
+            separators=(",", ":"),
         )
-        return hashlib.md5(
-            material.encode("utf-8"),
-            usedforsecurity=False,
-        ).hexdigest()
+        return "v2:" + hashlib.sha256(material.encode("utf-8")).hexdigest()
 
     @classmethod
     def from_record(
@@ -274,6 +285,7 @@ class Transaction(BaseModel):
             "CreditorAccount",
         )
         currency = _first_value(record, "Currency", "currency")
+        end_to_end_id = _first_value(record, "EndToEndId", "end_to_end_id")
 
         return cls(
             account_id=(str(account_id) if account_id is not None else None),
@@ -292,6 +304,9 @@ class Transaction(BaseModel):
                 str(description) if description is not None else None
             ),
             reference=str(reference) if reference is not None else None,
+            end_to_end_id=(
+                str(end_to_end_id) if end_to_end_id is not None else None
+            ),
             transaction_id=(
                 str(
                     _first_value(
@@ -299,6 +314,7 @@ class Transaction(BaseModel):
                         "transaction_id",
                         "TransactionId",
                         "FITID",
+                        "AcctSvcrRef",
                         "EndToEndId",
                     )
                 )
@@ -307,6 +323,7 @@ class Transaction(BaseModel):
                     "transaction_id",
                     "TransactionId",
                     "FITID",
+                    "AcctSvcrRef",
                     "EndToEndId",
                 )
                 is not None

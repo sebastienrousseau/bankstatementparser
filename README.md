@@ -215,9 +215,9 @@ Every row carries:
 
 - `source_method` — `"deterministic"`, `"llm"`, or `"vision"` for
   full audit provenance
-- `transaction_hash` — MD5 fingerprint of
-  `date | normalized_description | amount`, ready for idempotent
-  re-ingestion
+- `transaction_hash` — versioned SHA-256 fingerprint scoped to account,
+  currency, date, description, amount, and available bank identity.
+  Rebuild persisted pre-v2 keys before re-ingestion
 - `confidence` — float between 0 and 1 for LLM rows, `None` for
   deterministic
 - `raw_source_text` — best-effort source-text slice for the v0.0.6
@@ -326,7 +326,7 @@ for the full surface.
 |---|---|
 | **Golden Rule verification** *(v0.0.5)* | Every result carries `opening + credits − debits == closing` status: `VERIFIED`, `DISCREPANCY`, `UNVERIFIABLE`, or `FAILED`. |
 | **Multi-currency verification** *(v0.0.8)* | `verify_balance_multi_currency()` groups transactions by currency and runs the Golden Rule independently per group — no more false `DISCREPANCY` on multi-currency statements. |
-| **Idempotent dedup** *(v0.0.5)* | Every `Transaction` carries a stable `transaction_hash` (MD5 of date + normalized description + amount). `Deduplicator.dedupe_by_hash()` makes incremental ingestion safe to re-run. |
+| **Idempotent dedup** *(v0.0.5)* | Every `Transaction` carries a stable `transaction_hash` (versioned SHA-256 of account, currency, date, description, amount, and bank identity). `Deduplicator.dedupe_by_hash()` makes incremental ingestion safe to re-run. |
 | **Interactive review** *(v0.0.6)* | `--type review` CLI walks through discrepancies with accept/edit/skip/delete/quit. `IngestResult.to_json()` / `.from_json()` for stable round-trip with embedded audit trail. |
 
 ### Enrichment & export
@@ -345,17 +345,18 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 907 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 1007 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
 ## PII Redaction
 
 PII (names, IBANs, addresses) is **redacted by default** in
-console output and streaming mode.
+CLI console output. Python parser methods return full records unless
+`redact_pii=True` is supplied.
 
 ```python
-# Redacted by default
+# Request redaction explicitly in Python
 for tx in parser.parse_streaming(redact_pii=True):
     print(tx)  # Names and addresses show as ***REDACTED***
 
@@ -364,8 +365,9 @@ for tx in parser.parse_streaming(redact_pii=False):
     print(tx)
 ```
 
-File exports (CSV, JSON, Excel) always contain the full unredacted
-data.
+Regular and hybrid file exports contain full records. Legacy CLI streaming
+exports follow `--show-pii`; Python exports reflect the records supplied.
+Choose redaction explicitly before sharing an exported file.
 
 ---
 
@@ -703,7 +705,7 @@ cleanly — see each companion's README for runnable examples.
 ## Project Layout
 
 ```text
-bankstatementparser/            Source code (38 modules)
+bankstatementparser/            Source code (39 modules)
 bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
 bankstatementparser/export/     hledger + beancount journal export, Apache Parquet columnar export
@@ -711,7 +713,7 @@ bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 9 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          907 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          1007 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---
@@ -783,8 +785,9 @@ No. Zero network calls. XML parsers enforce `no_network=True`. No
 cloud, no telemetry.
 
 **Is PII redacted automatically?**
-Yes. Names, IBANs, and addresses are masked by default in console
-output and streaming. File exports retain full data.
+CLI console output masks personal fields by default. Python callers
+must request `redact_pii=True`. Regular file exports retain full data;
+legacy streaming exports follow `--show-pii`.
 
 **Is the extraction deterministic?**
 Yes. Same input produces byte-identical output. Critical for

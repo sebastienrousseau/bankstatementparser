@@ -333,12 +333,7 @@ class TestParallelParsing(unittest.TestCase):
                 self._path = path
                 return _DeadFuture()
 
-        with (
-            mock.patch.object(parallel, "ProcessPoolExecutor", _FakeExecutor),
-            mock.patch.object(
-                parallel, "as_completed", lambda mapping: list(mapping)
-            ),
-        ):
+        with mock.patch.object(parallel, "ProcessPoolExecutor", _FakeExecutor):
             results = parallel.parse_files_parallel(
                 ["/a.xml", "/b.xml"], format_name="camt"
             )

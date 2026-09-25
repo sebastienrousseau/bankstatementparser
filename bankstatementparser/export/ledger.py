@@ -46,6 +46,7 @@ def to_hledger(
     account: str = "Assets:Bank:Checking",
     contra_account: str = "Expenses:Uncategorized",
     default_currency: str = "EUR",
+    redact_pii: bool = False,
 ) -> str:
     """Render transactions as an hledger-compatible journal.
 
@@ -66,23 +67,34 @@ def to_hledger(
             transactions.
         default_currency: Currency code when the transaction has
             no currency set.
+        redact_pii: Mask narratives, payees, categories and posting account names.
 
     Returns:
         A string containing the full journal, ready to write to a
         ``.ledger`` or ``.journal`` file.
     """
     lines: list[str] = []
+    if redact_pii:
+        account = "Assets:Redacted"
     for tx in transactions:
         date = (
             tx.booking_date.isoformat()
             if tx.booking_date is not None
             else "1970-01-01"
         )
-        desc = _escape_description(tx.description or "Unknown")
+        desc = (
+            "***REDACTED***"
+            if redact_pii
+            else _escape_description(tx.description or "Unknown")
+        )
         currency = tx.currency or default_currency
         amount = format(tx.amount.normalize(), "f")
 
-        contra = _resolve_contra(tx, contra_account)
+        contra = (
+            "Expenses:Redacted"
+            if redact_pii
+            else _resolve_contra(tx, contra_account)
+        )
 
         lines.append(f"{date} {desc}")
         lines.append(f"    {account}    {currency} {amount}")
@@ -98,6 +110,7 @@ def to_beancount(
     account: str = "Assets:Bank:Checking",
     contra_account: str = "Expenses:Uncategorized",
     default_currency: str = "EUR",
+    redact_pii: bool = False,
 ) -> str:
     """Render transactions as a beancount-compatible journal.
 
@@ -114,24 +127,39 @@ def to_beancount(
         contra_account: Default contra-account.
         default_currency: Currency code when the transaction has
             no currency set.
+        redact_pii: Mask narratives, payees, categories and posting account names.
 
     Returns:
         A string containing the full journal.
     """
     lines: list[str] = []
+    if redact_pii:
+        account = "Assets:Redacted"
     for tx in transactions:
         date = (
             tx.booking_date.isoformat()
             if tx.booking_date is not None
             else "1970-01-01"
         )
-        payee = _escape_beancount_string(tx.counterparty or "")
-        narration = _escape_beancount_string(tx.description or "Unknown")
+        payee = (
+            "***REDACTED***"
+            if redact_pii
+            else _escape_beancount_string(tx.counterparty or "")
+        )
+        narration = (
+            "***REDACTED***"
+            if redact_pii
+            else _escape_beancount_string(tx.description or "Unknown")
+        )
         currency = tx.currency or default_currency
         amount = format(tx.amount.normalize(), "f")
         neg_amount = format((-tx.amount).normalize(), "f")
 
-        contra = _resolve_contra(tx, contra_account)
+        contra = (
+            "Expenses:Redacted"
+            if redact_pii
+            else _resolve_contra(tx, contra_account)
+        )
 
         lines.append(f'{date} txn "{payee}" "{narration}"')
         lines.append(f"  {account}  {amount} {currency}")

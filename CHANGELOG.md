@@ -5,6 +5,96 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Compute average daily balances for explicit account/currency periods,
+  including quiet days and exact Decimal amounts.
+- Include quiet calendar months in run rates, prorate explicit partial periods
+  and withhold projections for undated transactions. Recognize month-end
+  recurrence with skipped months and reject inconsistent interval averages.
+
+- Preserve extra/Python marker alternatives when exporting hashed requirements,
+  including API dependencies on Python 3.14. Validate installed wheels in CI.
+- Ship the PEP 561 typing marker and isolate API worker imports from the server
+  working directory. Validate SBOMs offline against pinned CycloneDX schemas.
+
+- Write streaming CSV with stable typed-record columns and atomic failure
+  cleanup; select lazy XML construction in the CLI.
+- Add explicit-schema, bounded-batch Parquet export with atomic replacement.
+- Apply opt-in export redaction across CSV, JSON, Parquet, Excel, ledger and
+  hybrid snapshots, including provenance and diagnostics. CLI exports respect
+  `--show-pii` consistently.
+
+- Isolate API ingestion in disposable Python processes with a configurable
+  execution deadline; kill and reap timed-out or cancelled workers before
+  releasing capacity and temporary inputs.
+
+- Add opt-in lazy file-backed XML streaming with deterministic file cleanup
+  and release completed statement/payment containers.
+- Support prefixed PAIN namespaces without stripping foreign extensions.
+- Bound parallel submissions and expose an ordered result iterator; preserve
+  separate results for repeated input paths.
+
+- Preserve identical purchases without usable payment IDs in duplicate review;
+  limit probable-match groups to matching pairs.
+- Join compatibility-wrapper balances by statement position and expose mixed
+  currency balances separately.
+
+- Scope summaries by account, currency and available statement boundaries;
+  expose `get_summaries()` and reject ambiguous singular totals.
+- Use CAMT booked amounts for FX entries, preserve native foreign-amount
+  metadata, separate payment IDs from remittance and prevent sibling leakage.
+- Correct MT940 reversal and debit-balance signs; retain statement boundaries,
+  parse optional funds codes and reject malformed financial lines.
+
+- Apply PAIN redaction consistently to records, summaries, CSV output and its
+  compatibility wrapper. Read standard debtor accounts in eager parsing.
+- Join CAMT wrapper balances before masking account IDs so redaction cannot
+  combine unrelated accounts.
+- Report reconciled volumes per currency, emit a null legacy total for mixed
+  currencies, and reject unsupported debit/credit direction codes.
+
+- Separate recurring payments by account and direction; derive inflows from
+  transaction direction and require distinct dates for cadence detection.
+- Bound raw API bodies before multipart decoding, cap admitted requests, enforce
+  upload deadlines, and retain cancelled workers' capacity until they finish.
+
+- Preserve CSV decimal precision and account leading zeros; reject files without
+  amount columns. Normalize MT940 dates and scope OFX metadata per statement.
+- Handle CAMT namespace prefixes and quote styles. Share eager/streaming detail
+  expansion, recognize nested transaction amounts, and reject ambiguous or
+  nonconserving batches instead of duplicating booked totals.
+- Require compatible currency, direction, references, and available account/date
+  evidence during reconciliation. Leave ambiguous candidates unmatched and
+  require explicit fee tolerance for partial deductions.
+- Read native parser fields in analytics and retain Decimal precision in
+  analytics and Parquet exports. Invalid financial values fail explicitly.
+- Install the API multipart dependency, resolve real FastAPI endpoint types,
+  report the package version, clean rejected uploads, and move ingestion off the
+  event loop.
+- Distinguish invalid/uninspected PDFs from inspections without risk indicators;
+  no longer emit a claim of document authenticity. Expand display redaction to
+  parties, identifiers, narratives, and provenance text.
+- Emit valid SBOM UUIDs and string marker properties; retain dependency edges
+  across locked package variants.
+
+- Reject oversized vision page budgets without truncation, route mixed PDFs
+  through vision, close rendering resources, and preserve repeated payments
+  during spatially constrained strip merging.
+- Remove CAMT per-entry XML copying and repeated namespace/XPath work to restore
+  throughput without weakening performance checks.
+
+### Changed
+
+- Transaction hashes use account/currency-scoped `v2:` SHA-256 identities.
+  Persisted hash sets need rebuilding from retained transactions; see
+  [migration notes](docs/MIGRATION-v0.0.20.md).
+- Add regression cases, real API/Parquet CI checks, feature-branch documentation
+  builds, an aggregate quality status, and advisory scanning for all extras.
+- Track incomplete audit work in [the remediation register](docs/AUDIT-REMEDIATION.md).
+
 ## [0.0.19] - 2026-08-31
 
 ### Added

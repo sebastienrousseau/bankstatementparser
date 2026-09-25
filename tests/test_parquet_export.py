@@ -167,3 +167,37 @@ def test_export_parquet_raises_clear_import_error(
         ImportError, match="Apache Parquet export requires 'pyarrow'"
     ):
         export_parquet([{"a": 1}])
+
+
+def test_parquet_redaction_preserves_financial_values(
+    tmp_path, monkeypatch
+) -> None:
+    """Eager and parser exports share redaction without mutating source rows."""
+    observed = []
+
+    def write_frame(frame, buffer, **kwargs):
+        observed.append(frame.to_dict("records"))
+        buffer.write(b"PAR1")
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", write_frame)
+    rows = [
+        {
+            "amount": Decimal("1.234"),
+            "description": "Alice",
+            "source": "/private/statement.csv",
+        }
+    ]
+    export_parquet(rows, redact_pii=True)
+    assert observed[0][0] == {
+        "amount": Decimal("1.234"),
+        "description": "***REDACTED***",
+        "source": "***REDACTED***",
+    }
+    assert rows[0]["description"] == "Alice"
+    source = tmp_path / "input.csv"
+    source.write_text(
+        "date,amount,currency,description\n2026-01-01,1.234,KWD,Alice\n"
+    )
+    CsvStatementParser(source).to_parquet(redact_pii=True)
+    assert observed[-1][0]["description"] == "***REDACTED***"
+    assert observed[-1][0]["amount"] == Decimal("1.234")

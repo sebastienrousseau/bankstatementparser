@@ -73,7 +73,7 @@ class TestAdditionalParsers(unittest.TestCase):
             [Decimal("1250.50"), Decimal("-200.25")],
         )
         self.assertEqual(df["currency"].tolist(), ["EUR", "EUR"])
-        self.assertEqual(summary["opening_balance"], 2250.5)
+        self.assertIsNone(summary["opening_balance"])
         self.assertEqual(summary["total_amount"], 1050.25)
 
     def test_ofx_and_qfx_parsers(self):
@@ -207,11 +207,8 @@ class TestAdditionalParsers(unittest.TestCase):
             self.assertIsNone(csv_summary["statement_date"])
 
             mt940_parser = Mt940Parser(mt940_path)
-            mt940_df = mt940_parser.parse()
-            mt940_summary = mt940_parser.get_summary()
-            self.assertTrue(mt940_df.empty)
-            self.assertEqual(mt940_summary["transaction_count"], 0)
-            self.assertEqual(mt940_summary["account_id"], "ACCOUNT")
+            with self.assertRaisesRegex(ValidationError, "Malformed MT940"):
+                mt940_parser.parse()
         finally:
             csv_path.unlink(missing_ok=True)
             mt940_path.unlink(missing_ok=True)

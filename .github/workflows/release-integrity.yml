@@ -33,7 +33,6 @@ jobs:
       - name: Install build dependencies
         run: |
           poetry install --with dev
-          poetry self add poetry-plugin-export@">=1.8"
 
       - name: Verify lockfile hashes
         run: poetry run python scripts/verify_locked_hashes.py
@@ -41,14 +40,15 @@ jobs:
       - name: Build wheel and sdist
         run: poetry build
 
-      - name: Generate checksums
-        run: python scripts/generate_checksums.py dist
-
       - name: Generate SBOM and dependency report
         run: |
           poetry run python scripts/generate_sbom.py \
             --output dist/sbom.cyclonedx.json \
             --markdown-output dist/dependency-report.md
+          poetry run python scripts/validate_sbom.py dist/sbom.cyclonedx.json
+
+      - name: Generate checksums
+        run: python scripts/generate_checksums.py dist
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

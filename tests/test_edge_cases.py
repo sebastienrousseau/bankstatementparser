@@ -122,11 +122,10 @@ class TestCamtParserEdgeCases(unittest.TestCase):
             test_file = f.name
 
         try:
-            # Parser should handle missing fields gracefully by skipping malformed entries
+            # Malformed entries must fail rather than silently lose transactions.
             parser = CamtParser(test_file)
-            result = parser.get_transactions()
-            # Malformed entry is skipped, so result should be empty
-            self.assertEqual(len(result), 0)
+            with self.assertRaises(ValueError, msg="Missing amount must fail"):
+                parser.get_transactions()
         finally:
             os.unlink(test_file)
 

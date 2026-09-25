@@ -21,7 +21,10 @@ from typing import Any
 class ForensicVerdict(str, Enum):
     """Forensic integrity risk assessment verdict."""
 
-    GENUINE = "GENUINE"
+    GENUINE = "GENUINE"  # Legacy value; absence of indicators cannot prove authenticity.
+    NO_INDICATORS = "NO_INDICATORS"
+    INVALID = "INVALID"
+    INDETERMINATE = "INDETERMINATE"
     LOW_RISK = "LOW_RISK"
     SUSPICIOUS = "SUSPICIOUS"
     HIGH_RISK_TAMPERED = "HIGH_RISK_TAMPERED"
@@ -115,6 +118,7 @@ _BENIGN_PRODUCERS = (
 def _extract_pdf_metadata(pdf_bytes: bytes) -> dict[str, Any]:
     """Extract metadata, revisions, and font signatures from PDF bytes."""
     meta: dict[str, Any] = {
+        "parse_status": "INDETERMINATE",
         "producer": None,
         "creator": None,
         "creation_date": None,
@@ -129,7 +133,10 @@ def _extract_pdf_metadata(pdf_bytes: bytes) -> dict[str, Any]:
         from pypdf import PdfReader
 
         reader = PdfReader(io.BytesIO(pdf_bytes))
+        if len(reader.pages) == 0:
+            raise ValueError("PDF contains no pages")
         doc_info = reader.metadata
+        meta["parse_status"] = "PARSED"
         if doc_info:
             meta["producer"] = str(doc_info.get("/Producer", "") or "") or None
             meta["creator"] = str(doc_info.get("/Creator", "") or "") or None
@@ -137,8 +144,10 @@ def _extract_pdf_metadata(pdf_bytes: bytes) -> dict[str, Any]:
                 str(doc_info.get("/CreationDate", "") or "") or None
             )
             meta["mod_date"] = str(doc_info.get("/ModDate", "") or "") or None
-    except Exception:  # noqa: S110 # nosec B110
-        pass
+    except ImportError:
+        meta["parse_status"] = "INDETERMINATE"
+    except Exception:
+        meta["parse_status"] = "INVALID"
 
     # Fallback / augment with raw byte regex scanning
     if not meta["producer"]:
@@ -199,9 +208,9 @@ def inspect_pdf_forensics(
         p = Path(pdf_input)
         if not p.exists():
             return ForensicsReport(
-                verdict=ForensicVerdict.HIGH_RISK_TAMPERED,
-                risk_score=1.00,
-                is_tampered=True,
+                verdict=ForensicVerdict.INVALID,
+                risk_score=0.0,
+                is_tampered=False,
                 creation_date=None,
                 modification_date=None,
                 producer=None,
@@ -296,8 +305,24 @@ def inspect_pdf_forensics(
         verdict = ForensicVerdict.LOW_RISK
         is_tampered = False
     else:
-        verdict = ForensicVerdict.GENUINE
+        verdict = ForensicVerdict.NO_INDICATORS
         is_tampered = False
+
+    # Heuristic metadata signals never authenticate a document. Keep the
+    # findings visible but distinguish invalid/uninspected input from a clean
+    # inspection; a missing parser is not evidence of authenticity.
+    if not pdf_bytes.startswith(b"%PDF-"):
+        meta["parse_status"] = "INVALID"
+    if meta["parse_status"] != "PARSED":
+        verdict = ForensicVerdict(meta["parse_status"])
+        is_tampered = False
+        findings.append(
+            ForensicFinding(
+                category="DOCUMENT_VALIDATION",
+                severity="WARNING",
+                description="PDF validation did not complete; authenticity is undetermined.",
+            )
+        )
 
     return ForensicsReport(
         verdict=verdict,

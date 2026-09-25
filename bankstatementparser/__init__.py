@@ -31,9 +31,11 @@ from .analytics import (
     AnalyticsReport,
     AnomalyFinding,
     CashFlowMetrics,
+    DailyBalanceMetrics,
     RecurringCadence,
     RecurringPattern,
     analyze_statement_transactions,
+    compute_average_daily_balance,
     compute_cash_flow_summary,
     detect_anomalies_and_nsf,
     detect_recurring_transactions,
@@ -46,7 +48,7 @@ from .exceptions import (
     Pain001ParseError,
     ParserError,
 )
-from .export.parquet import export_parquet
+from .export.parquet import export_parquet, export_parquet_stream
 from .field86_parser import Field86Structure, parse_field_86
 from .forensics import (
     ForensicFinding,
@@ -56,7 +58,7 @@ from .forensics import (
 )
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
-from .parallel import FileResult, parse_files_parallel
+from .parallel import FileResult, iter_files_parallel, parse_files_parallel
 from .plugins import (
     discover_loaders,
     discover_writers,
@@ -100,6 +102,7 @@ __all__ = [
     "CamtParser",
     "CashFlowMetrics",
     "CsvStatementParser",
+    "DailyBalanceMetrics",
     "DeduplicationResult",
     "Deduplicator",
     "ExactDuplicateGroup",
@@ -129,6 +132,7 @@ __all__ = [
     "ZipXMLSource",
     "__version__",
     "analyze_statement_transactions",
+    "compute_average_daily_balance",
     "compute_cash_flow_summary",
     "create_parser",
     "detect_anomalies_and_nsf",
@@ -137,7 +141,9 @@ __all__ = [
     "discover_loaders",
     "discover_writers",
     "export_parquet",
+    "export_parquet_stream",
     "inspect_pdf_forensics",
+    "iter_files_parallel",
     "iter_secure_statement_entries",
     "iter_secure_xml_entries",
     "parse_field_86",

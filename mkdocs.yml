@@ -48,6 +48,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - XML Field Mapping: MAPPING.md
+  - Audit remediation: AUDIT-REMEDIATION.md
+  - v0.0.20 migration: MIGRATION-v0.0.20.md
   - API Reference:
       - Parsers:
           - CAMT.053: api/camt_parser.md

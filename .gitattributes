@@ -1,3 +1,8 @@
 # Shell scripts must keep LF endings — CRLF breaks bash on Windows
 # checkouts (runners default to core.autocrlf=true).
 *.sh text eol=lf
+
+# Vendored validation schemas must retain their upstream checksum bytes.
+schemas/cyclonedx/1.5/*.json -text
+schemas/cyclonedx/1.5/LICENSE -text
+requirements.txt text eol=lf

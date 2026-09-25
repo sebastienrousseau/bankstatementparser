@@ -20,6 +20,7 @@ support to other formats.
 """
 
 import argparse
+import csv
 import logging
 import os
 import sys
@@ -34,6 +35,9 @@ from bankstatementparser.input_validator import (
     InputValidator,
     ValidationError,
 )
+
+from .privacy import redact_record
+from .record_types import PaymentRecord, TransactionRecord
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -69,21 +73,10 @@ class BankStatementCLI:
         Returns:
             pd.DataFrame: DataFrame with PII columns redacted.
         """
-        # Create a copy to avoid modifying original data
-        redacted_df = df.copy()
-
-        # Define PII keywords to identify sensitive columns
-        pii_keywords = ["address", "iban", "account", "name", "bic"]
-
-        # Check each column for PII keywords (case-insensitive)
-        for column in redacted_df.columns:
-            column_lower = column.lower()
-            for keyword in pii_keywords:
-                if keyword in column_lower:
-                    redacted_df[column] = "***REDACTED***"
-                    break
-
-        return redacted_df
+        return pd.DataFrame(
+            [redact_record(row) for row in df.to_dict("records")],
+            columns=df.columns,
+        )
 
     def setup_arg_parser(self) -> argparse.ArgumentParser:
         """Set up the command line argument parser.
@@ -139,7 +132,7 @@ class BankStatementCLI:
         parser.add_argument(
             "--streaming",
             action="store_true",
-            help="Use streaming XML parsing to keep memory usage under 50MB for large files (default: False).",
+            help="Stream XML from disk with memory bounded by individual records and parser buffers.",
         )
         parser.add_argument(
             "--review-below",
@@ -227,7 +220,7 @@ class BankStatementCLI:
         show_pii: bool,
         streaming: bool,
         *,
-        parser_factory: Callable[[str], Any],
+        parser_factory: Callable[..., Any],
         get_data: Callable[[Any], Any],
         noun: str,
         format_label: str,
@@ -245,8 +238,9 @@ class BankStatementCLI:
             noun: Record noun for user-facing messages.
             format_label: Format name for error messages.
         """
+        temp_output = None
         try:
-            parser = parser_factory(str(file_path))
+            parser = parser_factory(str(file_path), lazy=streaming)
 
             if streaming:
                 # Process records incrementally to bound memory usage
@@ -261,30 +255,33 @@ class BankStatementCLI:
                     safe_output_path = str(output_path.parent / safe_name)
                     temp_output = f"{safe_output_path}.tmp"
 
-                    with open(temp_output, "w", encoding="utf-8") as f:
-                        # Write CSV header
-                        header_written = False
-
+                    # Typed records define stable columns even when optional
+                    # fields appear only in later rows. Unknown keys fail.
+                    fields = (
+                        [
+                            name
+                            for name in TransactionRecord.__annotations__
+                            if name[0].isupper()
+                        ]
+                        if format_label == "CAMT"
+                        else list(PaymentRecord.__annotations__)
+                    )
+                    with open(
+                        temp_output, "w", encoding="utf-8", newline=""
+                    ) as f:
+                        writer = csv.DictWriter(
+                            f, fieldnames=fields, lineterminator="\n"
+                        )
+                        writer.writeheader()
                         for record_data in parser.parse_streaming(
                             redact_pii=not show_pii
                         ):
+                            writer.writerow(
+                                record_data
+                                if show_pii
+                                else redact_record(record_data)
+                            )
                             record_count += 1
-
-                            # Convert to DataFrame for consistent formatting
-                            record_df = pd.DataFrame([record_data])
-
-                            if not header_written:
-                                # Write header on first record
-                                record_df.to_csv(f, index=False, mode="w")
-                                header_written = True
-                            else:
-                                # Write data without header
-                                record_df.to_csv(
-                                    f,
-                                    index=False,
-                                    mode="a",
-                                    header=False,
-                                )
 
                     # Atomically move temp file to final location
                     os.replace(temp_output, safe_output_path)
@@ -330,6 +327,8 @@ class BankStatementCLI:
                         output_path.name
                     )
                     safe_output_path = str(output_path.parent / safe_name)
+                    if not show_pii:
+                        data_df = self._redact_dataframe(data_df)
                     data_df.to_csv(safe_output_path, index=False)
                     print(f"Parsed data saved to {safe_output_path}")
                 else:
@@ -354,17 +353,23 @@ class BankStatementCLI:
             )
             print(f"Error: Failed to parse {format_label} file - {e!s}")
             sys.exit(1)
+        finally:
+            if temp_output is not None:
+                Path(temp_output).unlink(missing_ok=True)
 
     def run_ingest(
         self,
         file_path: Path,
         output_path: Optional[Path] = None,
+        *,
+        show_pii: bool = False,
     ) -> None:
         """Run the hybrid (deterministic + LLM fallback) pipeline.
 
         Args:
             file_path: Validated path to the statement file.
             output_path: Optional CSV output destination.
+            show_pii: Include identities and diagnostic text in output.
         """
         try:
             from bankstatementparser.hybrid import smart_ingest
@@ -414,6 +419,8 @@ class BankStatementCLI:
             for tx in result.transactions
         ]
         df = pd.DataFrame(rows)
+        if not show_pii:
+            df = self._redact_dataframe(df)
 
         if output_path:
             safe_name = self.validator.get_safe_filename(output_path.name)
@@ -432,9 +439,10 @@ class BankStatementCLI:
 
         if result.verification is not None:
             v = result.verification
-            print(f"\nVerification: {v.status.value.upper()} - {v.message}")
+            message = v.message if show_pii else "details redacted"
+            print(f"\nVerification: {v.status.value.upper()} - {message}")
         for warning in result.warnings:
-            print(f"Warning: {warning}")
+            print(f"Warning: {warning if show_pii else 'details redacted'}")
 
     def run_review(
         self,
@@ -840,6 +848,7 @@ class BankStatementCLI:
                 self.run_ingest(
                     validated_input_path,
                     validated_output_path,
+                    show_pii=args.show_pii,
                 )
             elif args.type == "review":
                 if args.review_below is not None and not (

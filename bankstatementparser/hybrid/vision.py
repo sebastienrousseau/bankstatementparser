@@ -33,6 +33,8 @@ from __future__ import annotations
 import base64
 import os
 from collections.abc import Callable
+from contextlib import ExitStack, closing
+from dataclasses import dataclass
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
@@ -43,7 +45,7 @@ from .._llm_common import (
     ENV_VISION_MODEL,
     warn_if_data_leaves_machine,
 )
-from ..transaction_models import Transaction
+from ..transaction_models import BoundingBox, Transaction
 from .llm_extractor import (
     LLMExtractionResult,
     LLMExtractorError,
@@ -68,8 +70,37 @@ DEFAULT_STRIP_COUNT = 4
 # Strips overlap by this fraction of strip height. 0.10 = 10% so
 # any transaction row that bisects a boundary is seen by both
 # adjacent strips. Duplicates are removed at merge time via
-# ``Transaction.transaction_hash``.
+# ``Transaction.transaction_hash`` plus matching source-row coordinates.
 STRIP_OVERLAP_FRACTION = 0.10
+
+
+@dataclass(frozen=True)
+class _RenderedStrip:
+    """Image bytes and the crop's actual normalized region in its PDF page."""
+
+    image: bytes
+    page_index: int
+    top: float
+    bottom: float
+
+
+def _same_source_row(left: Transaction, right: Transaction) -> bool:
+    """Match an overlapping row only with identity and strong spatial evidence."""
+    a, b = left.source_bbox, right.source_bbox
+    if a is None or b is None or a.page_index != b.page_index:
+        return False
+    if left.transaction_hash != right.transaction_hash:
+        return False
+    intersection = max(0.0, min(a.x1, b.x1) - max(a.x0, b.x0)) * max(
+        0.0, min(a.y1, b.y1) - max(a.y0, b.y0)
+    )
+    union = (
+        (a.x1 - a.x0) * (a.y1 - a.y0)
+        + (b.x1 - b.x0) * (b.y1 - b.y0)
+        - intersection
+    )
+    return union > 0 and intersection / union >= 0.8
+
 
 VISION_SYSTEM_PROMPT = """You are a meticulous Financial Data Architect.
 You receive one or more IMAGES of a bank statement (scanned PDF or
@@ -86,7 +117,8 @@ remains consistent.
 For each transaction row, also return its bounding box on the page
 as four NORMALIZED coordinates in the 0.0-1.0 range. ``x0,y0`` is
 the top-left of the row, ``x1,y1`` is the bottom-right. Origin is
-the top-left of the image. The bbox lets a downstream review UI
+the top-left of the image. Include page_index as the zero-based
+image index in the request. The bbox lets a downstream review UI
 highlight the exact pixels each row was extracted from. If you
 truly cannot estimate the bbox for a row, return ``null`` for the
 bbox field on that row only — do not skip the transaction.
@@ -105,7 +137,7 @@ Schema:
       "amount": number,
       "reference": string|null,
       "confidence": number,
-      "bbox": {"x0": number, "y0": number, "x1": number, "y1": number}|null
+      "bbox": {"x0": number, "y0": number, "x1": number, "y1": number, "page_index": integer}|null
     }
   ]
 }
@@ -139,10 +171,10 @@ class VisionExtractor:
         render_scale: pypdfium2 render scale (default ``2.0`` ≈ 144
             DPI).
         max_pages: Hard cap on pages sent to the model to keep token
-            usage bounded. Defaults to ``5``.
+            usage bounded. Defaults to ``5``; reject larger documents before rendering.
         strip_rows: When ``True``, split each page into horizontal
             strips and run one LLM call per strip instead of one
-            call per page. Trades a few extra LLM calls for
+            call for the document. Trades a few extra LLM calls for
             substantially better accuracy because the vision model's
             CLIP encoder receives a 336×336 image of a smaller
             region instead of a 336×336 squash of the whole page —
@@ -157,7 +189,7 @@ class VisionExtractor:
             strips contain transaction rows. Strips overlap by
             :data:`STRIP_OVERLAP_FRACTION` (10%) so rows that
             bisect a boundary are seen by both strips and dedup'd
-            on the merge step via ``transaction_hash``.
+            on the merge step using identity and matching page coordinates.
     """
 
     def __init__(
@@ -181,6 +213,8 @@ class VisionExtractor:
         self._completion_fn = completion_fn
         warn_if_data_leaves_machine(self.model, self.api_base)
         self.render_scale = render_scale
+        if max_pages < 1:
+            raise ValueError("max_pages must be positive")
         self.max_pages = max_pages
         self.strip_rows = strip_rows
         if n_strips < 2:
@@ -196,11 +230,11 @@ class VisionExtractor:
         """Render the PDF and run the multimodal extraction call.
 
         When :attr:`strip_rows` is ``False`` (default), the entire
-        first page is sent in one call — fastest, fine for hosted
+        document is sent in one call — fastest, fine for hosted
         models like ``gpt-4o``. When ``strip_rows`` is ``True``,
         the page is split into :attr:`n_strips` overlapping
         horizontal strips and one LLM call runs per strip; results
-        are merged via :class:`Transaction.transaction_hash`. The
+        are merged only with matching identity and overlapping page coordinates. The
         strip path is dramatically more accurate for small local
         models (``ollama/minicpm-v``, ``ollama/qwen2-vl``) because
         each call sees a smaller region of the page before CLIP's
@@ -249,7 +283,7 @@ class VisionExtractor:
         )
 
     def _extract_strip(self, pdf_path: Path) -> LLMExtractionResult:
-        """Strip-mode extraction: per-strip LLM calls + merge by hash.
+        """Strip-mode extraction with page provenance and conservative overlap merging.
 
         Renders each page into :attr:`n_strips` overlapping
         horizontal strips. Strip 0 (top) gets a "header" prompt
@@ -257,7 +291,9 @@ class VisionExtractor:
         closing_balance — the page header and the running-balance
         column at the right are usually visible in the top strip.
         Subsequent strips get a "body" prompt that asks only for
-        transactions. Results are merged by ``transaction_hash``;
+        transactions. Adjacent results with matching hashes and strongly
+        overlapping bounding boxes are merged; repeated values without spatial
+        evidence are retained for balance verification. Account details and
         balances from the header strip win.
         """
         page_strips = self._render_strips(pdf_path)
@@ -265,17 +301,17 @@ class VisionExtractor:
             raise VisionExtractorError(f"No strips rendered from {pdf_path}")
 
         merged_transactions: list[Transaction] = []
-        seen_hashes: set[str] = set()
+        previous_rows: list[Transaction] = []
         account_id: Optional[str] = None
         currency: Optional[str] = None
         opening_balance: Optional[Decimal] = None
         closing_balance: Optional[Decimal] = None
         raw_responses: list[str] = []
 
-        for strip_index, strip_bytes in enumerate(page_strips):
+        for strip_index, strip in enumerate(page_strips):
             is_header = strip_index == 0
             messages = _build_strip_messages(
-                strip_bytes,
+                strip.image,
                 strip_index=strip_index,
                 total_strips=len(page_strips),
                 include_balances=is_header,
@@ -297,12 +333,41 @@ class VisionExtractor:
                     else closing_balance
                 )
 
+            current_rows: list[Transaction] = []
             for tx in partial.transactions:
-                digest = tx.transaction_hash
-                if digest in seen_hashes:
-                    continue
-                seen_hashes.add(digest)
-                merged_transactions.append(tx)
+                bbox = tx.source_bbox
+                if bbox is not None:
+                    bbox = BoundingBox(
+                        x0=bbox.x0,
+                        x1=bbox.x1,
+                        y0=strip.top + bbox.y0 * (strip.bottom - strip.top),
+                        y1=strip.top + bbox.y1 * (strip.bottom - strip.top),
+                        page_index=strip.page_index,
+                    )
+                tx = tx.model_copy(
+                    update={
+                        "account_id": tx.account_id or account_id,
+                        "currency": tx.currency or currency,
+                        "source_page": strip.page_index,
+                        "source_bbox": bbox,
+                    }
+                )
+                current_rows.append(tx)
+                # Only adjacent-strip observations can be overlap duplicates.
+                # Consume one observation per match, preserving multiplicity.
+                duplicate = next(
+                    (
+                        i
+                        for i, old in enumerate(previous_rows)
+                        if _same_source_row(old, tx)
+                    ),
+                    None,
+                )
+                if duplicate is not None:
+                    previous_rows.pop(duplicate)
+                else:
+                    merged_transactions.append(tx)
+            previous_rows = current_rows
 
         return LLMExtractionResult(
             account_id=account_id,
@@ -314,7 +379,7 @@ class VisionExtractor:
         )
 
     def _render_pages(self, pdf_path: Path) -> list[bytes]:
-        """Render each PDF page (up to :attr:`max_pages`) as a PNG."""
+        """Render every PDF page as PNG; reject documents exceeding the budget."""
         try:
             import pypdfium2 as pdfium
         except ImportError as exc:
@@ -331,23 +396,34 @@ class VisionExtractor:
                 f"Failed to open PDF {pdf_path}: {exc}"
             ) from exc
 
-        rendered: list[bytes] = []
-        page_count = min(len(pdf), self.max_pages)
-        for page_index in range(page_count):
-            page = pdf[page_index]
-            try:
-                bitmap = page.render(scale=self.render_scale)
-                pil_image = bitmap.to_pil()
-                buffer = BytesIO()
-                pil_image.save(buffer, format="PNG")
-                rendered.append(buffer.getvalue())
-            except Exception as exc:
+        with closing(pdf):
+            rendered: list[bytes] = []
+            page_count = len(pdf)
+            if page_count > self.max_pages:
                 raise VisionExtractorError(
-                    f"Failed to render page {page_index}: {exc}"
-                ) from exc
-        return rendered
+                    f"PDF has {page_count} pages; max_pages={self.max_pages}. "
+                    "Refusing to return a truncated statement."
+                )
+            for page_index in range(page_count):
+                with ExitStack() as resources:
+                    page = resources.enter_context(closing(pdf[page_index]))
+                    try:
+                        bitmap = resources.enter_context(
+                            closing(page.render(scale=self.render_scale))
+                        )
+                        pil_image = resources.enter_context(
+                            closing(bitmap.to_pil())
+                        )
+                        buffer = BytesIO()
+                        pil_image.save(buffer, format="PNG")
+                        rendered.append(buffer.getvalue())
+                    except Exception as exc:
+                        raise VisionExtractorError(
+                            f"Failed to render page {page_index}: {exc}"
+                        ) from exc
+            return rendered
 
-    def _render_strips(self, pdf_path: Path) -> list[bytes]:
+    def _render_strips(self, pdf_path: Path) -> list[_RenderedStrip]:
         """Render every page as :attr:`n_strips` overlapping PNG strips.
 
         Returns a flat list across all pages: page 0 strips first,
@@ -355,7 +431,7 @@ class VisionExtractor:
         standalone PNG and ready to feed into a multimodal LLM
         call. Strips overlap by :data:`STRIP_OVERLAP_FRACTION` so
         rows that bisect a boundary are seen by both adjacent
-        strips and dedup'd by ``transaction_hash`` at merge time.
+        strips and merged only when identity and source coordinates agree.
         """
         try:
             import pypdfium2 as pdfium
@@ -373,39 +449,59 @@ class VisionExtractor:
                 f"Failed to open PDF {pdf_path}: {exc}"
             ) from exc
 
-        all_strips: list[bytes] = []
-        page_count = min(len(pdf), self.max_pages)
-        for page_index in range(page_count):
-            page = pdf[page_index]
-            try:
-                bitmap = page.render(scale=self.render_scale)
-                pil_image = bitmap.to_pil()
-            except Exception as exc:
+        with closing(pdf):
+            all_strips: list[_RenderedStrip] = []
+            page_count = len(pdf)
+            if page_count > self.max_pages:
                 raise VisionExtractorError(
-                    f"Failed to render page {page_index}: {exc}"
-                ) from exc
-
-            width, height = pil_image.size
-            strip_height = height // self.n_strips
-            overlap = int(strip_height * STRIP_OVERLAP_FRACTION)
-
-            for strip_index in range(self.n_strips):
-                top = max(0, strip_index * strip_height - overlap)
-                bottom = min(
-                    height,
-                    (strip_index + 1) * strip_height + overlap,
+                    f"PDF has {page_count} pages; max_pages={self.max_pages}. "
+                    "Refusing to return a truncated statement."
                 )
-                try:
-                    strip_image = pil_image.crop((0, top, width, bottom))
-                    buffer = BytesIO()
-                    strip_image.save(buffer, format="PNG")
-                    all_strips.append(buffer.getvalue())
-                except Exception as exc:
-                    raise VisionExtractorError(
-                        f"Failed to render strip {strip_index} of "
-                        f"page {page_index}: {exc}"
-                    ) from exc
-        return all_strips
+            for page_index in range(page_count):
+                with ExitStack() as resources:
+                    page = resources.enter_context(closing(pdf[page_index]))
+                    try:
+                        bitmap = resources.enter_context(
+                            closing(page.render(scale=self.render_scale))
+                        )
+                        pil_image = resources.enter_context(
+                            closing(bitmap.to_pil())
+                        )
+                    except Exception as exc:
+                        raise VisionExtractorError(
+                            f"Failed to render page {page_index}: {exc}"
+                        ) from exc
+
+                    width, height = pil_image.size
+                    strip_height = height // self.n_strips
+                    overlap = int(strip_height * STRIP_OVERLAP_FRACTION)
+
+                    for strip_index in range(self.n_strips):
+                        top = max(0, strip_index * strip_height - overlap)
+                        bottom = min(
+                            height,
+                            (strip_index + 1) * strip_height + overlap,
+                        )
+                        try:
+                            with closing(
+                                pil_image.crop((0, top, width, bottom))
+                            ) as strip_image:
+                                buffer = BytesIO()
+                                strip_image.save(buffer, format="PNG")
+                                all_strips.append(
+                                    _RenderedStrip(
+                                        buffer.getvalue(),
+                                        page_index,
+                                        top / height,
+                                        bottom / height,
+                                    )
+                                )
+                        except Exception as exc:
+                            raise VisionExtractorError(
+                                f"Failed to render strip {strip_index} of "
+                                f"page {page_index}: {exc}"
+                            ) from exc
+            return all_strips
 
     def _resolve_completion(self) -> CompletionFn:
         """Return the injected completion callable or import a backend."""
@@ -453,10 +549,14 @@ markdown — using this schema:
       "description": string,
       "amount": number,
       "reference": string|null,
-      "confidence": number
+      "confidence": number,
+      "bbox": {"x0": number, "y0": number, "x1": number, "y1": number}|null
     }
   ]
 }
+
+Return bbox coordinates in [0,1] relative to this cropped image, not
+the whole PDF page. Return null when the row cannot be localized.
 
 Sign convention: debits negative, credits positive. If a field is
 unclear, return null. If no transactions are visible in this
@@ -477,10 +577,14 @@ no markdown — using this schema:
       "description": string,
       "amount": number,
       "reference": string|null,
-      "confidence": number
+      "confidence": number,
+      "bbox": {"x0": number, "y0": number, "x1": number, "y1": number}|null
     }
   ]
 }
+
+Return bbox coordinates in [0,1] relative to this cropped image, not
+the whole PDF page. Return null when the row cannot be localized.
 
 Sign convention: debits negative, credits positive. Do NOT
 fabricate the account header or balances — those are extracted

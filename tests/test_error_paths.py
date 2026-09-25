@@ -318,7 +318,7 @@ class TestCamtParserCoverage(unittest.TestCase):
         with (
             patch.object(
                 parser,
-                "_parse_streaming_transaction",
+                "_get_transactions_for_entries",
                 side_effect=ValueError("Malformed transaction"),
             ),
             self.assertRaises(ValueError),

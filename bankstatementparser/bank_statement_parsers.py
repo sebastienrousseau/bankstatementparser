@@ -33,6 +33,7 @@ from ._amounts import iso_decimal
 from .camt_parser import CamtParser
 from .input_validator import ValidationError
 from .pain001_parser import Pain001Parser as StandalonePain001Parser
+from .privacy import redact_record
 
 
 class FileParserError(Exception):
@@ -134,7 +135,11 @@ class Pain001Parser:
                 payment, self._redact_pii
             )
             payment_dict.update(header)
-            payments.append(payment_dict)
+            payments.append(
+                redact_record(payment_dict)
+                if self._redact_pii
+                else payment_dict
+            )
 
         return payments
 
@@ -173,11 +178,8 @@ class Pain001Parser:
         ]
         address: str = " ".join(address_lines)
 
-        # Apply PII redaction if requested
-        if redact_pii:
-            address = "***REDACTED***" if address else address
-
-        return {
+        # Apply PII redaction if requested to the complete payment record.
+        record = {
             "Name": name,
             "Amount": iso_decimal(amount, context="InstdAmt element"),
             "Currency": currency,
@@ -186,6 +188,7 @@ class Pain001Parser:
             "Country": country,
             "Address": address,
         }
+        return redact_record(record) if redact_pii else record
 
     def __repr__(self) -> str:
         """Returns a string representation of the Pain001Parser instance.
@@ -242,13 +245,13 @@ class Camt053Parser:
 
             # Convert standalone parser output to original API format
             # Get data from enhanced parser
-            balances_df = self._parser.get_account_balances(
-                redact_pii=redact_pii
-            )
+            # Join on original identities before masking them; identical
+            # redaction placeholders cannot serve as account keys.
+            balances_df = self._parser.get_account_balances()
             transactions_df = self._parser.get_transactions(
                 redact_pii=redact_pii
             )
-            stats_df = self._parser.get_statement_stats(redact_pii=redact_pii)
+            stats_df = self._parser.get_statement_stats()
 
             # Convert to original format
             self.statements = (
@@ -260,22 +263,37 @@ class Camt053Parser:
                 else []
             )
 
-            # Add balance information to statements if available
+            # Add balance information to its owning statement before masking.
+            # Account IDs alone cannot distinguish consecutive periods.
             if not balances_df.empty:
-                balances_by_account: dict[str, dict[str, dict[str, str]]] = {}
-                for account_id, group in balances_df.groupby("AccountId"):
-                    balances_by_account[account_id] = {
-                        str(row["Code"]): {
+                for statement_index, group in balances_df.groupby(
+                    "StatementIndex"
+                ):
+                    stmt = self.statements[int(statement_index)]
+                    balances_by_currency: dict[
+                        str, dict[str, dict[str, str]]
+                    ] = {}
+                    for row in group.to_dict("records"):
+                        currency = str(row["Currency"])
+                        code = str(row["Code"])
+                        currency_balances = balances_by_currency.setdefault(
+                            currency, {}
+                        )
+                        if code in currency_balances:
+                            raise ValueError(
+                                "Ambiguous duplicate statement balance"
+                            )
+                        currency_balances[code] = {
                             "Amount": str(row["Amount"]),
                             "Description": str(row["Description"]),
                         }
-                        for row in group.to_dict("records")
-                    }
-
-                for stmt in self.statements:
-                    account_id = stmt.get("AccountId")
-                    if account_id in balances_by_account:
-                        stmt.update(balances_by_account[account_id])
+                    stmt["BalancesByCurrency"] = balances_by_currency
+                    if len(balances_by_currency) == 1:
+                        stmt.update(next(iter(balances_by_currency.values())))
+            if redact_pii:
+                self.statements = [
+                    redact_record(stmt) for stmt in self.statements
+                ]
 
         except ValidationError as e:
             raise FileParserError("Not a valid CAMT.053 file") from e

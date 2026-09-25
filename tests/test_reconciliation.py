@@ -6,6 +6,8 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from bankstatementparser.reconciliation import (
     ReconciliationReport,
     ReconciliationStatus,
@@ -128,16 +130,24 @@ def test_reconcile_partial_amount_deduction_and_helpers() -> None:
 
     # Partial amount match (e.g. 1000 payment with 985 statement net settlement due to 15 wire fee)
     payments = [
-        {"EndToEndId": "E2E-FEE-99", "InstdAmt": "1000.00", "CdtrNm": "Global"}
+        {
+            "EndToEndId": "E2E-FEE-99",
+            "InstdAmt": "1000.00",
+            "Currency": "EUR",
+            "CdtrNm": "Global",
+        }
     ]
     statements = [
         {
             "end_to_end_id": "E2E-FEE-99",
             "amount": "-985.00",
+            "currency": "EUR",
             "description": "Global net",
         }
     ]
-    rep = reconcile_payments_and_statements(payments, statements)
+    rep = reconcile_payments_and_statements(
+        payments, statements, fee_tolerance=Decimal("15")
+    )
     assert rep.matched_count == 1
     assert rep.partial_deduction_count == 1
     assert (
@@ -165,8 +175,9 @@ def test_reconcile_partial_amount_deduction_and_helpers() -> None:
     assert _extract_amount(Decimal("50.00")) == Decimal("50.00")
     assert _extract_amount(100) == Decimal("100")
     assert _extract_amount(25.5) == Decimal("25.5")
-    assert _extract_amount("invalid") == Decimal("0.00")
-    assert _extract_amount(None) == Decimal("0.00")
+    for invalid in ("invalid", None):
+        with pytest.raises(ValueError):
+            _extract_amount(invalid)
 
     # Pass 3 with zero amount payment
     zero_rep = reconcile_payments_and_statements(
@@ -183,3 +194,58 @@ def test_reconcile_partial_amount_deduction_and_helpers() -> None:
     )
     assert low_ratio_rep.matched_count == 0
     assert low_ratio_rep.unmatched_payment_count == 1
+
+
+def test_reconciled_volume_preserves_currency_and_settled_amount() -> None:
+    """Never add native currencies or count unsettled fees as settled volume."""
+    payments = [
+        {"InstdAmt": "10.00", "Currency": "EUR", "EndToEndId": "eur-1"},
+        {"InstdAmt": "20.00", "Currency": "EUR", "EndToEndId": "eur-2"},
+        {"InstdAmt": "1.234", "Currency": "KWD", "EndToEndId": "kwd-1"},
+        {"InstdAmt": "999", "Currency": "USD", "EndToEndId": "missing"},
+    ]
+    statements = [
+        {"amount": "-9.50", "currency": "EUR", "reference": "eur-1"},
+        {"amount": "-20.00", "currency": "EUR", "reference": "eur-2"},
+        {"amount": "-1.234", "currency": "kwd", "reference": "kwd-1"},
+    ]
+    report = reconcile_payments_and_statements(
+        payments, statements, fee_tolerance=Decimal("0.50")
+    )
+    assert report.matched_count == 3
+    assert report.total_reconciled_volume is None
+    assert report.reconciled_volume_by_currency == {
+        "EUR": Decimal("29.50"),
+        "KWD": Decimal("1.234"),
+    }
+    assert report.to_dict()["total_reconciled_volume"] is None
+    assert report.to_dict()["reconciled_volume_by_currency"] == {
+        "EUR": "29.50",
+        "KWD": "1.234",
+    }
+    empty = reconcile_payments_and_statements([], [])
+    assert empty.total_reconciled_volume == Decimal("0.00")
+    assert empty.reconciled_volume_by_currency == {}
+
+
+@pytest.mark.parametrize(
+    "direction", ["D", "DR", "DEBIT", "DBIT", "C", "CR", "CREDIT", "CRDT"]
+)
+def test_reconciliation_respects_explicit_direction(direction: str) -> None:
+    """Direction aliases must not turn debits into credits during matching."""
+    row = {
+        "amount": "10",
+        "currency": "GBP",
+        "reference": "ref",
+        "credit_debit": direction,
+    }
+    sign = "-" if direction.startswith("D") else ""
+    statement = {"amount": f"{sign}10", "currency": "GBP", "reference": "ref"}
+    assert (
+        reconcile_payments_and_statements([row], [statement]).matched_count
+        == 1
+    )
+    with pytest.raises(ValueError, match="Unsupported credit/debit"):
+        reconcile_payments_and_statements(
+            [{**row, "credit_debit": "unknown"}], [statement]
+        )

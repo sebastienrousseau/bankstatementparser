@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 
-from .base_parser import BankStatementParser
+from .base_parser import BankStatementParser, _single_summary
 from .camt_parser import CamtParser
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
@@ -180,6 +182,57 @@ def _amount_or_zero(value: object, *, context: str) -> Decimal:
     return _require_amount(value, context=context)
 
 
+def _grouped_summaries(df: pd.DataFrame) -> list[SummaryRecord]:
+    """Aggregate canonical rows without adding different accounts or currencies."""
+    groups: dict[tuple[str | None, str | None], SummaryRecord] = {}
+    for row in df.to_dict("records"):
+        account = _summary_text(row.get("account_id"))
+        raw_currency = _summary_text(row.get("currency"))
+        currency = raw_currency.upper() if raw_currency else None
+        key = (account, currency)
+        if key not in groups:
+            groups[key] = {
+                "account_id": account,
+                "currency": currency,
+                "statement_date": None,
+                "transaction_count": 0,
+                "total_amount": Decimal("0"),
+                "opening_balance": None,
+                "closing_balance": None,
+            }
+        summary = groups[key]
+        summary["transaction_count"] += 1
+        summary["total_amount"] += _require_amount(
+            row.get("amount"), context="summary amount"
+        )
+        day = _summary_text(row.get("date"))
+        if day is not None:
+            summary["statement_date"] = day
+        balance = _summary_text(row.get("balance"))
+        if balance is not None:
+            summary["closing_balance"] = _require_amount(
+                balance, context="summary balance"
+            )
+    return list(groups.values()) or [
+        {
+            "account_id": None,
+            "currency": None,
+            "statement_date": None,
+            "transaction_count": 0,
+            "total_amount": Decimal("0"),
+            "opening_balance": None,
+            "closing_balance": None,
+        }
+    ]
+
+
+def _summary_text(value: object) -> str | None:
+    """Normalize missing dataframe metadata without inventing an identity."""
+    if value is None or pd.isna(value):
+        return None
+    return str(value).strip() or None
+
+
 class CsvStatementParser(BankStatementParser):
     """Parse bank statement CSV files with basic column normalization."""
 
@@ -203,7 +256,13 @@ class CsvStatementParser(BankStatementParser):
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
-        raw_df = pd.read_csv(self._path, sep=None, engine="python")
+        raw_df = pd.read_csv(
+            self._path,
+            sep=None,
+            engine="python",
+            dtype=str,
+            keep_default_na=False,
+        )
         parsed = pd.DataFrame(index=raw_df.index)
 
         date_col = self._find_column(raw_df, "date")
@@ -224,6 +283,10 @@ class CsvStatementParser(BankStatementParser):
         else:
             credit_col = self._find_column(raw_df, "credit")
             debit_col = self._find_column(raw_df, "debit")
+            if not credit_col and not debit_col:
+                raise ValidationError(
+                    "CSV requires an amount, debit, or credit column"
+                )
             zero = pd.Series([Decimal("0")] * len(raw_df), index=raw_df.index)
             credit = (
                 raw_df[credit_col].map(
@@ -258,39 +321,17 @@ class CsvStatementParser(BankStatementParser):
         self._parsed_df = parsed
         return self._parsed_df.copy()
 
+    def get_summaries(self) -> list[SummaryRecord]:
+        """Summarize CSV rows separately by account and currency.
+
+        A running balance column does not establish an opening balance without
+        an explicit timing convention, so opening_balance remains unknown.
+        """
+        return _grouped_summaries(self.parse())
+
     def get_summary(self) -> SummaryRecord:
-        """Summarize the parsed CSV statement."""
-        df = self.parse()
-        balance = df["balance"] if "balance" in df.columns else pd.Series()
-        return {
-            "account_id": (
-                df["account_id"].dropna().astype(str).iloc[0]
-                if "account_id" in df.columns and not df.empty
-                else None
-            ),
-            "statement_date": (
-                df["date"].dropna().astype(str).iloc[-1]
-                if "date" in df.columns and not df.empty
-                else None
-            ),
-            "transaction_count": len(df),
-            "total_amount": (
-                sum(df["amount"].dropna(), Decimal("0"))
-                if "amount" in df.columns
-                else Decimal("0")
-            ),
-            "opening_balance": (
-                _parse_amount(balance.iloc[0]) if not balance.empty else None
-            ),
-            "closing_balance": (
-                _parse_amount(balance.iloc[-1]) if not balance.empty else None
-            ),
-            "currency": (
-                df["currency"].dropna().astype(str).iloc[0]
-                if "currency" in df.columns and not df.empty
-                else None
-            ),
-        }
+        """Return a single CSV scope, or require get_summaries for mixed files."""
+        return _single_summary(self.get_summaries())
 
 
 class OfxParser(BankStatementParser):
@@ -314,68 +355,55 @@ class OfxParser(BankStatementParser):
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
-        currency = self._tag_value(self._text, "CURDEF")
-        account_id = self._tag_value(self._text, "ACCTID")
         rows: list[TransactionRecord] = []
-        blocks = re.findall(
-            r"<STMTTRN>(.*?)(?:</STMTTRN>|(?=<STMTTRN>|</BANKTRANLIST>))",
+        # OFX may contain multiple bank and credit-card statements. Metadata
+        # belongs to each statement container, never the entire document.
+        statements = re.findall(
+            r"<(STMTRS|CCSTMTRS)>(.*?)</\1>",
             self._text,
             flags=re.IGNORECASE | re.DOTALL,
         )
-        for block in blocks:
-            posted = self._tag_value(block, "DTPOSTED") or ""
-            transaction_id = self._tag_value(block, "FITID")
-            rows.append(
-                {
-                    "date": posted[:8],
-                    "description": (
-                        self._tag_value(block, "MEMO")
-                        or self._tag_value(block, "NAME")
-                    ),
-                    "amount": _require_amount(
-                        self._tag_value(block, "TRNAMT"),
-                        context=(
-                            f"OFX STMTTRN {transaction_id or '(no FITID)'}"
-                        ),
-                    ),
-                    "currency": currency,
-                    "account_id": account_id,
-                    "transaction_id": transaction_id,
-                    "transaction_type": self._tag_value(block, "TRNTYPE"),
-                }
+        for statement in [body for _, body in statements] or [self._text]:
+            currency = self._tag_value(statement, "CURDEF")
+            account_id = self._tag_value(statement, "ACCTID")
+            blocks = re.findall(
+                r"<STMTTRN>(.*?)(?:</STMTTRN>|(?=<STMTTRN>|</BANKTRANLIST>))",
+                statement,
+                flags=re.IGNORECASE | re.DOTALL,
             )
+            for block in blocks:
+                posted = self._tag_value(block, "DTPOSTED") or ""
+                transaction_id = self._tag_value(block, "FITID")
+                rows.append(
+                    {
+                        "date": posted[:8],
+                        "description": (
+                            self._tag_value(block, "MEMO")
+                            or self._tag_value(block, "NAME")
+                        ),
+                        "amount": _require_amount(
+                            self._tag_value(block, "TRNAMT"),
+                            context=(
+                                f"OFX STMTTRN {transaction_id or '(no FITID)'}"
+                            ),
+                        ),
+                        "currency": currency,
+                        "account_id": account_id,
+                        "transaction_id": transaction_id,
+                        "transaction_type": self._tag_value(block, "TRNTYPE"),
+                    }
+                )
 
         self._parsed_df = pd.DataFrame(rows)
         return self._parsed_df.copy()
 
+    def get_summaries(self) -> list[SummaryRecord]:
+        """Summarize OFX/QFX transactions by account and currency."""
+        return _grouped_summaries(self.parse())
+
     def get_summary(self) -> SummaryRecord:
-        """Summarize the parsed OFX/QFX statement."""
-        df = self.parse()
-        return {
-            "account_id": (
-                df["account_id"].dropna().astype(str).iloc[0]
-                if "account_id" in df.columns and not df.empty
-                else None
-            ),
-            "statement_date": (
-                df["date"].dropna().astype(str).iloc[-1]
-                if "date" in df.columns and not df.empty
-                else None
-            ),
-            "transaction_count": len(df),
-            "total_amount": (
-                sum(df["amount"].dropna(), Decimal("0"))
-                if "amount" in df.columns
-                else Decimal("0")
-            ),
-            "opening_balance": None,
-            "closing_balance": None,
-            "currency": (
-                df["currency"].dropna().astype(str).iloc[0]
-                if "currency" in df.columns and not df.empty
-                else None
-            ),
-        }
+        """Return a single OFX scope, rejecting mixed account/currency totals."""
+        return _single_summary(self.get_summaries())
 
 
 class Mt940Parser(BankStatementParser):
@@ -386,78 +414,131 @@ class Mt940Parser(BankStatementParser):
         super().__init__(file_name)
         self._path, self._text = _read_validated_text(file_name)
         self._parsed_df: pd.DataFrame | None = None
-        self._opening_balance: Decimal | None = None
-        self._closing_balance: Decimal | None = None
-        self._account_id: str | None = None
-        self._currency: str | None = None
+        self._summaries: list[SummaryRecord] = []
+
+    @staticmethod
+    def _empty_summary() -> SummaryRecord:
+        """Create an independent statement scope with unknown balances."""
+        return {
+            "account_id": None,
+            "currency": None,
+            "statement_date": None,
+            "transaction_count": 0,
+            "total_amount": Decimal("0"),
+            "opening_balance": None,
+            "closing_balance": None,
+        }
 
     def parse(self) -> pd.DataFrame:
-        """Parse ``:61:``/``:86:`` lines into a DataFrame."""
+        """Parse statement-scoped transactions, signed balances and reversals.
+
+        Two-digit dates use Python's explicit 1969-2068 interpretation.
+        RC reverses a credit (negative); RD reverses a debit (positive).
+        """
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
         rows: list[TransactionRecord] = []
+        summaries: list[SummaryRecord] = []
+        summary = self._empty_summary()
         current: TransactionRecord | None = None
-        current_account_id: str | None = None
-        current_currency: str | None = None
         in_86 = False
+        has_scope = False
 
         for raw_line in self._text.splitlines():
             line = raw_line.strip()
             if not line:
                 continue
 
-            if line.startswith(":25:"):
+            if line.startswith(":20:") or (
+                line.startswith(":25:") and summary["account_id"] is not None
+            ):
+                if has_scope:
+                    summaries.append(summary)
+                summary = self._empty_summary()
+                current = None
                 in_86 = False
-                current_account_id = line[4:].strip() or None
-                if self._account_id is None:
-                    self._account_id = current_account_id
+                has_scope = True
+            if line.startswith(":20:"):
+                summary["message_id"] = line[4:].strip() or None
+            elif line.startswith(":25:"):
+                has_scope = True
+                in_86 = False
+                current = None
+                summary["account_id"] = line[4:].strip() or None
+            elif line.startswith(":28C:"):
+                summary["statement_id"] = line[5:].strip() or None
+                current = None
+                in_86 = False
             elif line.startswith((":60F:", ":60M:", ":62F:", ":62M:")):
+                has_scope = True
                 in_86 = False
-                match = re.match(
-                    r"^:(60F|60M|62F|62M):[CD](\d{6})([A-Z]{3})([0-9,]+)$",
+                current = None
+                match = re.fullmatch(
+                    r":(60F|60M|62F|62M):([CD])(\d{6})([A-Z]{3})([0-9,]+)",
                     line,
                 )
-                if match is not None:
-                    amount = _parse_amount(match.group(4))
-                    current_currency = match.group(3)
-                    if self._currency is None:
-                        self._currency = current_currency
-                    if (
-                        match.group(1).startswith("60")
-                        and self._opening_balance is None
-                    ):
-                        self._opening_balance = amount
-                    elif match.group(1).startswith("62"):
-                        self._closing_balance = amount
-            elif line.startswith(":61:"):
-                in_86 = False
-                match = re.match(
-                    r"^:61:(\d{6})(?:\d{4})?([A-Z]{1,2})([0-9,]+)(.*)$",
-                    line,
-                )
-                if match is not None:
-                    cd_mark = match.group(2).upper()
-                    # Debit marks: D, RD (Reversal Debit), ED (Electronic Debit)
-                    sign = (
-                        Decimal("-1")
-                        if cd_mark in {"D", "RD", "ED"}
-                        else Decimal("1")
+                if match is None:
+                    raise ValidationError("Malformed MT940 balance line")
+                currency = match.group(4)
+                if summary["currency"] not in (None, currency):
+                    raise ValidationError(
+                        "Conflicting MT940 statement currencies"
                     )
-                    current_record: TransactionRecord = {
-                        "date": match.group(1),
-                        "amount": sign
-                        * _require_amount(
-                            match.group(3),
-                            context="MT940 :61: line",
-                        ),
-                        "transaction_id": match.group(4).strip() or None,
-                        "account_id": current_account_id or self._account_id,
-                        "currency": current_currency or self._currency,
-                        "description": None,
-                    }
-                    current = current_record
-                    rows.append(current_record)
+                summary["currency"] = currency
+                amount = _require_amount(
+                    match.group(5), context="MT940 balance"
+                )
+                if match.group(2) == "D":
+                    amount = -amount
+                balance_key: Literal["opening_balance", "closing_balance"] = (
+                    "opening_balance"
+                    if match.group(1).startswith("60")
+                    else "closing_balance"
+                )
+                if summary[balance_key] not in (None, amount):
+                    raise ValidationError(
+                        "Conflicting MT940 statement balances"
+                    )
+                summary[balance_key] = amount
+                summary["statement_date"] = (
+                    datetime.strptime(match.group(3), "%y%m%d")
+                    .date()
+                    .isoformat()
+                )
+            elif line.startswith(":61:"):
+                has_scope = True
+                in_86 = False
+                match = re.fullmatch(
+                    r":61:(\d{6})(?:\d{4})?(RC|RD|EC|ED|C|D)[A-Z]?([0-9,]+)(.*)",
+                    line,
+                )
+                if match is None:
+                    raise ValidationError(
+                        "Malformed MT940 :61: transaction line"
+                    )
+                # Debit and credit reversals have the opposite cash direction.
+                sign = (
+                    Decimal("-1")
+                    if match.group(2) in {"D", "RC", "ED"}
+                    else Decimal("1")
+                )
+                amount = sign * _require_amount(
+                    match.group(3), context="MT940 :61: line"
+                )
+                current = {
+                    "date": datetime.strptime(match.group(1), "%y%m%d")
+                    .date()
+                    .isoformat(),
+                    "amount": amount,
+                    "transaction_id": match.group(4).strip() or None,
+                    "account_id": summary["account_id"],
+                    "currency": summary["currency"],
+                    "description": None,
+                }
+                rows.append(current)
+                summary["transaction_count"] += 1
+                summary["total_amount"] += amount
             elif line.startswith(":86:") and current is not None:
                 current["description"] = line[4:].strip() or None
                 in_86 = True
@@ -472,30 +553,21 @@ class Mt940Parser(BankStatementParser):
                     ).strip() or None
                 else:
                     in_86 = False
+                    current = None
 
+        summaries.append(summary)
+        self._summaries = summaries
         self._parsed_df = pd.DataFrame(rows)
         return self._parsed_df.copy()
 
+    def get_summaries(self) -> list[SummaryRecord]:
+        """Return independent MT940 statement totals and signed balances."""
+        self.parse()
+        return [summary.copy() for summary in self._summaries]
+
     def get_summary(self) -> SummaryRecord:
-        """Summarize the parsed MT940 statement."""
-        df = self.parse()
-        return {
-            "account_id": self._account_id,
-            "statement_date": (
-                df["date"].dropna().astype(str).iloc[-1]
-                if "date" in df.columns and not df.empty
-                else None
-            ),
-            "transaction_count": len(df),
-            "total_amount": (
-                sum(df["amount"].dropna(), Decimal("0"))
-                if "amount" in df.columns
-                else Decimal("0")
-            ),
-            "opening_balance": self._opening_balance,
-            "closing_balance": self._closing_balance,
-            "currency": self._currency,
-        }
+        """Return one MT940 account/currency scope, rejecting mixed files."""
+        return _single_summary(self.get_summaries())
 
 
 QfxParser = OfxParser

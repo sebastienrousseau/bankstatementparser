@@ -23,17 +23,19 @@ import logging
 import os
 import re
 from collections.abc import Generator
+from contextlib import ExitStack
 from decimal import Decimal
 from io import BytesIO
-from typing import Optional, Union, cast
+from typing import BinaryIO, Optional, Union, cast
 
 import pandas as pd
 from lxml import etree
 
 from ._amounts import iso_decimal
-from .base_parser import BankStatementParser
+from .base_parser import BankStatementParser, _single_summary
 from .exceptions import Pain001ParseError
 from .input_validator import InputValidator, ValidationError
+from .privacy import redact_record
 from .record_types import PaymentRecord, SummaryRecord
 
 # Configuring the logging
@@ -47,11 +49,13 @@ PAIN_NAMESPACE_PATTERN = re.compile(
 class Pain001Parser(BankStatementParser):
     """Class to parse PAIN.001 format bank statement files."""
 
-    def __init__(self, file_name: str) -> None:
+    def __init__(self, file_name: str, *, lazy: bool = False) -> None:
         """Initialize the parser with the file name.
 
         Args:
             file_name (str): Path to the PAIN.001 file.
+            lazy (bool): Defer tree loading; streaming reads directly from disk.
+                XML syntax errors are then reported during iteration.
 
         Raises:
             FileNotFoundError: If file does not exist.
@@ -78,7 +82,28 @@ class Pain001Parser(BankStatementParser):
                 raise
 
         self.file_name = file_name
+        self._stream_from_file = lazy
+        self._lazy_tree = lazy
+        self._tree: etree._Element | None = None
+        if not lazy:
+            self._load_tree()
 
+    @property
+    def tree(self) -> etree._Element:
+        """Materialize the XML tree only when an eager API needs it."""
+        if self._lazy_tree:
+            self._load_tree()
+        return self._tree
+
+    @tree.setter
+    def tree(self, value: etree._Element) -> None:
+        """Keep compatibility with callers replacing the parsed tree."""
+        self._tree = value
+        self._lazy_tree = False
+
+    def _load_tree(self) -> None:
+        """Read and parse a file for eager access."""
+        file_name = self.file_name
         try:
             # Attempt to open and read the file content
             with open(file_name, encoding="utf-8") as f:
@@ -112,6 +137,8 @@ class Pain001Parser(BankStatementParser):
                 no_network=True,
             )
             self.tree = etree.fromstring(data_bytes, parser)
+            for element in self.tree.iter():
+                self._local_name(element)
         except ValueError as e:
             logger.error("XML syntax error: %s", str(e))
             # Check if it's a basic XML structure error and use appropriate message
@@ -131,6 +158,16 @@ class Pain001Parser(BankStatementParser):
                 raise ValidationError(
                     f"Invalid XML format: {error_msg}"
                 ) from e
+
+    @staticmethod
+    def _local_name(element: etree._Element) -> None:
+        """Remove only PAIN namespaces, retaining foreign extension elements."""
+        if isinstance(element.tag, str) and element.tag.startswith("{"):
+            name = etree.QName(element)
+            if name.namespace and name.namespace.startswith(
+                "urn:iso:std:iso:20022:tech:xsd:pain."
+            ):
+                element.tag = name.localname
 
     def _normalize_xml_text(self, data: str) -> str:
         """Strip the default PAIN namespace for simpler XPath handling."""
@@ -220,6 +257,12 @@ class Pain001Parser(BankStatementParser):
                             dbtr_agt.text if dbtr_agt is not None else None
                         )
 
+                # Standard PAIN debtor accounts are siblings of Dbtr; retain
+                # the legacy nested lookup above for older bank exports.
+                debtor_account = pmt.find("DbtrAcct/Id/IBAN")
+                if debtor_account is not None:
+                    pmt_fields["DbtrIBAN"] = debtor_account.text
+
                 # Batch process all transactions for this payment
                 transactions = pmt.findall("CdtTrfTxInf")
                 for tx in transactions:
@@ -265,7 +308,9 @@ class Pain001Parser(BankStatementParser):
 
                     # Add header fields to each payment record
                     payment.update(header_fields)
-                    payments.append(payment)
+                    payments.append(
+                        redact_record(payment) if redact_pii else payment
+                    )
 
             # Create DataFrame from parsed data
             df = pd.DataFrame.from_records(payments)
@@ -295,7 +340,7 @@ class Pain001Parser(BankStatementParser):
         large files.
 
         Parameters:
-            redact_pii (bool): Whether to redact PII data (address fields).
+            redact_pii (bool): Whether to mask identities, identifiers and narratives.
 
         Yields:
             Dict[str, Any]: Individual payment transaction data.
@@ -343,179 +388,199 @@ class Pain001Parser(BankStatementParser):
                 f"Error reading file {file_path}: {exc}"
             ) from exc
 
+        source_stream: Union[BytesIO, str, BinaryIO]
         temp_file: Optional[str] = None
-        try:
-            if file_size <= _STREAMING_MEMORY_THRESHOLD:
-                # Small file — fast path via BytesIO
-                try:
-                    with open(file_path, encoding="utf-8") as f:
-                        data = f.read()
-                except FileNotFoundError as exc:
-                    logger.error(
-                        "File %s not found for streaming!",
-                        file_path,
+        with ExitStack() as resources:
+            try:
+                if self._stream_from_file:
+                    source_stream = resources.enter_context(
+                        open(file_path, "rb")
                     )
-                    raise FileNotFoundError(
-                        f"PAIN.001 file not found: {file_path}"
-                    ) from exc
-                except PermissionError as exc:
-                    logger.error(
-                        "Permission denied reading file for streaming: %s",
-                        file_path,
-                    )
-                    raise ValidationError(
-                        f"Permission denied reading file: {file_path}"
-                    ) from exc
-                except OSError as e:
-                    logger.error(
-                        "Error reading file for streaming: %s",
-                        str(e),
-                    )
-                    raise ValidationError(
-                        f"Error reading file {file_path}: {e!s}"
-                    ) from e
-
-                data_bytes = self._normalize_xml_text(data).encode("utf-8")
-                source_stream: Union[BytesIO, str] = BytesIO(data_bytes)
-            else:
-                # Large file — chunk-based namespace stripping to a
-                # temp file so peak memory stays bounded.
-                import tempfile as _tf
-
-                fd, temp_file = _tf.mkstemp(
-                    suffix=".xml", prefix="bsp_stream_"
-                )
-                try:
-                    with (
-                        open(file_path, encoding="utf-8") as src,
-                        os.fdopen(fd, "w", encoding="utf-8") as dst,
-                    ):
-                        for chunk in iter(
-                            lambda: src.read(8 * 1024 * 1024), ""
-                        ):
-                            dst.write(PAIN_NAMESPACE_PATTERN.sub("", chunk))
-                except FileNotFoundError as exc:
-                    logger.error(
-                        "File %s not found for streaming!",
-                        file_path,
-                    )
-                    raise FileNotFoundError(
-                        f"PAIN.001 file not found: {file_path}"
-                    ) from exc
-                except PermissionError as exc:
-                    logger.error(
-                        "Permission denied reading file for streaming: %s",
-                        file_path,
-                    )
-                    raise ValidationError(
-                        f"Permission denied reading file: {file_path}"
-                    ) from exc
-                except OSError as e:
-                    logger.error(
-                        "Error reading file for streaming: %s",
-                        str(e),
-                    )
-                    raise ValidationError(
-                        f"Error reading file {file_path}: {e!s}"
-                    ) from e
-
-                source_stream = temp_file
-
-            # Track context for header and payment info
-            header_fields: dict[str, Optional[str]] = {}
-            current_payment_info: dict[str, Optional[str]] = {}
-
-            for event, elem in etree.iterparse(
-                source_stream,
-                events=("start", "end"),
-                resolve_entities=False,
-                load_dtd=False,
-                no_network=True,
-                huge_tree=False,
-            ):
-                if event == "end" and elem.tag == "GrpHdr":
-                    for child in elem:
-                        if child.tag in [
-                            "MsgId",
-                            "CreDtTm",
-                            "NbOfTxs",
-                        ]:
-                            header_fields[child.tag] = child.text
-                        elif child.tag == "InitgPty":
-                            nm_elem = child.find("Nm")
-                            header_fields["InitgPty"] = (
-                                nm_elem.text if nm_elem is not None else None
-                            )
-                    elem.clear()
-
-                elif event == "start" and elem.tag == "PmtInf":
-                    current_payment_info = {}
-
-                elif event == "end" and elem.tag in (
-                    "PmtInfId",
-                    "PmtMtd",
-                    "NbOfTxs",
-                    "CtrlSum",
-                    "ReqdExctnDt",
-                    "ChrgBr",
-                ):
-                    parent = elem.getparent()
-                    if parent is not None and parent.tag == "PmtInf":
-                        current_payment_info[elem.tag] = elem.text
-
-                elif event == "end" and elem.tag == "Dbtr":
-                    parent = elem.getparent()
-                    if parent is not None and parent.tag == "PmtInf":
-                        dbtr_name = elem.find("Nm")
-                        current_payment_info["DbtrNm"] = (
-                            dbtr_name.text if dbtr_name is not None else None
-                        )
-
-                elif event == "end" and elem.tag == "DbtrAcct":
-                    parent = elem.getparent()
-                    if parent is not None and parent.tag == "PmtInf":
-                        iban = elem.find("Id/IBAN")
-                        current_payment_info["DbtrIBAN"] = (
-                            iban.text if iban is not None else None
-                        )
-
-                elif event == "end" and elem.tag == "DbtrAgt":
-                    parent = elem.getparent()
-                    if parent is not None and parent.tag == "PmtInf":
-                        bic = elem.find("FinInstnId/BIC")
-                        current_payment_info["DbtrBIC"] = (
-                            bic.text if bic is not None else None
-                        )
-
-                elif event == "end" and elem.tag == "CdtTrfTxInf":
+                elif file_size <= _STREAMING_MEMORY_THRESHOLD:
+                    # Small file — fast path via BytesIO
                     try:
-                        payment_data = self._parse_streaming_payment(
-                            elem,
-                            current_payment_info,
-                            header_fields,
-                            redact_pii,
-                        )
-                        yield payment_data
-                    except Exception as e:
+                        with open(file_path, encoding="utf-8") as f:
+                            data = f.read()
+                    except FileNotFoundError as exc:
                         logger.error(
-                            "Error parsing payment transaction: %s",
-                            e,
+                            "File %s not found for streaming!",
+                            file_path,
                         )
-                        raise
-                    finally:
+                        raise FileNotFoundError(
+                            f"PAIN.001 file not found: {file_path}"
+                        ) from exc
+                    except PermissionError as exc:
+                        logger.error(
+                            "Permission denied reading file for streaming: %s",
+                            file_path,
+                        )
+                        raise ValidationError(
+                            f"Permission denied reading file: {file_path}"
+                        ) from exc
+                    except OSError as e:
+                        logger.error(
+                            "Error reading file for streaming: %s",
+                            str(e),
+                        )
+                        raise ValidationError(
+                            f"Error reading file {file_path}: {e!s}"
+                        ) from e
+
+                    data_bytes = self._normalize_xml_text(data).encode("utf-8")
+                    source_stream = BytesIO(data_bytes)
+                else:
+                    # Large file — chunk-based namespace stripping to a
+                    # temp file so peak memory stays bounded.
+                    import tempfile as _tf
+
+                    fd, temp_file = _tf.mkstemp(
+                        suffix=".xml", prefix="bsp_stream_"
+                    )
+                    try:
+                        with (
+                            open(file_path, encoding="utf-8") as src,
+                            os.fdopen(fd, "w", encoding="utf-8") as dst,
+                        ):
+                            for chunk in iter(
+                                lambda: src.read(8 * 1024 * 1024), ""
+                            ):
+                                dst.write(
+                                    PAIN_NAMESPACE_PATTERN.sub("", chunk)
+                                )
+                    except FileNotFoundError as exc:
+                        logger.error(
+                            "File %s not found for streaming!",
+                            file_path,
+                        )
+                        raise FileNotFoundError(
+                            f"PAIN.001 file not found: {file_path}"
+                        ) from exc
+                    except PermissionError as exc:
+                        logger.error(
+                            "Permission denied reading file for streaming: %s",
+                            file_path,
+                        )
+                        raise ValidationError(
+                            f"Permission denied reading file: {file_path}"
+                        ) from exc
+                    except OSError as e:
+                        logger.error(
+                            "Error reading file for streaming: %s",
+                            str(e),
+                        )
+                        raise ValidationError(
+                            f"Error reading file {file_path}: {e!s}"
+                        ) from e
+
+                    source_stream = temp_file
+
+                # Track context for header and payment info
+                header_fields: dict[str, Optional[str]] = {}
+                current_payment_info: dict[str, Optional[str]] = {}
+
+                for event, elem in etree.iterparse(
+                    source_stream,
+                    events=("start", "end"),
+                    resolve_entities=False,
+                    load_dtd=False,
+                    no_network=True,
+                    huge_tree=False,
+                    encoding="utf-8",
+                ):
+                    if event == "start":
+                        self._local_name(elem)
+                    if event == "end" and elem.tag == "GrpHdr":
+                        header_fields = {"InitgPty": None}
+                        for child in elem:
+                            if child.tag in [
+                                "MsgId",
+                                "CreDtTm",
+                                "NbOfTxs",
+                            ]:
+                                header_fields[child.tag] = child.text
+                            elif child.tag == "InitgPty":
+                                nm_elem = child.find("Nm")
+                                header_fields["InitgPty"] = (
+                                    nm_elem.text
+                                    if nm_elem is not None
+                                    else None
+                                )
+                        elem.clear()
+
+                    elif event == "start" and elem.tag == "PmtInf":
+                        current_payment_info = {}
+
+                    elif event == "end" and elem.tag in (
+                        "PmtInfId",
+                        "PmtMtd",
+                        "NbOfTxs",
+                        "CtrlSum",
+                        "ReqdExctnDt",
+                        "ChrgBr",
+                    ):
+                        parent = elem.getparent()
+                        if parent is not None and parent.tag == "PmtInf":
+                            current_payment_info[elem.tag] = elem.text
+
+                    elif event == "end" and elem.tag == "Dbtr":
+                        parent = elem.getparent()
+                        if parent is not None and parent.tag == "PmtInf":
+                            dbtr_name = elem.find("Nm")
+                            current_payment_info["DbtrNm"] = (
+                                dbtr_name.text
+                                if dbtr_name is not None
+                                else None
+                            )
+
+                    elif event == "end" and elem.tag == "DbtrAcct":
+                        parent = elem.getparent()
+                        if parent is not None and parent.tag == "PmtInf":
+                            iban = elem.find("Id/IBAN")
+                            current_payment_info["DbtrIBAN"] = (
+                                iban.text if iban is not None else None
+                            )
+
+                    elif event == "end" and elem.tag == "DbtrAgt":
+                        parent = elem.getparent()
+                        if parent is not None and parent.tag == "PmtInf":
+                            bic = elem.find("FinInstnId/BIC")
+                            current_payment_info["DbtrBIC"] = (
+                                bic.text if bic is not None else None
+                            )
+
+                    elif event == "end" and elem.tag == "CdtTrfTxInf":
+                        try:
+                            payment_data = self._parse_streaming_payment(
+                                elem,
+                                current_payment_info,
+                                header_fields,
+                                redact_pii,
+                            )
+                            yield payment_data
+                        except Exception as e:
+                            logger.error(
+                                "Error parsing payment transaction: %s",
+                                e,
+                            )
+                            raise
+                        finally:
+                            elem.clear()
+                            while elem.getprevious() is not None:
+                                del elem.getparent()[0]
+                    elif event == "end" and elem.tag == "PmtInf":
                         elem.clear()
                         while elem.getprevious() is not None:
                             del elem.getparent()[0]
-        finally:
-            if temp_file is not None:
-                try:
-                    os.unlink(temp_file)
-                except OSError as exc:
-                    logger.debug(
-                        "Could not remove temp file %s: %s",
-                        temp_file,
-                        exc,
-                    )
+            finally:
+                if temp_file is not None:
+                    try:
+                        os.unlink(temp_file)
+                    except OSError as exc:
+                        logger.debug(
+                            "Could not remove temp file %s: %s",
+                            temp_file,
+                            exc,
+                        )
 
     def _parse_streaming_payment(
         self,
@@ -530,7 +595,7 @@ class Pain001Parser(BankStatementParser):
             tx_elem (etree.Element): XML element representing a credit transfer transaction.
             payment_info (Dict[str, Any]): Payment-level information.
             header_fields (Dict[str, Any]): Header-level information.
-            redact_pii (bool): Whether to redact PII data (address fields).
+            redact_pii (bool): Whether to mask identities, identifiers and narratives.
 
         Returns:
             Dict[str, Any]: Parsed payment data.
@@ -573,14 +638,11 @@ class Pain001Parser(BankStatementParser):
 
         # Apply PII redaction if requested
         if redact_pii:
-            pii_fields = ["DbtrNm", "CdtrNm", "DbtrIBAN", "InitgPty"]
-            for field in pii_fields:
-                if payment.get(field):
-                    payment[field] = "***REDACTED***"
+            payment = redact_record(payment)
 
         return cast(PaymentRecord, payment)
 
-    def get_summary(self, redact_pii: bool = False) -> SummaryRecord:
+    def get_summaries(self, redact_pii: bool = False) -> list[SummaryRecord]:
         """Get a summary of the parsed PAIN.001 statement data.
 
         Returns:
@@ -617,10 +679,14 @@ class Pain001Parser(BankStatementParser):
 
             # Batch extract all payment information and calculate totals
             payment_info_records = root.findall(".//CstmrCdtTrfInitn/PmtInf")
-            total_amount = Decimal("0")
-            currency = "Unknown"
+            groups: dict[tuple[str, str], SummaryRecord] = {}
 
             for pmt in payment_info_records:
+                account = (
+                    pmt.findtext("./DbtrAcct/Id/IBAN")
+                    or pmt.findtext("./Dbtr/DbtrAcct/Id/IBAN")
+                    or "Unknown"
+                )
                 # Pre-extract all transactions for this payment in one call
                 transactions = pmt.findall("CdtTrfTxInf")
                 for tx in transactions:
@@ -631,28 +697,49 @@ class Pain001Parser(BankStatementParser):
                             amt_elem = child.find("InstdAmt")
                             break
 
-                    if amt_elem is not None and amt_elem.text:
-                        total_amount += iso_decimal(
-                            amt_elem.text,
-                            context="InstdAmt element",
+                    if amt_elem is None or not amt_elem.text:
+                        raise Pain001ParseError(
+                            "Summary requires every payment amount"
                         )
-                        if currency == "Unknown":
-                            currency = amt_elem.get("Ccy", "Unknown")
+                    currency = amt_elem.get("Ccy", "Unknown")
+                    key = (account, currency)
+                    if key not in groups:
+                        groups[key] = {
+                            "account_id": account,
+                            "statement_date": header_data["CreDtTm"],
+                            "transaction_count": 0,
+                            "total_amount": Decimal("0"),
+                            "currency": currency,
+                            "message_id": header_data["MsgId"],
+                            "initiating_party": header_data["InitgPty"],
+                        }
+                    summary = groups[key]
+                    summary["transaction_count"] += 1
+                    summary["total_amount"] += iso_decimal(
+                        amt_elem.text, context="InstdAmt element"
+                    )
 
-            return {
-                "account_id": header_data["InitgPty"],
-                "statement_date": header_data["CreDtTm"],
-                "transaction_count": (
-                    int(header_data["NbOfTxs"])
-                    if header_data["NbOfTxs"].isdigit()
-                    else 0
-                ),
-                "total_amount": total_amount,
-                "currency": currency,
-                "message_id": header_data["MsgId"],
-                "initiating_party": header_data["InitgPty"],
-            }
+            summaries = list(groups.values()) or [
+                {
+                    "account_id": "Unknown",
+                    "statement_date": header_data["CreDtTm"],
+                    "transaction_count": 0,
+                    "total_amount": Decimal("0"),
+                    "currency": "Unknown",
+                    "message_id": header_data["MsgId"],
+                    "initiating_party": header_data["InitgPty"],
+                }
+            ]
+            return (
+                [cast(SummaryRecord, redact_record(row)) for row in summaries]
+                if redact_pii
+                else summaries
+            )
         except Exception as e:
             raise Pain001ParseError(
                 f"cannot summarise {self.file_name}: {e}"
             ) from e
+
+    def get_summary(self, redact_pii: bool = False) -> SummaryRecord:
+        """Return one account/currency scope; reject totals spanning scopes."""
+        return _single_summary(self.get_summaries(redact_pii=redact_pii))

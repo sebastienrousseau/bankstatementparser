@@ -31,14 +31,19 @@ from bankstatementparser.hybrid.vision import (
 # ---------------------------------------------------------------------------
 
 
-class _FakeBitmap:
+class _Closable:
+    def close(self) -> None:
+        pass
+
+
+class _FakeBitmap(_Closable):
     def __init__(self, payload: bytes) -> None:
         self._payload = payload
 
     def to_pil(self) -> Any:
         bitmap = self
 
-        class _PilLike:
+        class _PilLike(_Closable):
             def save(self, buffer: Any, format: str) -> None:
                 assert format == "PNG"
                 buffer.write(bitmap._payload)
@@ -46,7 +51,7 @@ class _FakeBitmap:
         return _PilLike()
 
 
-class _FakePage:
+class _FakePage(_Closable):
     def __init__(self, payload: bytes, *, fail: bool = False) -> None:
         self._payload = payload
         self._fail = fail
@@ -57,7 +62,7 @@ class _FakePage:
         return _FakeBitmap(self._payload)
 
 
-class _FakePdfDocument:
+class _FakePdfDocument(_Closable):
     def __init__(self, pages: list[_FakePage]) -> None:
         self._pages = pages
 
@@ -174,15 +179,13 @@ def test_vision_extract_caps_pages(
             ]
         }
 
-    VisionExtractor(
-        model="ollama/llava",
-        completion_fn=fake_completion,
-        max_pages=3,
-    ).extract(pdf_path)
-
-    user_content = captured["messages"][1]["content"]
-    # 1 text + 3 images (capped)
-    assert len(user_content) == 4
+    with pytest.raises(VisionExtractorError, match="truncated statement"):
+        VisionExtractor(
+            model="ollama/llava",
+            completion_fn=fake_completion,
+            max_pages=3,
+        ).extract(pdf_path)
+    assert not captured
 
 
 def test_vision_requires_configured_model(
@@ -332,7 +335,7 @@ def test_vision_module_exports_error_subclass() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _FakePil:
+class _FakePil(_Closable):
     def __init__(self, width: int = 800, height: int = 1200) -> None:
         self.size = (width, height)
 
@@ -343,12 +346,12 @@ class _FakePil:
         buffer.write(b"PNG_STRIP")
 
 
-class _FakeBitmapPil:
+class _FakeBitmapPil(_Closable):
     def to_pil(self) -> _FakePil:
         return _FakePil()
 
 
-class _FakePageStrip:
+class _FakePageStrip(_Closable):
     def render(self, scale: float) -> _FakeBitmapPil:
         return _FakeBitmapPil()
 
@@ -360,7 +363,7 @@ def _install_fake_pdfium_strip(
 ) -> None:
     module = types.ModuleType("pypdfium2")
 
-    class _Doc:
+    class _Doc(_Closable):
         def __init__(self, _path: str) -> None:
             self._pages = [_FakePageStrip() for _ in range(page_count)]
 
@@ -428,7 +431,7 @@ def test_strip_extractor_calls_completion_per_strip(
             }
         else:
             # Last strip — re-emit "Body tx A" verbatim to exercise
-            # the transaction_hash dedup logic.
+            # occurrence preservation when no spatial evidence is supplied.
             payload = {
                 "transactions": [
                     {
@@ -455,7 +458,7 @@ def test_strip_extractor_calls_completion_per_strip(
     assert result.opening_balance == Decimal("1500.00")
     assert result.closing_balance == Decimal("1450.00")
     descriptions = [tx.description for tx in result.transactions]
-    assert descriptions == ["Header tx", "Body tx A", "Body tx B"]
+    assert descriptions == ["Header tx", "Body tx A", "Body tx B", "Body tx A"]
     assert "TOP STRIP" in captured_messages[0][0]["content"]
     assert "HORIZONTAL BAND" in captured_messages[1][0]["content"]
 
@@ -515,13 +518,13 @@ def test_strip_extractor_render_failure_wrapped(
     pdf_path = tmp_path / "scan.pdf"
     pdf_path.write_bytes(b"%PDF stub")
 
-    class _BoomPage:
+    class _BoomPage(_Closable):
         def render(self, scale: float) -> Any:
             raise RuntimeError("render boom")
 
     fake = types.ModuleType("pypdfium2")
 
-    class _Doc:
+    class _Doc(_Closable):
         def __init__(self, _path: str) -> None:
             self._pages = [_BoomPage()]
 
@@ -549,23 +552,23 @@ def test_strip_extractor_crop_failure_wrapped(
     pdf_path = tmp_path / "scan.pdf"
     pdf_path.write_bytes(b"%PDF stub")
 
-    class _BadPil:
+    class _BadPil(_Closable):
         size = (800, 1200)
 
         def crop(self, _box: Any) -> Any:
             raise RuntimeError("crop boom")
 
-    class _BadBitmap:
+    class _BadBitmap(_Closable):
         def to_pil(self) -> _BadPil:
             return _BadPil()
 
-    class _Page:
+    class _Page(_Closable):
         def render(self, scale: float) -> _BadBitmap:
             return _BadBitmap()
 
     fake = types.ModuleType("pypdfium2")
 
-    class _Doc:
+    class _Doc(_Closable):
         def __init__(self, _path: str) -> None:
             self._pages = [_Page()]
 
@@ -630,3 +633,125 @@ def test_render_strips_missing_pypdfium2_raises(
     )
     with pytest.raises(VisionExtractorError, match="pypdfium2 is required"):
         extractor._render_strips(pdf_path)
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_nonpositive_page_budget_rejected(limit: int) -> None:
+    with pytest.raises(ValueError, match="max_pages"):
+        VisionExtractor(model="local/model", max_pages=limit)
+
+
+def test_strip_page_budget_rejects_before_rendering(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    closed = []
+    monkeypatch.setattr(
+        _Closable, "close", lambda obj: closed.append(type(obj).__name__)
+    )
+    _install_fake_pdfium_strip(monkeypatch, page_count=6)
+    with pytest.raises(VisionExtractorError, match="truncated statement"):
+        VisionExtractor(
+            model="local/model", max_pages=5, strip_rows=True
+        )._render_strips(Path("oversize.pdf"))
+    assert closed == ["_Doc"]
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_render_closes_native_resources_on_success_and_failure(
+    monkeypatch: pytest.MonkeyPatch, fail: bool
+) -> None:
+    closed = []
+    monkeypatch.setattr(
+        _Closable, "close", lambda obj: closed.append(type(obj).__name__)
+    )
+    _install_fake_pdfium(monkeypatch, [_FakePage(b"PNG", fail=fail)])
+    extractor = VisionExtractor(model="local/model")
+    if fail:
+        with pytest.raises(VisionExtractorError, match="render page"):
+            extractor._render_pages(Path("statement.pdf"))
+        assert closed == ["_FakePage", "_FakePdfDocument"]
+    else:
+        assert extractor._render_pages(Path("statement.pdf")) == [b"PNG"]
+        assert closed == [
+            "_PilLike",
+            "_FakeBitmap",
+            "_FakePage",
+            "_FakePdfDocument",
+        ]
+
+
+def test_strip_merge_preserves_occurrences_and_maps_page_coordinates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_fake_pdfium_strip(monkeypatch, page_count=2)
+    calls = []
+
+    def complete(**kwargs: Any) -> Any:
+        index = len(calls)
+        calls.append(kwargs)
+        top, bottom = (0.0, 0.55) if index % 2 == 0 else (0.45, 1.0)
+        row = {
+            "booking_date": "2026-09-25",
+            "description": "Repeated purchase",
+            "amount": "-10",
+            "bbox": {
+                "x0": 0.1,
+                "x1": 0.9,
+                "y0": (0.49 - top) / (bottom - top),
+                "y1": (0.51 - top) / (bottom - top),
+                "page_index": 0,
+            },
+        }
+        payload = {"transactions": [row] * (2 if index < 2 else 1)}
+        if index == 0:
+            payload.update(account_id="0001", currency="EUR")
+        return {"choices": [{"message": {"content": json.dumps(payload)}}]}
+
+    result = VisionExtractor(
+        model="local/model",
+        strip_rows=True,
+        n_strips=2,
+        completion_fn=complete,
+    ).extract("statement.pdf")
+    assert len(result.transactions) == 3
+    assert [tx.source_page for tx in result.transactions] == [0, 0, 1]
+    for tx in result.transactions:
+        assert tx.source_bbox is not None
+        assert tx.source_bbox.page_index == tx.source_page
+        assert tx.source_bbox.y0 == pytest.approx(0.49)
+        assert tx.source_bbox.y1 == pytest.approx(0.51)
+        assert tx.account_id == "0001"
+        assert tx.currency == "EUR"
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"source_bbox": None},
+        {"amount": "20"},
+        {"source_bbox": {"x0": 0, "y0": 0, "x1": 0.1, "y1": 0.1}},
+        {
+            "source_bbox": {
+                "x0": 0.1,
+                "y0": 0.2,
+                "x1": 0.9,
+                "y1": 0.3,
+                "page_index": 1,
+            }
+        },
+    ],
+)
+def test_spatial_merge_requires_identity_and_position(change: dict) -> None:
+    from bankstatementparser.transaction_models import Transaction
+
+    record = {
+        "amount": "10",
+        "source_bbox": {"x0": 0.1, "y0": 0.2, "x1": 0.9, "y1": 0.3},
+    }
+    left = Transaction.model_validate(record)
+    right = Transaction.model_validate(record | change)
+    assert not vision_mod._same_source_row(left, right)
+    zero = Transaction.model_validate(
+        {"amount": "10", "source_bbox": {"x0": 0, "y0": 0, "x1": 0, "y1": 0}}
+    )
+    assert not vision_mod._same_source_row(zero, zero)
