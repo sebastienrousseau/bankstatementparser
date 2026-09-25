@@ -69,6 +69,7 @@ class CamtParser(BankStatementParser):
         file_name: Union[str, Path],
         *,
         allow_recovery: bool = False,
+        lazy: bool = False,
     ) -> None:
         """Initializes the parser with the given file.
 
@@ -77,6 +78,9 @@ class CamtParser(BankStatementParser):
             allow_recovery (bool): If True, retry malformed XML with
                 lxml's recovery parser (which silently drops broken
                 content). Strict parsing is the default.
+            lazy (bool): Validate the path now and defer XML loading. Use with
+                parse_streaming to avoid retaining the document in memory.
+                XML syntax errors are then reported during iteration.
 
         Raises:
             FileNotFoundError: If file does not exist.
@@ -85,6 +89,9 @@ class CamtParser(BankStatementParser):
         """
         super().__init__(file_name)
         self._allow_recovery = allow_recovery
+        self._stream_from_file = lazy
+        self._lazy_tree = lazy
+        self._tree: etree._Element | None = None
         self._initialize_from_file(file_name)
         self._set_definitions()
 
@@ -144,6 +151,7 @@ class CamtParser(BankStatementParser):
         parser._source_name = safe_source_name
         parser._source_is_memory = True
         parser._allow_recovery = allow_recovery
+        parser._stream_from_file = False
         parser._xml_bytes = parser._normalize_xml_bytes(raw_bytes)
         parser.tree = parser._parse_xml_bytes(
             parser._xml_bytes, parser._source_name
@@ -156,9 +164,11 @@ class CamtParser(BankStatementParser):
         validator = InputValidator()
         validated_path: Union[str, Path] = file_name
 
-        if isinstance(file_name, str):
+        if isinstance(file_name, str) or self._stream_from_file:
             try:
-                validated_path = validator.validate_input_file_path(file_name)
+                validated_path = validator.validate_input_file_path(
+                    str(file_name)
+                )
                 logger.info("Input file validated: %s", validated_path)
             except (ValidationError, FileNotFoundError) as e:
                 logger.error("File validation failed for %s: %s", file_name, e)
@@ -169,7 +179,26 @@ class CamtParser(BankStatementParser):
         self._source_name = str(validated_path)
         self._source_is_memory = False
 
-        raw_bytes = self._read_xml_file_bytes(self._file_path)
+        self._xml_bytes = b""
+        if not self._lazy_tree:
+            self._load_tree()
+
+    @property
+    def tree(self) -> etree._Element:
+        """Load the XML tree on demand for eager APIs or direct tree access."""
+        if self._lazy_tree:
+            self._load_tree()
+        return self._tree
+
+    @tree.setter
+    def tree(self, value: etree._Element) -> None:
+        """Retain compatibility with callers replacing the parsed tree."""
+        self._tree = value
+        self._lazy_tree = False
+
+    def _load_tree(self) -> None:
+        """Materialize a file-backed document only when eager access requires it."""
+        raw_bytes = self._read_xml_file_bytes(self._source_name)
         self._xml_bytes = self._normalize_xml_bytes(raw_bytes)
         self.tree = self._parse_xml_bytes(self._xml_bytes, self._source_name)
 
@@ -919,64 +948,79 @@ class CamtParser(BankStatementParser):
             ParserError: If a transaction entry has no currency and the
                 enclosing statement declares none to fall back on.
         """
-        source_stream = BytesIO(self._xml_bytes)
+        with (
+            open(
+                InputValidator().validate_input_file_path(self._source_name),
+                "rb",
+            )
+            if self._stream_from_file
+            else BytesIO(self._xml_bytes)
+        ) as source_stream:
+            current_account_id = ""
+            current_currency = ""
 
-        current_account_id = ""
-        current_currency = ""
-
-        for event, elem in etree.iterparse(
-            source_stream,
-            events=("start", "end"),
-            resolve_entities=False,
-            load_dtd=False,
-            no_network=True,
-            huge_tree=False,
-        ):
-            # Start/end events are elements; comment and PI events are not requested.
-            if event == "start" and elem.tag.startswith("{"):
-                name = etree.QName(elem)
-                if name.namespace and name.namespace.startswith(
-                    "urn:iso:std:iso:20022:tech:xsd:camt."
-                ):
-                    elem.tag = name.localname
-            if event == "start" and elem.tag == "Stmt":
-                current_account_id = ""
-                current_currency = ""
-
-            elif event == "end" and elem.tag == "Acct":
-                # <Acct> closes before any <Ntry> in schema order, so
-                # the statement's account id and currency are available
-                # to every transaction that follows. Capturing at
-                # <Stmt> end would be too late: Ntry events fire first.
-                id_elems = elem.xpath("./Id/IBAN|./Id/Othr/Id")
-                current_account_id = id_elems[0].text or "" if id_elems else ""
-                current_currency = elem.findtext("Ccy") or ""
-
-            elif event == "end" and elem.tag == "Ntry":
-                # Fail-fast on per-row parse errors — silent `continue` here
-                # would drop transactions from the stream and corrupt any
-                # downstream balance check. This matches PAIN.001's
-                # streaming behaviour and the R-007 control documented in
-                # docs/compliance/RISK_REGISTER.md.
-                try:
-                    # Read the bounded entry in place; keep iterparse's parent
-                    # intact until its normal cleanup below.
-                    for transaction_data in self._get_transactions_for_entries(
-                        [elem], current_currency, redact_pii
+            for event, elem in etree.iterparse(
+                source_stream,
+                events=("start", "end"),
+                resolve_entities=False,
+                load_dtd=False,
+                no_network=True,
+                huge_tree=False,
+                encoding="utf-8",
+            ):
+                # Start/end events are elements; comment and PI events are not requested.
+                if event == "start" and elem.tag.startswith("{"):
+                    name = etree.QName(elem)
+                    if name.namespace and name.namespace.startswith(
+                        "urn:iso:std:iso:20022:tech:xsd:camt."
                     ):
-                        transaction_data["AccountId"] = current_account_id
-                        yield (
-                            cast(
-                                TransactionRecord,
-                                redact_record(transaction_data),
+                        elem.tag = name.localname
+                if event == "start" and elem.tag == "Stmt":
+                    current_account_id = ""
+                    current_currency = ""
+
+                elif event == "end" and elem.tag == "Acct":
+                    # <Acct> closes before any <Ntry> in schema order, so
+                    # the statement's account id and currency are available
+                    # to every transaction that follows. Capturing at
+                    # <Stmt> end would be too late: Ntry events fire first.
+                    id_elems = elem.xpath("./Id/IBAN|./Id/Othr/Id")
+                    current_account_id = (
+                        id_elems[0].text or "" if id_elems else ""
+                    )
+                    current_currency = elem.findtext("Ccy") or ""
+
+                elif event == "end" and elem.tag == "Ntry":
+                    # Fail-fast on per-row parse errors — silent `continue` here
+                    # would drop transactions from the stream and corrupt any
+                    # downstream balance check. This matches PAIN.001's
+                    # streaming behaviour and the R-007 control documented in
+                    # docs/compliance/RISK_REGISTER.md.
+                    try:
+                        # Read the bounded entry in place; keep iterparse's parent
+                        # intact until its normal cleanup below.
+                        for (
+                            transaction_data
+                        ) in self._get_transactions_for_entries(
+                            [elem], current_currency, redact_pii
+                        ):
+                            transaction_data["AccountId"] = current_account_id
+                            yield (
+                                cast(
+                                    TransactionRecord,
+                                    redact_record(transaction_data),
+                                )
+                                if redact_pii
+                                else transaction_data
                             )
-                            if redact_pii
-                            else transaction_data
-                        )
-                except Exception as e:
-                    logger.error("Error parsing transaction: %s", e)
-                    raise
-                finally:
+                    except Exception as e:
+                        logger.error("Error parsing transaction: %s", e)
+                        raise
+                    finally:
+                        elem.clear()
+                        while elem.getprevious() is not None:
+                            del elem.getparent()[0]
+                elif event == "end" and elem.tag == "Stmt":
                     elem.clear()
                     while elem.getprevious() is not None:
                         del elem.getparent()[0]

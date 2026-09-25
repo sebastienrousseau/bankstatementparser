@@ -56,7 +56,7 @@ from .forensics import (
 )
 from .input_validator import InputValidator, ValidationError
 from .pain001_parser import Pain001Parser
-from .parallel import FileResult, parse_files_parallel
+from .parallel import FileResult, iter_files_parallel, parse_files_parallel
 from .plugins import (
     discover_loaders,
     discover_writers,
@@ -138,6 +138,7 @@ __all__ = [
     "discover_writers",
     "export_parquet",
     "inspect_pdf_forensics",
+    "iter_files_parallel",
     "iter_secure_statement_entries",
     "iter_secure_xml_entries",
     "parse_field_86",

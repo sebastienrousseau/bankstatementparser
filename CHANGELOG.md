@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Add opt-in lazy file-backed XML streaming with deterministic file cleanup
+  and release completed statement/payment containers.
+- Support prefixed PAIN namespaces without stripping foreign extensions.
+- Bound parallel submissions and expose an ordered result iterator; preserve
+  separate results for repeated input paths.
+
 - Preserve identical purchases without usable payment IDs in duplicate review;
   limit probable-match groups to matching pairs.
 - Join compatibility-wrapper balances by statement position and expose mixed

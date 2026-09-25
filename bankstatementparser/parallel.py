@@ -19,11 +19,15 @@
 from __future__ import annotations
 
 import logging
+import os
+from collections import deque
+from collections.abc import Iterable, Iterator
 from concurrent.futures import (
+    Future,
     ProcessPoolExecutor,
-    as_completed,
 )
 from dataclasses import dataclass, field
+from itertools import islice
 from pathlib import Path
 
 import pandas as pd
@@ -68,54 +72,91 @@ def _parse_single_file(
         )
 
 
+def iter_files_parallel(
+    file_paths: Iterable[str | Path],
+    *,
+    format_name: str | None = None,
+    max_workers: int | None = None,
+    max_pending: int | None = None,
+) -> Iterator[FileResult]:
+    """Yield ordered results with a bounded window of submitted files.
+
+    At most ``max_pending`` futures and their results are retained (default:
+    twice the worker count). Input paths are consumed incrementally. Each
+    worker still materializes one file's DataFrame; this is a file-count bound,
+    not a byte or execution-time limit. Closing the iterator cancels queued
+    work and waits for already running workers to finish.
+    """
+    workers = max_workers if max_workers is not None else (os.cpu_count() or 1)
+    pending_limit = max_pending if max_pending is not None else workers * 2
+    if workers <= 0 or pending_limit <= 0:
+        raise ValueError("Worker and pending-file limits must be positive")
+    paths = iter(file_paths)
+    pending: deque[tuple[str, Future[FileResult]]] = deque()
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        try:
+            for path in islice(paths, pending_limit):
+                name = str(path)
+                pending.append(
+                    (
+                        name,
+                        executor.submit(_parse_single_file, name, format_name),
+                    )
+                )
+            while pending:
+                name, future = pending.popleft()
+                try:
+                    result = future.result()
+                except Exception as exc:
+                    result = FileResult(
+                        path=name,
+                        status="FAILED",
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
+                yield result
+                for path in islice(paths, 1):
+                    name = str(path)
+                    pending.append(
+                        (
+                            name,
+                            executor.submit(
+                                _parse_single_file, name, format_name
+                            ),
+                        )
+                    )
+        finally:
+            for _, future in pending:
+                future.cancel()
+
+
 def parse_files_parallel(
     file_paths: list[str | Path],
     *,
     format_name: str | None = None,
     max_workers: int | None = None,
+    max_pending: int | None = None,
 ) -> list[FileResult]:
-    """Parse multiple statement files in parallel.
+    """Parse files in order with bounded scheduling and a materialized result.
 
-    Uses process-based parallelism to bypass the GIL and
-    maximise throughput on multi-core systems. Each file is
-    parsed in its own worker process.
-
-    Args:
-        file_paths: Paths to statement files.
-        format_name: Force a specific format for all files.
-            When *None*, each file is auto-detected.
-        max_workers: Maximum worker processes. Defaults to
-            the number of CPU cores.
-
-    Returns:
-        List of ``FileResult`` in the same order as *file_paths*.
+    Uses process-based parallelism to bypass the GIL. ``max_workers`` defaults
+    to the CPU count; ``max_pending`` defaults to twice that count. Prefer
+    :func:`iter_files_parallel` when results themselves must not accumulate.
+    A single file avoids process overhead. Neither API imposes a deadline.
     """
+    if max_workers is not None and max_workers <= 0:
+        raise ValueError("Worker and pending-file limits must be positive")
+    if max_pending is not None and max_pending <= 0:
+        raise ValueError("Worker and pending-file limits must be positive")
     if not file_paths:
         return []
-
-    str_paths = [str(p) for p in file_paths]
-
-    # Single file — skip process overhead
-    if len(str_paths) == 1:
-        return [_parse_single_file(str_paths[0], format_name)]
-
-    results: dict[str, FileResult] = {}
-
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        future_to_path = {
-            executor.submit(_parse_single_file, p, format_name): p
-            for p in str_paths
-        }
-        for future in as_completed(future_to_path):
-            path = future_to_path[future]
-            try:
-                results[path] = future.result()
-            except Exception as exc:
-                results[path] = FileResult(
-                    path=path,
-                    status="FAILED",
-                    error=f"{type(exc).__name__}: {exc}",
-                )
-
-    # Preserve original order
-    return [results[p] for p in str_paths]
+    # Single file - skip process overhead.
+    if len(file_paths) == 1:
+        return [_parse_single_file(str(file_paths[0]), format_name)]
+    return list(
+        iter_files_parallel(
+            file_paths,
+            format_name=format_name,
+            max_workers=max_workers,
+            max_pending=max_pending,
+        )
+    )

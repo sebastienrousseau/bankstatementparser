@@ -200,3 +200,38 @@ Validation for this follow-up: `make verify` passed with 1,079 passed, five
 skipped and five slow tests deselected; 100% line/branch coverage, Ruff, mypy
 and Bandit passed. All five slow performance contracts passed separately.
 Strict MkDocs and 100% docstring checks passed. These are local results.
+
+## Resource controls: streaming and scheduling
+
+File-backed CAMT and PAIN now offer `lazy=True`: construction validates the
+path without materializing the document, and streaming reads directly from the
+file. Early generator closure closes the file; completed statement/payment
+containers are removed. Eager APIs still load a tree explicitly. PAIN supports
+prefixed namespaces while preserving foreign extensions. Default construction
+remains eager for compatibility, so callers must opt into the bounded path.
+
+`iter_files_parallel()` bounds submitted futures (default twice the worker
+count), yields input-ordered results and consumes paths incrementally.
+`parse_files_parallel()` shares the scheduler but retains its list result.
+Each worker still materializes one file; pending-file limits do not establish
+byte limits. Early iterator closure cancels queued work but waits for running
+workers. Enforceable execution/provider deadlines remain open.
+
+On the local Python 3.12.14 environment, fresh-process streaming measurements
+including construction produced the following results. Inputs were generated
+single-statement files with one amount per entry/payment; results were consumed
+without retaining rows. RSS includes Python, pandas and library imports.
+
+| Format | Rows | Peak RSS (MiB) | Constructor to first row (seconds) |
+| --- | ---: | ---: | ---: |
+| CAMT | 10,000 | 103.66 | 0.0261 |
+| CAMT | 100,000 | 103.62 | 0.0212 |
+| PAIN | 10,000 | 103.59 | 0.0246 |
+| PAIN | 100,000 | 103.52 | 0.0253 |
+
+This demonstrates stable memory across these generated sizes, not a bound for
+arbitrarily large individual XML elements or a real-bank performance claim.
+
+Validation: `make verify` passed with 1,091 passed, five skipped and five slow
+tests deselected, 100% line/branch coverage, Ruff, mypy and Bandit. All five
+slow performance contracts, strict MkDocs and 100% docstring coverage passed.

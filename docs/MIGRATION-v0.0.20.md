@@ -157,3 +157,28 @@ contain only the matching pair, and exclude already identified exact duplicates.
 The separate `dedupe_by_hash()` incremental filter still uses occurrence counts
 against the supplied persisted set; without bank IDs, overlapping exports need
 operator validation because fingerprints alone cannot establish identity.
+
+
+## Streaming resource controls
+
+For file-backed XML, use `CamtParser(path, lazy=True)` or
+`Pain001Parser(path, lazy=True)` followed by `parse_streaming()`. This validates
+the path and size immediately, then reads XML directly from disk during
+iteration. Syntax errors can therefore occur after earlier rows were yielded;
+commit downstream imports only after iteration finishes successfully. Closing
+the iterator releases its file handle. Calling `parse()`, a summary method or
+accessing `tree` deliberately materializes the document. The default eager
+constructor remains compatible. Memory-backed CAMT factories retain their input.
+
+Streaming memory depends on the largest entry/payment and parser read buffer;
+collecting rows into a list defeats this bound. Completed statement and payment
+containers are released. Prefixed PAIN namespaces now work in eager and streaming
+paths while foreign extension elements retain their namespaces.
+
+`iter_files_parallel(paths, max_workers=4, max_pending=8)` yields input-ordered
+results while retaining at most eight submitted futures. The path iterable is
+consumed incrementally, and repeated paths retain separate results.
+`parse_files_parallel()` accepts the same pending limit but returns a complete
+list. Both APIs still materialize each individual file's DataFrame. Closing the
+iterator cancels queued work and waits for running workers; this is not an
+execution deadline or a byte-level memory limit.
