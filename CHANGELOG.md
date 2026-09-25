@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Isolate API ingestion in disposable Python processes with a configurable
+  execution deadline; kill and reap timed-out or cancelled workers before
+  releasing capacity and temporary inputs.
+
 - Add opt-in lazy file-backed XML streaming with deterministic file cleanup
   and release completed statement/payment containers.
 - Support prefixed PAIN namespaces without stripping foreign extensions.

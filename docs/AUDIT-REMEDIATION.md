@@ -13,15 +13,15 @@ planning horizon, not observations from the future.
 | Finding | Implemented | Remaining acceptance work |
 | --- | --- | --- |
 | F01 CAMT namespaces | XML element names handle default namespaces, either quote style, and prefixes | Broader bank dialect corpus |
-| F02 CAMT eager/streaming divergence | Both public paths share transaction expansion; nested `TxAmt` supported; ambiguous or nonconserving batches fail | FX instructed/booked amount policy |
-| F03 MT940 dates | Adapter emits ISO dates before model coercion; model rejects ambiguous six-digit dates | Bank-specific date-century policy and additional reversal fixtures |
-| F04 OFX accounts | Transaction metadata scoped to each bank/card statement | Investment OFX and per-account summary API |
+| F02 CAMT eager/streaming divergence | Both public paths share transaction expansion; nested `TxAmt` supported; ambiguous or nonconserving batches fail | Broader bank FX fixtures and normalized foreign-amount metadata |
+| F03 MT940 dates | Adapter emits ISO dates before model coercion; model rejects ambiguous six-digit dates | Configurable bank-specific date-century policy |
+| F04 OFX accounts | Transaction metadata scoped to each bank/card statement | Investment OFX |
 | F05 CSV precision | Read textual cells before Decimal conversion; preserve leading zeros; reject missing amount columns | Explicit dialect and date-format configuration |
 | F06 transaction identity | Versioned account/currency-scoped hashes; distinct IDs excluded from fuzzy matching; description included in primary key | Occurrence-aware identity when bank IDs are missing and persisted-state migration tooling |
 | F07 reconciliation | Indexed candidate lookup; require currency/direction compatibility; exact references; explicit fee tolerance; reject ambiguous candidates and conflicting dates/accounts; per-currency settled volumes | Broader settlement corpus; many-to-one settlements |
 | F08 analytics | Recognize parser field aliases; reject invalid amounts; retain Decimal precision; unknown currency is explicit; recurrence isolates accounts/directions and requires distinct dates | Average daily balance and calendar-aware projections |
 | F09 API installation | Declare multipart dependency, resolve real FastAPI annotations, report package version; real API/Parquet CI covers Python 3.10, 3.12 and 3.14 | Enforce isolated installed-wheel tests in CI |
-| F10 API resources | Clean temporary files; ingest outside event loop; bound pre-multipart body size, admissions and receive time; retain cancelled workers until completion | Isolate/time-limit ingestion workers and provider calls |
+| F10 API resources | Clean temporary files; ingest outside event loop; bound pre-multipart body size, admissions and receive time; retain cancelled workers until completion | Provider-side cancellation and deployment memory limits |
 | F11 PDF forensics | Invalid/uninspected documents no longer imply authenticity; clean inspection means `NO_INDICATORS` | Calibrated risk scoring, signature verification and real-document corpus |
 | F12 privacy | CAMT opt-in redaction covers parties, identifiers and narratives; CLI displays use common sensitive-field vocabulary; PAIN eager/streaming/summary/CSV and compatibility-wrapper parity | End-to-end export/provenance policy |
 | F13 hybrid completeness | Reject over-budget PDFs; route mixed text/scanned files to vision; close native render resources; map crop coordinates to original pages; merge adjacent crop observations using identity and spatial evidence while preserving multiplicity | Worker/provider budgets; automatic balance verification; real PDF/model accuracy corpus |
@@ -215,7 +215,8 @@ count), yields input-ordered results and consumes paths incrementally.
 `parse_files_parallel()` shares the scheduler but retains its list result.
 Each worker still materializes one file; pending-file limits do not establish
 byte limits. Early iterator closure cancels queued work but waits for running
-workers. Enforceable execution/provider deadlines remain open.
+workers. Direct-library/batch deadlines and provider-side cancellation remain open;
+the API execution deadline is covered below.
 
 On the local Python 3.12.14 environment, fresh-process streaming measurements
 including construction produced the following results. Inputs were generated
@@ -235,3 +236,25 @@ arbitrarily large individual XML elements or a real-bank performance claim.
 Validation: `make verify` passed with 1,091 passed, five skipped and five slow
 tests deselected, 100% line/branch coverage, Ruff, mypy and Bandit. All five
 slow performance contracts, strict MkDocs and 100% docstring coverage passed.
+
+## Resource controls: API execution deadlines
+
+API ingestion now defaults to a disposable interpreter with a 120-second
+execution deadline, including startup. On timeout or request cancellation, the
+worker is killed and reaped before its admission slot or input file is released.
+The client receives HTTP 504 for deadline expiry. The deadline covers the local
+pipeline, including provider waits. Remote inference already accepted by a
+provider may continue independently. Direct library and parallel batch calls
+still have no new execution deadline.
+
+`ingest_timeout=None` explicitly restores the legacy thread path for trusted
+embedded deployments; it cannot interrupt stuck code. Subprocesses inherit
+installed dependencies and environment configuration, not in-memory API-process
+plugin registration. Tests exercise real subprocess timeout, cancellation,
+nonzero exits and successful CSV ingestion, as well as repeated cancellation
+during reaping and a generic HTTP timeout response.
+
+Validation: `make verify` passed with 1,101 passed, five skipped and five slow
+tests deselected, 100% line/branch coverage, Ruff, mypy and Bandit. Strict MkDocs
+and 100% docstring coverage passed; the final API-focused run passed all 48
+cases, including real subprocess ingestion and termination.

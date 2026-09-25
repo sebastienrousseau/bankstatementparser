@@ -44,8 +44,11 @@ floor enforced here:
   is enforced before multipart decoding, including chunked uploads.
 * At most four ingestion requests are admitted per application process;
   excess requests receive HTTP 503. Request bodies have a 60-second receive
-  deadline. Configure these via ``create_app``. Cancelled requests retain
-  their worker slot and input file until ingestion finishes.
+  deadline. Ingestion runs in a disposable process with a 120-second execution
+  deadline, including startup. Timeout or cancellation kills and reaps that
+  process before releasing its slot or input file. Configure via ``create_app``.
+  Explicit ``ingest_timeout=None`` retains the legacy thread mode, which waits
+  for ingestion to finish on cancellation and has no execution deadline.
 * The uploaded filename is reduced to its basename — never trust
   caller-supplied path components — and the suffix is matched
   against :data:`InputValidator.ALLOWED_INPUT_EXTENSIONS` before
@@ -70,10 +73,12 @@ import json
 import logging
 import math
 import os
+import sys
 import tempfile
 import uuid
+from contextlib import suppress
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from .input_validator import InputValidator
 
@@ -279,6 +284,66 @@ async def _ingest_in_thread(ingest: Any, path: str) -> Any:
     return worker.result()
 
 
+def _run_ingest_worker(input_path: str, output_path: str) -> None:
+    """Run one ingestion in a disposable interpreter and write its JSON result."""
+    from .hybrid import smart_ingest
+
+    payload = _result_to_dict(smart_ingest(input_path))
+    with open(output_path, "w", encoding="utf-8") as output:
+        json.dump(payload, output)
+
+
+async def _reap_worker(process: asyncio.subprocess.Process) -> None:
+    """Wait for process exit even if cleanup receives repeated cancellation."""
+    waiter = asyncio.create_task(process.wait())
+    cancelled = False
+    while not waiter.done():
+        try:
+            await asyncio.shield(waiter)
+        except asyncio.CancelledError:
+            cancelled = True
+    waiter.result()
+    if cancelled:
+        raise asyncio.CancelledError
+
+
+async def _ingest_in_process(path: str, timeout: float) -> dict[str, Any]:
+    """Enforce an ingestion deadline and reap the worker before input cleanup."""
+    process = None
+    deadline = asyncio.get_running_loop().time() + timeout
+    with tempfile.TemporaryDirectory(prefix="bsp_worker_") as directory:
+        output_path = str(Path(directory) / "result.json")
+        try:
+            process = await asyncio.wait_for(
+                asyncio.create_subprocess_exec(
+                    sys.executable,
+                    "-c",
+                    "import sys; from bankstatementparser.api import _run_ingest_worker; "
+                    "_run_ingest_worker(sys.argv[1], sys.argv[2])",
+                    path,
+                    output_path,
+                    stdout=asyncio.subprocess.DEVNULL,
+                ),
+                timeout=timeout,
+            )
+            await asyncio.wait_for(
+                process.wait(),
+                timeout=max(0.0, deadline - asyncio.get_running_loop().time()),
+            )
+            if process.returncode != 0:
+                raise APIError(
+                    f"Ingestion worker exited with status {process.returncode}"
+                )
+            with open(output_path, encoding="utf-8") as output:
+                return cast(dict[str, Any], json.load(output))
+        finally:
+            if process is not None:
+                if process.returncode is None:
+                    with suppress(ProcessLookupError):
+                        process.kill()
+                await _reap_worker(process)
+
+
 def create_app(
     *,
     title: str = "Bank Statement Parser API",
@@ -286,6 +351,7 @@ def create_app(
     max_upload_bytes: Optional[int] = None,
     max_concurrent_ingests: int = 4,
     upload_timeout: float = 60.0,
+    ingest_timeout: float | None = 120.0,
 ) -> Any:
     """Create a FastAPI application wrapping :func:`smart_ingest`.
 
@@ -299,7 +365,10 @@ def create_app(
         max_concurrent_ingests: Maximum admitted uploads and ingestion jobs
             per application process; excess requests receive HTTP 503.
         upload_timeout: Seconds allowed to receive the entire request body.
-            Does not impose an execution deadline on the ingestion worker.
+            Separate from the ingestion execution deadline.
+        ingest_timeout: Execution deadline in seconds, including worker startup.
+            The default isolates ingestion in a disposable Python process.
+            None opts into the legacy thread worker without an execution limit.
 
     Returns:
         A FastAPI ``app`` instance. Raises :class:`APIError` if
@@ -330,6 +399,10 @@ def create_app(
         or max_concurrent_ingests <= 0
         or upload_timeout <= 0
         or not math.isfinite(upload_timeout)
+        or (
+            ingest_timeout is not None
+            and (ingest_timeout <= 0 or not math.isfinite(ingest_timeout))
+        )
     ):
         raise ValueError("API resource limits must be positive")
 
@@ -363,6 +436,7 @@ def create_app(
             * ``408`` — request-body receive deadline exceeded.
             * ``413`` — upload or raw request body exceeded its cap.
             * ``503`` — ingestion admission capacity exhausted.
+            * ``504`` — ingestion worker exceeded its execution deadline.
             * ``422`` — parse failed; response carries a correlation
               id, the raw error is logged server-side only.
         """
@@ -408,10 +482,17 @@ def create_app(
                 # Defensive: ensure handle is closed before
                 # smart_ingest opens the path on Windows.
                 tmp.flush()
-            result = await _ingest_in_thread(smart_ingest, tmp_path)
+            if ingest_timeout is None:
+                payload = _result_to_dict(
+                    await _ingest_in_thread(smart_ingest, tmp_path)
+                )
+            else:
+                payload = await _ingest_in_process(tmp_path, ingest_timeout)
+            return JSONResponse(content=payload, status_code=200)
+        except asyncio.TimeoutError:
             return JSONResponse(
-                content=_result_to_dict(result),
-                status_code=200,
+                content={"error": "ingest execution deadline exceeded"},
+                status_code=504,
             )
         except Exception as exc:
             correlation_id = uuid.uuid4().hex

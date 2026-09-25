@@ -279,7 +279,7 @@ def test_create_app_accepts_explicit_max_upload_bytes(
     test asserts ``create_app`` accepts the kwarg without raising.
     """
     _install_fake_fastapi(monkeypatch)
-    app = create_app(max_upload_bytes=2048)
+    app = create_app(max_upload_bytes=2048, ingest_timeout=None)
     assert "POST /ingest" in app._routes
 
 
@@ -328,6 +328,7 @@ class _FakeUpload:
 def _ingest_route(monkeypatch: pytest.MonkeyPatch, **kwargs: Any) -> Any:
     """Build the app with a fake FastAPI and return its ``/ingest`` route."""
     _install_fake_fastapi(monkeypatch)
+    kwargs.setdefault("ingest_timeout", None)
     app = create_app(**kwargs)
     return app._routes["POST /ingest"]
 
@@ -610,3 +611,146 @@ def test_cancelled_ingest_waits_for_worker(fail: bool) -> None:
         assert finished.is_set()
 
     asyncio.run(scenario())
+
+
+def test_ingest_worker_serializes_result(tmp_path) -> None:
+    import asyncio
+    import json
+
+    from bankstatementparser.api import _ingest_in_process, _run_ingest_worker
+
+    source = tmp_path / "input.csv"
+    source.write_text("date,amount,currency\n2026-01-01,1.23,EUR\n")
+    output = tmp_path / "result.json"
+    _run_ingest_worker(str(source), str(output))
+    assert json.loads(output.read_text())["transaction_count"] == 1
+    assert (
+        asyncio.run(_ingest_in_process(str(source), 30))["transaction_count"]
+        == 1
+    )
+
+
+@pytest.mark.parametrize("cancel", [False, True])
+def test_process_deadline_and_cancellation_reap_worker(
+    monkeypatch, cancel
+) -> None:
+    import asyncio
+    from pathlib import Path
+
+    from bankstatementparser.api import _ingest_in_process
+
+    async def exercise():
+        real_spawn = asyncio.create_subprocess_exec
+        started = asyncio.Event()
+        processes = []
+        outputs = []
+
+        async def spawn(*args, **kwargs):
+            outputs.append(Path(args[-1]))
+            process = await real_spawn(
+                sys.executable, "-c", "import time; time.sleep(60)", **kwargs
+            )
+            processes.append(process)
+            started.set()
+            return process
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
+        task = asyncio.create_task(
+            _ingest_in_process("unused.csv", 10 if cancel else 2)
+        )
+        await asyncio.wait_for(started.wait(), timeout=5)
+        if cancel:
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        else:
+            with pytest.raises(asyncio.TimeoutError):
+                await task
+        assert processes[0].returncode is not None
+        assert not outputs[0].parent.exists()
+
+    asyncio.run(exercise())
+
+
+def test_process_worker_failure_and_spawn_failure(monkeypatch) -> None:
+    import asyncio
+
+    from bankstatementparser.api import _ingest_in_process
+
+    async def exercise():
+        real_spawn = asyncio.create_subprocess_exec
+
+        async def fail_worker(*args, **kwargs):
+            return await real_spawn(
+                sys.executable, "-c", "raise SystemExit(7)", **kwargs
+            )
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fail_worker)
+        with pytest.raises(APIError, match="status 7"):
+            await _ingest_in_process("unused.csv", 10)
+
+        async def fail_spawn(*args, **kwargs):
+            raise OSError("spawn failed")
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fail_spawn)
+        with pytest.raises(OSError, match="spawn failed"):
+            await _ingest_in_process("unused.csv", 10)
+
+    asyncio.run(exercise())
+
+
+def test_reap_worker_survives_repeated_cancellation() -> None:
+    import asyncio
+
+    from bankstatementparser.api import _reap_worker
+
+    async def exercise():
+        release = asyncio.Event()
+        entered = asyncio.Event()
+
+        class Process:
+            async def wait(self):
+                entered.set()
+                await release.wait()
+                return 0
+
+        task = asyncio.create_task(_reap_worker(Process()))
+        await entered.wait()
+        for _ in range(2):
+            task.cancel()
+            await asyncio.sleep(0)
+        assert not task.done()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(exercise())
+
+
+def test_ingest_route_execution_timeout(monkeypatch) -> None:
+    import asyncio
+
+    from bankstatementparser import api
+
+    async def timeout(*args):
+        raise asyncio.TimeoutError
+
+    async def success(*args):
+        return {"transaction_count": 1}
+
+    monkeypatch.setattr(api, "_ingest_in_process", success)
+    route = _ingest_route(monkeypatch, ingest_timeout=1)
+    response = asyncio.run(route(_FakeUpload("test.csv", b"amount\n1\n")))
+    assert response.status_code == 200
+    assert response.content == {"transaction_count": 1}
+    monkeypatch.setattr(api, "_ingest_in_process", timeout)
+    response = asyncio.run(route(_FakeUpload("test.csv", b"amount\n1\n")))
+    assert response.status_code == 504
+    assert response.content == {"error": "ingest execution deadline exceeded"}
+
+
+@pytest.mark.parametrize("limit", [0, -1, float("nan"), float("inf")])
+def test_ingest_execution_limit_validation(monkeypatch, limit) -> None:
+    _install_fake_fastapi(monkeypatch)
+    with pytest.raises(ValueError, match="positive"):
+        create_app(ingest_timeout=limit)

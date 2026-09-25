@@ -182,3 +182,23 @@ consumed incrementally, and repeated paths retain separate results.
 list. Both APIs still materialize each individual file's DataFrame. Closing the
 iterator cancels queued work and waits for running workers; this is not an
 execution deadline or a byte-level memory limit.
+
+
+## API execution deadlines
+
+`create_app()` now runs each ingestion in a disposable Python interpreter and
+sets `ingest_timeout=120.0` seconds, including interpreter startup. Exceeding
+this execution deadline returns HTTP 504. Timeout or request cancellation kills
+and reaps the worker before releasing admission capacity or deleting its input.
+The existing upload receive deadline, size limits and admission limit remain.
+Set a different positive finite timeout for larger permitted workloads.
+
+Process isolation adds startup overhead and requires permission to start a
+Python subprocess using the service's interpreter and installed dependencies.
+Worker configuration must be available through the environment or installed
+modules; runtime monkeypatches and in-memory plugin registration in the API
+process do not transfer to the worker. Entry-point plugins remain discoverable.
+For explicitly trusted embedded deployments, `ingest_timeout=None` opts into
+the old thread worker with no execution deadline. A terminated local worker
+cannot guarantee cancellation of computation already accepted by a remote model
+provider. Direct library calls and parallel batch workers have no new deadline.
