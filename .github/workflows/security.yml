@@ -94,6 +94,7 @@ jobs:
       - name: Verify hashed dependency export
         run: |
           poetry export --format=requirements.txt --with dev > /tmp/requirements-hashed.txt
+          diff -u requirements.txt /tmp/requirements-hashed.txt
           python -m pip install --dry-run --require-hashes -r /tmp/requirements-hashed.txt
 
       - name: Bandit SAST
