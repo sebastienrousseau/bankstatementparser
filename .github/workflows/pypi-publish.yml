@@ -1,61 +1,214 @@
 name: Publish to PyPI
 
-# Token-free PyPI publishing via OIDC trusted publishing. Trigger
-# manually for a given tag, or automatically when a GitHub release is
-# published. Requires a PyPI "trusted publisher" configured for the
-# bankstatementparser project pointing at this workflow + the "pypi"
-# environment.
+# The release pipeline: one build, whose exact bytes are attested,
+# attached to the GitHub release and published to PyPI.
+#
+# Before v0.0.21 two workflows each built the package. The tag-push one
+# attested its own build and kept the SBOM and checksums as a temporary
+# workflow artifact. This one rebuilt on `release: published` and
+# uploaded to PyPI. Nothing attached to the release, and the files on
+# PyPI had no GitHub attestation: v0.0.20's wheel and sdist return 404
+# from the attestations API.
+#
+# The filename is load-bearing: the PyPI trusted publisher is bound to
+# `pypi-publish.yml` and the `pypi` environment. Renaming this file
+# breaks publishing.
+#
+# Runs on a version tag push. `workflow_dispatch` re-runs an existing
+# tag; PyPI refuses a second upload of the same version, so use it only
+# for a tag that never reached PyPI.
+#
+# Verify a downloaded asset with either:
+#   gh attestation verify <file> --owner sebastienrousseau
+#   slsa-verifier verify-artifact <file> --provenance-path multiple.intoto.jsonl \
+#     --source-uri github.com/sebastienrousseau/bankstatementparser --source-tag vX.Y.Z
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Git tag to build and publish (e.g. v0.0.10)"
+        description: "Existing tag to build and publish (e.g. v0.0.21)"
         required: true
-        default: "v0.0.10"
-  release:
-    types: [published]
+        type: string
 
 permissions:
   contents: read
-  id-token: write # OIDC for PyPI trusted publishing
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
+  build:
+    name: Build, SBOM, checksums and attestation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Sigstore signing for the build attestation
+      attestations: write
+    outputs:
+      hashes: ${{ steps.hashes.outputs.hashes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install locked dependencies
+        run: poetry install --with dev
+
+      - name: Verify lockfile hashes
+        run: poetry run python scripts/verify_locked_hashes.py
+
+      - name: Verify package version matches the tag
+        run: |
+          PKG="$(poetry version --short)"
+          if [ "${TAG#v}" != "$PKG" ]; then
+            echo "Tag $TAG does not match package version $PKG" >&2
+            exit 1
+          fi
+
+      - name: Build sdist and wheel
+        run: |
+          poetry build
+          pipx run twine==7.0.0 check --strict dist/*
+
+      # release/ holds every file attached to the GitHub release. dist/
+      # stays wheel + sdist only, because the PyPI upload rejects anything
+      # else in its directory.
+      - name: Generate SBOM, dependency report and checksums
+        run: |
+          set -euo pipefail
+          V="${TAG#v}"
+          mkdir -p release
+          cp dist/* release/
+          poetry run python scripts/generate_sbom.py \
+            --output "release/bankstatementparser-$V.cdx.json" \
+            --markdown-output "release/bankstatementparser-$V.dependency-report.md"
+          poetry run python scripts/validate_sbom.py "release/bankstatementparser-$V.cdx.json"
+          python scripts/generate_checksums.py release
+          (cd release && sha256sum -c SHA256SUMS)
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "release/*"
+
+      # Hash from inside release/ so subject names are bare filenames that
+      # match the release asset names slsa-verifier will be given.
+      - name: Hash release assets for SLSA provenance
+        id: hashes
+        run: |
+          set -euo pipefail
+          hashes="$(cd release && sha256sum -- *)"
+          echo "$hashes"
+          echo "hashes=$(printf '%s\n' "$hashes" | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-assets
+          path: release/*
+          if-no-files-found: error
+
   publish:
-    name: Build and publish to PyPI
+    name: Publish to PyPI
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/p/bankstatementparser
+    permissions:
+      contents: read
+      id-token: write # OIDC for PyPI trusted publishing and PEP 740 attestations
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+          name: release-assets
+          path: release
 
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: "3.12"
-
-      - name: Build sdist + wheel
+      - name: Select distributions
         run: |
-          python -m pip install --upgrade pip build
-          python -m build
-
-      - name: Verify package version matches the tag
-        run: |
-          REF="${{ github.event.inputs.tag || github.event.release.tag_name }}"
-          TAG="${REF#v}"
-          PKG=$(grep -m1 '^version' pyproject.toml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-          if [ "$TAG" != "$PKG" ]; then
-            echo "Tag $REF does not match package version $PKG" >&2
-            exit 1
-          fi
-
-      - name: Twine metadata check
-        run: |
-          python -m pip install twine
-          twine check dist/*
+          mkdir dist
+          cp release/*.whl release/*.tar.gz dist/
+          ls -la dist
 
       - name: Publish via OIDC trusted publishing
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: dist/
+          attestations: true
+
+  github-release:
+    name: Attach assets to the GitHub release
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-assets
+          path: release
+
+      # Creates the release when it does not exist yet (notes from
+      # docs/releases/<tag>.md when present, otherwise generated), and
+      # otherwise leaves a hand-written release body untouched.
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            notes="docs/releases/$TAG.md"
+            if [ -f "$notes" ]; then
+              gh release create "$TAG" --verify-tag --title "bankstatementparser ${TAG#v}" --notes-file "$notes"
+            else
+              gh release create "$TAG" --verify-tag --title "bankstatementparser ${TAG#v}" --generate-notes
+            fi
+          fi
+          gh release upload "$TAG" release/* --clobber
+
+  # Must live in this workflow: a release created with GITHUB_TOKEN does
+  # not trigger other workflows, so a separate `on: release` job would
+  # never fire (pain001 v0.0.57).
+  #
+  # The reusable generator MUST be referenced by tag, not SHA:
+  # slsa-verifier validates the generator's own provenance against its
+  # release tag. This is the documented exception to SHA pinning.
+  provenance:
+    name: SLSA Build Level 3 provenance
+    needs: [build, github-release]
+    permissions:
+      actions: read # read the workflow path
+      id-token: write # sign via Sigstore OIDC
+      contents: write # upload multiple.intoto.jsonl to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0 # zizmor: ignore[unpinned-uses] -- tag required by slsa-verifier, see above
+    with:
+      base64-subjects: ${{ needs.build.outputs.hashes }}
+      upload-assets: true
+      upload-tag-name: ${{ inputs.tag || github.ref_name }}

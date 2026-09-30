@@ -38,7 +38,7 @@ flowchart TD
 | 4 | **Static Analysis** | CI | 0 errors from Ruff, mypy, Bandit, CodeQL, Gitleaks | `quality-gates.yml`, `security.yml` |
 | 5 | **Dynamic Verification** | CI | Coverage gate met (no regression vs. base), 0 test failures, 0 skipped across Python 3.10–3.14 and 3 OS platforms | `quality-gates.yml` |
 | 6 | **SBOM Generation** | CI | CycloneDX 1.5 JSON produced, component list matches `poetry.lock` | `scripts/generate_sbom.py` |
-| 7 | **Build Artifacts** | CI | `poetry build` produces `.whl` and `.tar.gz` without error | `release-integrity.yml` |
+| 7 | **Build Artifacts** | CI | `poetry build` produces `.whl` and `.tar.gz` without error | `pypi-publish.yml` |
 | 8 | **Integrity & Attestation** | CI | SHA-256 checksums generated; GitHub build provenance attestation linked | `scripts/generate_checksums.py`, `attest-build-provenance` action |
 | 9 | **Release Approval** | Release Approver | All stages 1–8 pass. Risk Register reviewed. Signed Git tag applied. | Manual gate |
 

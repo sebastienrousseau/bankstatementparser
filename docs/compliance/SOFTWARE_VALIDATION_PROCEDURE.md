@@ -66,7 +66,7 @@ Covers all modules in the `bankstatementparser` package, supporting scripts unde
 | V-13 | Generate SBOM | `scripts/generate_sbom.py` | CycloneDX 1.5 JSON matches lock file |
 | V-14 | Build wheel and sdist | `poetry build` | Both artifacts produced without error |
 | V-15 | Generate artifact checksums | `scripts/generate_checksums.py` | `SHA256SUMS` file covers all artifacts in `dist/` |
-| V-16 | Attest build provenance | `release-integrity.yml` | GitHub attestation linked to build artifacts |
+| V-16 | Attest build provenance | `pypi-publish.yml` | GitHub attestation linked to build artifacts |
 
 ### Phase 5 — Release Approval
 
