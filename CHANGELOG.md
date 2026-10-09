@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.21] - 2026-10-09
+
 ### Security
 
 - Build each release once and ship those exact bytes everywhere. The wheel
@@ -1024,7 +1026,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.20...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.21...HEAD
+[0.0.21]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.20...v0.0.21
 [0.0.20]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.20
 [0.0.19]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.19
 [0.0.14]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.14
