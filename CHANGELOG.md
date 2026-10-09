@@ -27,10 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pin the extras a dependency requests in exported requirements
   (`coverage[toml]==…`). pip 23.0, bundled with Python 3.10, rejected the
   hash-pinned install because it read the extra as an unpinned requirement.
+- Scope requested extras in `export_locked_requirements.py` to coverage,
+  preventing unfulfillable conditional extras (`httpx[http2]`) from failing
+  `pip check` on Python 3.14 wheel smoke tests.
 
 ### Changed
 
-- Dependencies: packaging 26.3, uvicorn 0.54.0, github/codeql-action 4.38.2.
+- Dependencies: packaging 26.3, uvicorn 0.54.0, ruff 0.16.10, fastapi 0.142.2,
+  mypy 2.4.0, litellm 1.104.0, hypothesis 6.168.3, urllib3 2.8.0,
+  multidict 6.9.1 (CVE-2026-104874), fsspec 2026.9.0 (CVE-2026-104851),
+  github/codeql-action 4.38.2.
 
 ## [0.0.20] - 2026-09-26
 
