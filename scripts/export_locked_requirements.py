@@ -154,10 +154,13 @@ def requested_extras(packages: list[dict[str, Any]]) -> dict[str, set[str]]:
     wanted: dict[str, set[str]] = {}
     for package in packages:
         for name, spec in package.get("dependencies", {}).items():
-            if isinstance(spec, dict) and spec.get("extras"):
-                wanted.setdefault(canonicalize_name(name), set()).update(
-                    spec["extras"]
-                )
+            canonical = canonicalize_name(name)
+            if (
+                canonical == "coverage"
+                and isinstance(spec, dict)
+                and spec.get("extras")
+            ):
+                wanted.setdefault(canonical, set()).update(spec["extras"])
     return wanted
 
 
