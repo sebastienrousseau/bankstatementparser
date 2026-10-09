@@ -86,28 +86,27 @@ def python_marker(constraint: str) -> str:
     )
 
 
-def export_requirements(
+def _check_scope(
     lock: dict[str, Any], groups: set[str], extras: set[str]
-) -> str:
-    """Render exact versions and all locked SHA-256 hashes for selected scopes.
-
-    Requires Poetry lock 2.1 (resolved group/extra markers). Non-PyPI sources
-    fail explicitly rather than being silently redirected to the public index.
-    """
+) -> None:
+    """Reject lock formats, extras and groups this exporter cannot honour."""
     if lock["metadata"]["lock-version"] != "2.1":
         raise ValueError("This exporter requires Poetry lock format 2.1")
-    available_extras = set(lock.get("extras", {}))
-    if extras - available_extras:
+    if extras - set(lock.get("extras", {})):
         raise ValueError("Unknown requested extras")
     available_groups = {
         group for package in lock["package"] for group in package["groups"]
     }
     if groups - available_groups:
         raise ValueError("Unknown requested dependency groups")
+
+
+def _selected(
+    lock: dict[str, Any], groups: set[str], extras: set[str]
+) -> list[tuple[dict[str, Any], str]]:
+    """Return each selected package with its rendered environment marker."""
     project_python = python_marker(lock["metadata"]["python-versions"])
-    lines = [
-        "# Generated from poetry.lock by scripts/export_locked_requirements.py; do not edit."
-    ]
+    out = []
     for package in sorted(
         lock["package"], key=lambda item: (item["name"], item["version"])
     ):
@@ -135,26 +134,73 @@ def export_requirements(
         ]
         if isinstance(selected, str):
             conditions.append(selected)
-        marker_text = " and ".join(
-            f"({condition})" for condition in conditions if condition
-        )
-        name = canonicalize_name(package["name"])
-        requirement = str(Requirement(f"{name}=={package['version']}"))
-        if marker_text:
-            requirement += f" ; {Marker(marker_text)}"
-        hashes = sorted({entry["hash"] for entry in package.get("files", [])})
-        if not hashes or any(
-            not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
-            for digest in hashes
-        ):
-            raise ValueError(
-                f"Missing or unsupported locked hashes for {name}"
+        out.append(
+            (
+                package,
+                " and ".join(f"({c})" for c in conditions if c),
             )
-        lines.append(requirement + " \\")
-        lines.extend(
-            f"    --hash={digest}" + (" \\" if index + 1 < len(hashes) else "")
-            for index, digest in enumerate(hashes)
         )
+    return out
+
+
+def requested_extras(packages: list[dict[str, Any]]) -> dict[str, set[str]]:
+    """Extras that selected packages request of their dependencies.
+
+    Pinning ``coverage[toml]==X`` rather than ``coverage==X`` matters: older
+    pip (23.0, bundled with Python 3.10) otherwise treats a dependent's
+    ``coverage[toml]>=...`` as a second, unpinned requirement and rejects the
+    install in --require-hashes mode.
+    """
+    wanted: dict[str, set[str]] = {}
+    for package in packages:
+        for name, spec in package.get("dependencies", {}).items():
+            canonical = canonicalize_name(name)
+            if (
+                canonical == "coverage"
+                and isinstance(spec, dict)
+                and spec.get("extras")
+            ):
+                wanted.setdefault(canonical, set()).update(spec["extras"])
+    return wanted
+
+
+def _render(
+    package: dict[str, Any], marker_text: str, extras: set[str]
+) -> list[str]:
+    """Render one hash-pinned requirement and its continuation lines."""
+    name = canonicalize_name(package["name"])
+    extra_text = f"[{','.join(sorted(extras))}]" if extras else ""
+    requirement = str(Requirement(f"{name}{extra_text}=={package['version']}"))
+    if marker_text:
+        requirement += f" ; {Marker(marker_text)}"
+    hashes = sorted({entry["hash"] for entry in package.get("files", [])})
+    if not hashes or any(
+        not re.fullmatch(r"sha256:[0-9a-f]{64}", digest) for digest in hashes
+    ):
+        raise ValueError(f"Missing or unsupported locked hashes for {name}")
+    return [requirement + " \\"] + [
+        f"    --hash={digest}" + (" \\" if index + 1 < len(hashes) else "")
+        for index, digest in enumerate(hashes)
+    ]
+
+
+def export_requirements(
+    lock: dict[str, Any], groups: set[str], extras: set[str]
+) -> str:
+    """Render exact versions and all locked SHA-256 hashes for selected scopes.
+
+    Requires Poetry lock 2.1 (resolved group/extra markers). Non-PyPI sources
+    fail explicitly rather than being silently redirected to the public index.
+    """
+    _check_scope(lock, groups, extras)
+    selected = _selected(lock, groups, extras)
+    wanted = requested_extras([package for package, _ in selected])
+    lines = [
+        "# Generated from poetry.lock by scripts/export_locked_requirements.py; do not edit."
+    ]
+    for package, marker_text in selected:
+        name = canonicalize_name(package["name"])
+        lines.extend(_render(package, marker_text, wanted.get(name, set())))
     return "\n".join(lines) + "\n"
 
 

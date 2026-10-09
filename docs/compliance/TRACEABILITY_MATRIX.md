@@ -28,8 +28,8 @@ Maps every design input (user need) through implementation to verification evide
 | DI-09 | Export to CSV, JSON, and Excel | Write parsed data to standard interchange formats | `base_parser.py`, `camt_parser.py` | `test_unified_interface.py`, `test_edge_cases.py` | — |
 | DI-10 | Command-line interface | Parse statements via `python -m bankstatementparser.cli` | `cli.py` | `test_cli.py` | — |
 | DI-11 | Enforce signed commits in CI | Block unverified commits from reaching `main` | `scripts/verify_github_commit_signatures.py` | `commit-signature-verification.yml` | R-004 |
-| DI-12 | Generate SBOM for every release | Produce CycloneDX 1.5 JSON with all dependencies | `scripts/generate_sbom.py` | `release-integrity.yml`, `test_supply_chain_tools.py` | R-003 |
-| DI-13 | Generate artifact checksums | Produce SHA-256 checksums for wheel and sdist | `scripts/generate_checksums.py` | `release-integrity.yml`, `test_supply_chain_tools.py` | R-003 |
+| DI-12 | Generate SBOM for every release | Produce CycloneDX 1.5 JSON with all dependencies | `scripts/generate_sbom.py` | `pypi-publish.yml`, `test_supply_chain_tools.py` | R-003 |
+| DI-13 | Generate artifact checksums | Produce SHA-256 checksums for wheel and sdist | `scripts/generate_checksums.py` | `pypi-publish.yml`, `test_supply_chain_tools.py` | R-003 |
 | DI-14 | Deduplicate transactions across sources | Deterministic hashing for exact matches; configurable similarity for suspected matches | `transaction_deduplicator.py`, `transaction_models.py` | `test_transaction_deduplicator.py` | — |
 | DI-15 | Optional Polars DataFrame export | Convert parsed output to Polars DataFrame or LazyFrame | `base_parser.py` (`to_polars`, `to_polars_lazy`) | `test_polars_export.py` | — |
 | DI-16 | Parallel multi-file parsing | Process multiple statement files across CPU cores | `parallel.py` (`parse_files_parallel`) | `test_performance_contracts.py` | — |

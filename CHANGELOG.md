@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Build each release once and ship those exact bytes everywhere. The wheel
+  and sdist on PyPI are now the files covered by the GitHub build
+  attestation. Before this, v0.0.20's published files had no GitHub
+  attestation, because the attested build and the published build were
+  separate runs.
+- Attach the wheel, sdist, CycloneDX SBOM, dependency report, `SHA256SUMS`
+  and SLSA Build Level 3 provenance (`multiple.intoto.jsonl`) to every GitHub
+  release. The v0.0.20 release had no assets. Verify with
+  `gh attestation verify <file> --owner sebastienrousseau` or `slsa-verifier`.
+- Publishing now runs on the version tag push, from `pypi-publish.yml` (the
+  file the PyPI trusted publisher is bound to). `release-integrity.yml` is
+  folded into it.
+
+### Fixed
+
+- Pin the extras a dependency requests in exported requirements
+  (`coverage[toml]==…`). pip 23.0, bundled with Python 3.10, rejected the
+  hash-pinned install because it read the extra as an unpinned requirement.
+- Scope requested extras in `export_locked_requirements.py` to coverage,
+  preventing unfulfillable conditional extras (`httpx[http2]`) from failing
+  `pip check` on Python 3.14 wheel smoke tests.
+
+### Changed
+
+- Dependencies: packaging 26.3, uvicorn 0.54.0, ruff 0.16.10, fastapi 0.142.2,
+  mypy 2.4.0, litellm 1.104.0, hypothesis 6.168.3, urllib3 2.8.0,
+  multidict 6.9.1 (CVE-2026-104874), fsspec 2026.9.0 (CVE-2026-104851),
+  github/codeql-action 4.38.2.
+
 ## [0.0.20] - 2026-09-26
 
 ### Fixed
