@@ -181,7 +181,7 @@ description = "Document parameters, class attributes, return types, and variable
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"
+markers = "(python_version < \"3.14\" or extra == \"api\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"
 files = [
     {file = "annotated_doc-0.0.4-py3-none-any.whl", hash = "sha256:571ac1dc6991c450b25a9c2d84a3705e2ae7a53467b5d111c24fa8baabbed320"},
     {file = "annotated_doc-0.0.4.tar.gz", hash = "sha256:fbcda96e87e9c92ad167c2e53839e57503ecfda18804ea28102353485033faa4"},
@@ -210,7 +210,7 @@ files = [
     {file = "anyio-4.15.1-py3-none-any.whl", hash = "sha256:6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101"},
     {file = "anyio-4.15.1.tar.gz", hash = "sha256:9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94"},
 ]
-markers = {main = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
+markers = {main = "(python_version < \"3.14\" or extra == \"api\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
 
 [package.dependencies]
 exceptiongroup = {version = ">=1.0.2", markers = "python_version < \"3.11\""}
@@ -663,7 +663,7 @@ files = [
     {file = "charset_normalizer-3.4.7-py3-none-any.whl", hash = "sha256:3dce51d0f5e7951f8bb4900c257dad282f49190fdbebecd4ba99bcc41fef404d"},
     {file = "charset_normalizer-3.4.7.tar.gz", hash = "sha256:ae89db9e5f98a11a4bf50407d4363e7b09b31e55bc117b4f7d80aab97ba009e5"},
 ]
-markers = {main = "(extra == \"hybrid-plus\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
+markers = {main = "(python_version < \"3.14\" or extra == \"hybrid-plus\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"}
 
 [[package]]
 name = "click"
@@ -676,7 +676,7 @@ files = [
     {file = "click-8.5.0-py3-none-any.whl", hash = "sha256:255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360"},
     {file = "click-8.5.0.tar.gz", hash = "sha256:ba0d2089de75ea0310e2dde03160e6ca10009947fb95a182f9b54021bb272e34"},
 ]
-markers = {main = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
+markers = {main = "(python_version < \"3.14\" or extra == \"api\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
 
 [[package]]
 name = "colorama"
@@ -1304,7 +1304,24 @@ files = [
     {file = "h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"},
     {file = "h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1"},
 ]
-markers = {main = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
+markers = {main = "(python_version < \"3.14\" or extra == \"api\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
+
+[[package]]
+name = "h2"
+version = "4.4.1"
+description = "Pure-Python HTTP/2 protocol implementation"
+optional = true
+python-versions = ">=3.10"
+groups = ["main"]
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
+files = [
+    {file = "h2-4.4.1-py3-none-any.whl", hash = "sha256:0e25f1462b23c9cb82d9eb02e28bc706dac2a68cb457c6a0d74d63c8a2a5d0e6"},
+    {file = "h2-4.4.1.tar.gz", hash = "sha256:4e866ffb1a869ae14dd9b5e6beb5c24a13da0495ad72b65925ded182521c1516"},
+]
+
+[package.dependencies]
+hpack = ">=4.2,<5"
+hyperframe = ">=6.1,<7"
 
 [[package]]
 name = "hf-xet"
@@ -1346,6 +1363,19 @@ files = [
 tests = ["pytest"]
 
 [[package]]
+name = "hpack"
+version = "4.2.0"
+description = "Pure-Python HPACK header encoding"
+optional = true
+python-versions = ">=3.10"
+groups = ["main"]
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
+files = [
+    {file = "hpack-4.2.0-py3-none-any.whl", hash = "sha256:858ac0b02280fa582b5080d68db0899c62a80375e0e5413a74970c5e518b6986"},
+    {file = "hpack-4.2.0.tar.gz", hash = "sha256:0895cfa3b5531fc65fe439c05eb65144f123bf7a394fcaa56aa423548d8e45c0"},
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 description = "A minimal low-level HTTP client."
@@ -1384,6 +1414,7 @@ markers = {main = "python_version < \"3.14\" and (extra == \"enrichment\" or ext
 [package.dependencies]
 anyio = "*"
 certifi = "*"
+h2 = {version = ">=3,<5", optional = true, markers = "extra == \"http2\""}
 httpcore = "==1.*"
 idna = "*"
 
@@ -1431,6 +1462,19 @@ quality = ["libcst (>=1.4.0)", "mypy (==1.15.0)", "ruff (>=0.9.0)", "ty"]
 testing = ["Jinja2", "Pillow", "authlib (>=1.3.2)", "duckdb", "fastapi", "fastapi", "httpx", "itsdangerous", "jedi", "numpy", "pytest (>=8.4.2)", "pytest-asyncio", "pytest-cov", "pytest-env", "pytest-mock", "pytest-rerunfailures (<16.0)", "pytest-vcr", "pytest-xdist", "soundfile", "urllib3 (<2.0)"]
 torch = ["safetensors[torch]", "torch"]
 typing = ["types-PyYAML", "types-simplejson", "types-toml", "types-tqdm", "types-urllib3", "typing-extensions (>=4.8.0)"]
+
+[[package]]
+name = "hyperframe"
+version = "6.1.0"
+description = "Pure-Python HTTP/2 framing"
+optional = true
+python-versions = ">=3.9"
+groups = ["main"]
+markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
+files = [
+    {file = "hyperframe-6.1.0-py3-none-any.whl", hash = "sha256:b03380493a519fce58ea5af42e4a42317bf9bd425596f7a0835ffce80f1a42e5"},
+    {file = "hyperframe-6.1.0.tar.gz", hash = "sha256:f630908a00854a7adeabd6382b43923a4c4cd4b821fcb527e6ab9e15382a3b08"},
+]
 
 [[package]]
 name = "hypothesis"
@@ -1560,7 +1604,7 @@ files = [
     {file = "idna-3.18-py3-none-any.whl", hash = "sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2"},
     {file = "idna-3.18.tar.gz", hash = "sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848"},
 ]
-markers = {main = "(extra == \"api\" or python_version < \"3.14\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
+markers = {main = "(python_version < \"3.14\" or extra == \"api\") and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\" or extra == \"api\")"}
 
 [package.extras]
 all = ["mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
@@ -1969,21 +2013,21 @@ files = [
 
 [[package]]
 name = "litellm"
-version = "1.102.1"
+version = "1.104.0"
 description = "Library to easily interface with LLM API providers"
 optional = true
 python-versions = "<3.15,>=3.10"
 groups = ["main"]
 markers = "python_version < \"3.14\" and (extra == \"enrichment\" or extra == \"hybrid\" or extra == \"hybrid-plus\" or extra == \"hybrid-vision\")"
 files = [
-    {file = "litellm-1.102.1-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:01550e79e052249dc5df53631ed9bdff030ca7c2a22107c5ce482d53ecf5c8d8"},
-    {file = "litellm-1.102.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:da73fe3f6a1bf70232d752f7e1fe49f5d4d9473c02972553e0d0f7b514b280c7"},
-    {file = "litellm-1.102.1-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:296c49171d7b80e6298fdf1bb18c7b69a826b82ae2b917bc6f5a80f153ee8b29"},
-    {file = "litellm-1.102.1-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:b36c46e89e2fc50f42848120ed03a31c7347103cbaa733421f8843915b6f3355"},
-    {file = "litellm-1.102.1-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:f7c4ffead69cf010fe3f551d2941bd6190bdaa816b98d5ebc85df67096724180"},
-    {file = "litellm-1.102.1-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:c5fcfbe322e3052f96fa92409fc61ec9712a7b2b567e7760e057b17b7587d021"},
-    {file = "litellm-1.102.1-cp310-abi3-win_amd64.whl", hash = "sha256:b2c24cad24c637b20e91f6dd7b812971a5fa64ad2330213e517ff8f38d25c0d8"},
-    {file = "litellm-1.102.1.tar.gz", hash = "sha256:7216f46e6a1eba50f4dbb6000afdb1f5b77360eb498a4f341fc655191108cfd4"},
+    {file = "litellm-1.104.0-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:574acb77ed62ca2b2a751f7182e2fa1055dbbf047fabfa03d8e8af6d5502636d"},
+    {file = "litellm-1.104.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:5494970a1f035db8557aa87fd5e289757a26b204f25e53430c181e608a42a864"},
+    {file = "litellm-1.104.0-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:98fd18c8fdb3074f130e01e95c5848906f42860ca45c376fcb6a5e0cc8755f9f"},
+    {file = "litellm-1.104.0-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:b0a690d18b0d25f907d08329027ca57b03f0173a4824b89b8f91528490d10bde"},
+    {file = "litellm-1.104.0-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:3c4a15692a9dd259033195c5d4ca1697a14e6bd50d679435a799a9028e99b453"},
+    {file = "litellm-1.104.0-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:6ffed0207c6fba822fa484754f8fea40d8e9705673189d4bb6f18fa866e59a8e"},
+    {file = "litellm-1.104.0-cp310-abi3-win_amd64.whl", hash = "sha256:414d31b0bda41aa8fb8696c78d5f728a446e37a34476c6f5f2b6fa17ddd66ee4"},
+    {file = "litellm-1.104.0.tar.gz", hash = "sha256:df550ab471974edefd7cb0cc6b88b42db453f0de6b91db3cc570f5e1e8d8b173"},
 ]
 
 [package.dependencies]
@@ -1991,31 +2035,36 @@ aiohttp = ">=3.14.2,<4.0"
 boto3 = ">=1.43.1,<2.0"
 click = ">=8.0.0,<9.0"
 fastuuid = ">=0.14.0,<1.0"
-httpx = ">=0.28.0,<1.0"
+filelock = ">=3.16.1,<4.0"
+httpx = {version = ">=0.28.0,<1.0", extras = ["http2"]}
+huggingface-hub = ">=0.34.0,<2.0"
 importlib-metadata = ">=8.0.0,<9.0"
 jinja2 = ">=3.1.6,<4.0"
 jsonschema = ">=4.0.0,<5.0"
 openai = ">=2.20.0,<3.0.0"
-pydantic = ">=2.10.0,<3.0.0"
+packaging = ">=24.0"
+pydantic = {version = ">=2.11.0,<3.0.0", markers = "python_full_version < \"3.14.0\""}
 pydantic-settings = ">=2.14.1,<3.0"
 python-dotenv = ">=1.0.0,<2.0"
-tiktoken = ">=0.8.0,<1.0"
+pyyaml = ">=6.0.3,<7.0"
+tiktoken = {version = ">=0.8.0,<1.0", markers = "python_full_version < \"3.14.0\""}
 tokenizers = ">=0.21.0,<1.0"
 
 [package.extras]
-bedrock-realtime = ["aws-sdk-bedrock-runtime (>=0.7.0,<0.8.0) ; python_full_version >= \"3.12.0\""]
+bedrock-realtime = ["aws-sdk-bedrock-runtime[awscrt] (>=0.10.0,<0.12.0) ; python_full_version >= \"3.12.0\""]
 caching = ["diskcache (>=5.6.3,<6.0)"]
 cli = ["inquirerpy (>=0.3.4,<1.0)", "keyring (>=25.6.0,<26.0)", "pyyaml (>=6.0.3,<7.0)", "requests (>=2.32.0,<3.0)", "rich (>=13.9.4,<14.0)", "tomlkit (>=0.13.3,<1.0)"]
 extra-proxy = ["a2a-sdk (>=1.1.0,<2.0)", "azure-identity (>=1.25.2,<2.0)", "azure-keyvault-secrets (>=4.10.0,<5.0)", "google-cloud-iam (>=2.19.1,<3.0)", "google-cloud-kms (>=2.24.2,<3.0)", "prisma (>=0.11.0,<1.0)", "psycopg (>=3.2,<4.0)", "psycopg-binary (>=3.2,<4.0)", "redisvl (>=0.4.1,<1.0)", "resend (>=2.23.0,<3.0)"]
 google = ["google-cloud-aiplatform (>=1.133.0,<2.0)"]
 grpc = ["grpcio (==1.78.0)"]
-mcp = ["mcp (>=1.28.1,<2.0)"]
+mcp = ["httpx2 (>=2.5.0,<3)", "mcp (>=2.2.0,<3)", "pydantic (>=2.12.0,<3)"]
 mlflow = ["mlflow (>=3.11.1,<4.0)"]
-proxy = ["apscheduler (>=3.11.2,<4.0)", "azure-identity (>=1.25.2,<2.0)", "azure-storage-blob (>=12.28.0,<13.0)", "backoff (>=2.2.1,<3.0)", "boto3 (>=1.43.1,<2.0)", "cryptography (>=49.0.0,<51.0)", "expression (>=5.6.0,<6.0)", "fastapi (>=0.136.3,<1.0)", "fastapi-sso (>=0.19.0,<1.0)", "granian (>=2.7.4,<3.0)", "gunicorn (>=23.0.0,<24.0)", "hiredis (>=3.0.0,<4.0)", "inquirerpy (>=0.3.4,<1.0)", "litellm-enterprise (==0.1.67)", "litellm-proxy-extras (==0.4.97)", "mcp (>=1.28.1,<2.0)", "orjson (>=3.11.6,<4.0)", "polars (>=1.38.1,<2.0)", "pyjwt (>=2.13.0,<3.0)", "pynacl (>=1.6.2,<2.0)", "pyroscope-io (>=0.8.16,<1.0) ; sys_platform != \"win32\"", "python-multipart (>=0.0.27,<1.0)", "pyyaml (>=6.0.3,<7.0)", "restrictedpython (>=8.5,<9.0)", "rich (>=13.9.4,<14.0)", "rq (>=2.7.0,<3.0)", "soundfile (>=0.12.1,<1.0)", "starlette (>=1.0.1,<2.0)", "tomlkit (>=0.13.3,<1.0)", "uvicorn (>=0.33.0,<1.0)", "uvloop (>=0.22.1,<1.0) ; sys_platform != \"win32\"", "websockets (>=15.0.1,<16.0)"]
-proxy-runtime = ["anthropic[vertex] (>=0.84.0,<1.0)", "azure-ai-contentsafety (>=1.0.0,<2.0)", "azure-storage-file-datalake (>=12.20.0,<13.0)", "ddtrace (>=4.8.2,<5.0)", "detect-secrets (>=1.5.0,<2.0)", "google-cloud-aiplatform (>=1.133.0,<2.0)", "google-genai (>=1.37.0,<2.0)", "grpcio (==1.78.0)", "langfuse (>=2.59.7,<3.0)", "llm-sandbox (>=0.3.39,<1.0)", "mangum (>=0.17.0,<1.0)", "opentelemetry-api (==1.28.0)", "opentelemetry-exporter-otlp (==1.28.0)", "opentelemetry-instrumentation-fastapi (==0.49b0)", "opentelemetry-sdk (==1.28.0)", "prometheus-client (>=0.20.0,<1.0)", "pypdf (>=6.16.1,<7.0)", "sentry-sdk (>=2.21.0,<3.0)"]
+proxy = ["apscheduler (>=3.11.2,<4.0)", "azure-identity (>=1.25.2,<2.0)", "azure-storage-blob (>=12.28.0,<13.0)", "backoff (>=2.2.1,<3.0)", "boto3 (>=1.43.1,<2.0)", "cryptography (>=49.0.0,<51.0)", "expression (>=5.6.0,<6.0)", "fastapi (>=0.136.3,<1.0)", "fastapi-sso (>=0.19.0,<1.0)", "granian (>=2.7.4,<3.0)", "gunicorn (>=23.0.0,<24.0)", "hiredis (>=3.0.0,<4.0)", "httpx2 (>=2.5.0,<3)", "inquirerpy (>=0.3.4,<1.0)", "litellm-enterprise (==0.1.71)", "litellm-proxy-extras (==0.4.102.post1)", "mcp (>=2.2.0,<3)", "orjson (>=3.11.6,<4.0)", "polars (>=1.38.1,<2.0)", "pydantic (>=2.12.0,<3)", "pyjwt (>=2.13.0,<3.0)", "pynacl (>=1.6.2,<2.0)", "pyroscope-io (>=0.8.16,<1.0) ; sys_platform != \"win32\"", "python-multipart (>=0.0.27,<1.0)", "pyyaml (>=6.0.3,<7.0)", "restrictedpython (>=8.5,<9.0)", "rich (>=13.9.4,<14.0)", "rq (>=2.7.0,<3.0)", "soundfile (>=0.12.1,<1.0)", "starlette (>=1.0.1,<2.0)", "tomlkit (>=0.13.3,<1.0)", "uvicorn (>=0.33.0,<1.0)", "uvloop (>=0.22.1,<1.0) ; sys_platform != \"win32\"", "websockets (>=15.0.1,<16.0)"]
+proxy-runtime = ["anthropic[vertex] (>=0.84.0,<1.0)", "azure-ai-contentsafety (>=1.0.0,<2.0)", "azure-storage-file-datalake (>=12.20.0,<13.0)", "ddtrace (>=4.8.2,<5.0)", "detect-secrets (>=1.5.0,<2.0)", "google-cloud-aiplatform (>=1.133.0,<2.0)", "google-cloud-speech (>=2.40.0,<3.0)", "google-genai (>=1.37.0,<2.0)", "grpcio (==1.78.0)", "langfuse (>=4.7,<5.0)", "llm-sandbox (>=0.3.39,<1.0)", "mangum (>=0.17.0,<1.0)", "opentelemetry-api (==1.33.1)", "opentelemetry-exporter-otlp (==1.33.1)", "opentelemetry-instrumentation-fastapi (==0.54b1)", "opentelemetry-sdk (==1.33.1)", "prometheus-client (>=0.20.0,<1.0)", "pypdf (>=6.16.1,<7.0)", "sentry-sdk (>=2.21.0,<3.0)"]
 saml = ["python3-saml (>=1.16.0,<2.0)"]
 semantic-router = ["aurelio-sdk (>=0.0.19,<1.0) ; python_full_version < \"3.14.0\"", "semantic-router (>=0.1.15,<1.0) ; python_full_version < \"3.14.0\""]
 stt-nvidia-riva = ["audioread (>=3.0.1)", "numpy (>=1.26.0)", "nvidia-riva-client (>=2.15.0)", "soundfile (>=0.12.1)"]
+stt-vertex-chirp = ["google-cloud-speech (>=2.40.0,<3.0)"]
 utils = ["numpydoc (>=1.8.0,<2.0)"]
 
 [[package]]
