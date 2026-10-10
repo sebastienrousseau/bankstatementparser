@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.26"
+version = "0.0.27"
 description = "Parse bank statements (CAMT.053, PAIN.001, MT940, OFX, BAI2, CSV, and PDF) into unified Transactions with treasury analytics, 2-way reconciliation, PDF forensics, and ledger export."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache-2.0 OR MIT"

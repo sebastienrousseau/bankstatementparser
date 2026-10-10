@@ -25,6 +25,7 @@ from .additional_parsers import (
     Camt054Parser,
     CsvStatementParser,
     Mt940Parser,
+    Mt942Parser,
     OfxParser,
     QfxParser,
     create_parser,
@@ -51,7 +52,11 @@ from .exceptions import (
     Pain001ParseError,
     ParserError,
 )
-from .export.parquet import export_parquet, export_parquet_stream
+from .export.parquet import (
+    ParquetStreamWriter,
+    export_parquet,
+    export_parquet_stream,
+)
 from .field86_parser import Field86Structure, parse_field_86
 from .forensics import (
     ForensicFinding,
@@ -102,7 +107,7 @@ from .zip_security import (
 #: so the conformance gate can compare it statically against
 #: pyproject.toml -- that comparison is the thing that catches drift, and
 #: a runtime lookup would make the two trivially equal and check nothing.
-__version__ = "0.0.26"
+__version__ = "0.0.27"
 
 __all__ = [
     "AnalyticsReport",
@@ -129,10 +134,12 @@ __all__ = [
     "InputValidator",
     "MatchGroup",
     "Mt940Parser",
+    "Mt942Parser",
     "NullSpan",
     "OfxParser",
     "Pain001ParseError",
     "Pain001Parser",
+    "ParquetStreamWriter",
     "ParserError",
     "QfxParser",
     "ReconciliationMatch",

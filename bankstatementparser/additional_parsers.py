@@ -29,6 +29,7 @@ from .parsers import (
     Bai2Parser,
     CsvStatementParser,
     Mt940Parser,
+    Mt942Parser,
     OfxParser,
     QfxParser,
     _amount_or_zero,
@@ -49,6 +50,7 @@ __all__ = [
     "Camt054Parser",
     "CsvStatementParser",
     "Mt940Parser",
+    "Mt942Parser",
     "OfxParser",
     "QfxParser",
     "_amount_or_zero",
@@ -151,6 +153,7 @@ def create_parser(
         "ofx": OfxParser,
         "qfx": QfxParser,
         "mt940": Mt940Parser,
+        "mt942": Mt942Parser,
         "bai2": Bai2Parser,
     }
     # Augment with dynamic plugins

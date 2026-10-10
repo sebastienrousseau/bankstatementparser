@@ -31,6 +31,7 @@ from .common import (
 )
 from .csv_parser import CsvStatementParser
 from .mt940 import Mt940Parser
+from .mt942 import Mt942Parser
 from .ofx import OfxParser, QfxParser
 
 __all__ = [
@@ -38,6 +39,7 @@ __all__ = [
     "Bai2Parser",
     "CsvStatementParser",
     "Mt940Parser",
+    "Mt942Parser",
     "OfxParser",
     "QfxParser",
     "_amount_or_zero",
