@@ -5,7 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.25] - Unreleased
+## [0.0.26] - Unreleased
+
+### Added
+
+- Add CAMT.052 (`Camt052Parser`) and CAMT.054 (`Camt054Parser`) ISO 20022 streaming engines in `bankstatementparser/camt_reports.py` supporting account reports (`<BkToCstmrAcctRpt>`) and debit/credit notifications (`<BkToCstmrDbtCdtNtfctn>`) via streaming lxml with O(1) memory guarantees and unified `Transaction` models.
+- Add BAI2 cash management statement parser engine in `bankstatementparser/parsers/bai2.py` (`Bai2Parser`) featuring single-pass record-type state machine (01, 02, 03, 16, 49, 98, 99) and automatic format detection.
+- Add persistent warm worker pool `PersistentWorkerPool` in `bankstatementparser/api_worker.py` supporting memory recycling ceilings, worker reuse, and strict execution deadlines for REST API ingestion.
+- Synchronize documentation, layout, and test suites to 1045 tests across 53 modules.
+
+## [0.0.25] - 2026-10-10
 
 ### Added
 
@@ -1061,7 +1070,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.24...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.25...HEAD
+[0.0.25]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.24...v0.0.25
 [0.0.24]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.23...v0.0.24
 [0.0.23]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.22...v0.0.23
 [0.0.22]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.21...v0.0.22

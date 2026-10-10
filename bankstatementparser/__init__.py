@@ -20,6 +20,9 @@ operations.
 """
 
 from .additional_parsers import (
+    Bai2Parser,
+    Camt052Parser,
+    Camt054Parser,
     CsvStatementParser,
     Mt940Parser,
     OfxParser,
@@ -99,14 +102,17 @@ from .zip_security import (
 #: so the conformance gate can compare it statically against
 #: pyproject.toml -- that comparison is the thing that catches drift, and
 #: a runtime lookup would make the two trivially equal and check nothing.
-__version__ = "0.0.25"
+__version__ = "0.0.26"
 
 __all__ = [
     "AnalyticsReport",
     "AnomalyFinding",
+    "Bai2Parser",
     "BankStatementParser",
     "BankStatementParserError",
     "BoundingBox",
+    "Camt052Parser",
+    "Camt054Parser",
     "CamtParser",
     "CashFlowMetrics",
     "CsvStatementParser",

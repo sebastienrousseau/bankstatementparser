@@ -56,6 +56,8 @@ class InputValidator:
         ".STA",
         ".bai2",
         ".BAI2",
+        ".bai",
+        ".BAI",
         ".mt942",
         ".MT942",
         ".pdf",

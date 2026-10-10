@@ -53,11 +53,13 @@ from .api_limits import (
     _safe_basename,
 )
 from .api_worker import (
+    PersistentWorkerPool,
     _ingest_in_process,
     _ingest_in_thread,
     _reap_worker,
     _result_to_dict,
     _run_ingest_worker,
+    _run_worker_job,
     _verification_dict,
 )
 from .input_validator import InputValidator
@@ -70,6 +72,7 @@ __all__ = [
     "ENV_MAX_UPLOAD_BYTES",
     "_UPLOAD_CHUNK_BYTES",
     "APIError",
+    "PersistentWorkerPool",
     "_IngestLimits",
     "_allowed_suffix",
     "_ingest_in_process",
@@ -78,6 +81,7 @@ __all__ = [
     "_resolve_max_upload_bytes",
     "_result_to_dict",
     "_run_ingest_worker",
+    "_run_worker_job",
     "_safe_basename",
     "_verification_dict",
     "create_app",
@@ -101,6 +105,7 @@ def _build_ingest_handler(
     app: Any,
     max_upload: int,
     ingest_timeout: float | None,
+    worker_pool: Optional[PersistentWorkerPool] = None,
 ) -> Any:
     """Register the POST /ingest endpoint on the FastAPI application."""
     from fastapi import File, UploadFile
@@ -151,7 +156,11 @@ def _build_ingest_handler(
                             },
                             status_code=413,
                         )
-                if ingest_timeout is None:
+                if worker_pool is not None and ingest_timeout is not None:
+                    payload = await worker_pool.run_ingest(
+                        tmp_path, ingest_timeout
+                    )
+                elif ingest_timeout is None:
                     result = await _ingest_in_thread(smart_ingest, tmp_path)
                     payload = _result_to_dict(result)
                 else:
@@ -187,6 +196,7 @@ def create_app(
     max_concurrent_ingests: int = 4,
     upload_timeout: float = 60.0,
     ingest_timeout: float | None = 120.0,
+    worker_pool: Optional[PersistentWorkerPool] = None,
 ) -> Any:
     """Create a FastAPI application wrapping :func:`smart_ingest`."""
     try:
@@ -226,7 +236,9 @@ def create_app(
         upload_timeout=upload_timeout,
     )
 
-    _build_ingest_handler(app, upload_cap, ingest_timeout)
+    _build_ingest_handler(
+        app, upload_cap, ingest_timeout, worker_pool=worker_pool
+    )
 
     @app.get("/health")  # type: ignore[untyped-decorator]
     async def health() -> dict[str, str]:
