@@ -36,6 +36,7 @@ from bankstatementparser.input_validator import (
     ValidationError,
 )
 
+from .base_parser import sanitize_dataframe_for_csv
 from .privacy import redact_record
 from .record_types import PaymentRecord, TransactionRecord
 
@@ -329,6 +330,7 @@ class BankStatementCLI:
                     safe_output_path = str(output_path.parent / safe_name)
                     if not show_pii:
                         data_df = self._redact_dataframe(data_df)
+                    data_df = sanitize_dataframe_for_csv(data_df)
                     data_df.to_csv(safe_output_path, index=False)
                     print(f"Parsed data saved to {safe_output_path}")
                 else:
@@ -425,6 +427,7 @@ class BankStatementCLI:
         if output_path:
             safe_name = self.validator.get_safe_filename(output_path.name)
             safe_output_path = str(output_path.parent / safe_name)
+            df = sanitize_dataframe_for_csv(df)
             df.to_csv(safe_output_path, index=False)
             print(
                 f"Ingested {len(rows)} transactions "

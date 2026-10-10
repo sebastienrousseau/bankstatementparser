@@ -159,7 +159,7 @@ def test_cli_run_dispatches_to_ingest(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     file_path = tmp_path / "stmt.pdf"
-    file_path.write_text("x")
+    file_path.write_bytes(b"%PDF-1.4\n")
 
     import bankstatementparser.hybrid as hybrid_pkg
 

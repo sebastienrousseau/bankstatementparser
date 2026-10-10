@@ -35,9 +35,32 @@ No external dependencies — both functions produce plain strings.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
 from ..transaction_models import Transaction
+
+_LEDGER_ACCOUNT_DISALLOWED = re.compile(r"[\r\n\t;\"#]+")
+_LEDGER_CURRENCY_RE = re.compile(r"^[A-Za-z0-9_]{1,10}$")
+
+
+def _sanitize_account(account: str, fallback: str = "Expenses:Uncategorized") -> str:
+    """Sanitize account name to prevent plaintext accounting syntax injection."""
+    cleaned = _LEDGER_ACCOUNT_DISALLOWED.sub(" ", account).strip()
+    return cleaned or fallback
+
+
+def _sanitize_currency(currency: str, fallback: str = "EUR") -> str:
+    """Sanitize currency symbol to prevent newline injection in postings."""
+    cleaned = (
+        currency.strip()
+        .replace("\r", "")
+        .replace("\n", "")
+        .replace("\t", "")
+    )
+    if _LEDGER_CURRENCY_RE.match(cleaned):
+        return cleaned
+    return fallback
 
 
 def to_hledger(
@@ -74,8 +97,13 @@ def to_hledger(
         ``.ledger`` or ``.journal`` file.
     """
     lines: list[str] = []
-    if redact_pii:
-        account = "Assets:Redacted"
+    account = (
+        "Assets:Redacted"
+        if redact_pii
+        else _sanitize_account(account, "Assets:Bank:Checking")
+    )
+    contra_account = _sanitize_account(contra_account, "Expenses:Uncategorized")
+    clean_default_currency = _sanitize_currency(default_currency, "EUR")
     for tx in transactions:
         date = (
             tx.booking_date.isoformat()
@@ -87,7 +115,9 @@ def to_hledger(
             if redact_pii
             else _escape_description(tx.description or "Unknown")
         )
-        currency = tx.currency or default_currency
+        currency = _sanitize_currency(
+            tx.currency or clean_default_currency, clean_default_currency
+        )
         amount = format(tx.amount.normalize(), "f")
 
         contra = (
@@ -133,8 +163,13 @@ def to_beancount(
         A string containing the full journal.
     """
     lines: list[str] = []
-    if redact_pii:
-        account = "Assets:Redacted"
+    account = (
+        "Assets:Redacted"
+        if redact_pii
+        else _sanitize_account(account, "Assets:Bank:Checking")
+    )
+    contra_account = _sanitize_account(contra_account, "Expenses:Uncategorized")
+    clean_default_currency = _sanitize_currency(default_currency, "EUR")
     for tx in transactions:
         date = (
             tx.booking_date.isoformat()
@@ -151,7 +186,9 @@ def to_beancount(
             if redact_pii
             else _escape_beancount_string(tx.description or "Unknown")
         )
-        currency = tx.currency or default_currency
+        currency = _sanitize_currency(
+            tx.currency or clean_default_currency, clean_default_currency
+        )
         amount = format(tx.amount.normalize(), "f")
         neg_amount = format((-tx.amount).normalize(), "f")
 
@@ -174,8 +211,10 @@ def _resolve_contra(tx: Transaction, default: str) -> str:
     category = tx.category
     if category:
         safe = category.replace(" ", ":").replace("/", ":")
-        return f"Expenses:{safe}"
-    return default
+        safe = _LEDGER_ACCOUNT_DISALLOWED.sub("", safe).strip()
+        if safe:
+            return f"Expenses:{safe}"
+    return _sanitize_account(default)
 
 
 def _escape_description(value: str) -> str:

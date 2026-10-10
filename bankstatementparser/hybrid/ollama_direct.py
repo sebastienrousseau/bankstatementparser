@@ -46,7 +46,9 @@ from __future__ import annotations
 
 import base64
 import os
+from ipaddress import ip_address
 from typing import Any
+from urllib.parse import urlparse
 
 from .._llm_common import (
     DEFAULT_API_BASE,
@@ -56,9 +58,39 @@ from .._llm_common import (
     OLLAMA_PREFIX_RE as _PROVIDER_PREFIX_RE,
 )
 
+_BLOCKED_METADATA_HOSTS = {
+    "169.254.169.254",
+    "metadata.google.internal",
+    "instance-data",
+}
+
 
 class OllamaDirectError(RuntimeError):
     """Raised when the direct Ollama call fails or returns garbage."""
+
+
+def _validate_api_base(api_base: str) -> None:
+    """Validate api_base URL to mitigate SSRF vectors."""
+    parsed = urlparse(api_base)
+    if parsed.scheme not in ("http", "https"):
+        raise OllamaDirectError(
+            f"Invalid api_base scheme {parsed.scheme!r}; must be http or https"
+        )
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise OllamaDirectError("api_base must include a valid hostname")
+    if host in _BLOCKED_METADATA_HOSTS:
+        raise OllamaDirectError(
+            f"Access to cloud metadata endpoint {host!r} is blocked"
+        )
+    try:
+        ip = ip_address(host)
+        if ip.is_link_local:
+            raise OllamaDirectError(
+                f"Access to link-local address {host!r} is blocked"
+            )
+    except ValueError:
+        pass
 
 
 def ollama_direct_completion(**kwargs: Any) -> dict[str, Any]:
@@ -112,6 +144,7 @@ def ollama_direct_completion(**kwargs: Any) -> dict[str, Any]:
         or os.environ.get(ENV_API_BASE)
         or DEFAULT_API_BASE
     )
+    _validate_api_base(api_base)
     timeout = float(kwargs.get("timeout", 300.0))
     temperature = float(kwargs.get("temperature", 0.0))
 

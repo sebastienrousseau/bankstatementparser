@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.22] - 2026-10-10
+
+### Security
+
+- Mitigate SSRF vectors in `hybrid/ollama_direct.py` via URL validation and blocking cloud metadata and link-local endpoints.
+- Escape CSV injection formulas and dangerous control characters in `base_parser.py`.
+- Sanitize description fields in ledger and beancount export formats.
+- Validate PDF magic headers and add support for `.parquet` input validation.
+
 ## [0.0.21] - 2026-10-09
 
 ### Security
@@ -1026,7 +1035,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.21...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.22...HEAD
+[0.0.22]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.21...v0.0.22
 [0.0.21]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.20...v0.0.21
 [0.0.20]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.20
 [0.0.19]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.19

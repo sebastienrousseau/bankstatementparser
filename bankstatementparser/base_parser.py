@@ -28,11 +28,42 @@ from typing import TYPE_CHECKING, Union, cast
 import pandas as pd
 
 from .exceptions import ExportError
+from .input_validator import InputValidator
 from .privacy import redact_record
 from .record_types import SummaryRecord
 
 if TYPE_CHECKING:
     import polars as pl
+
+FORMULA_PREFIXES = ("=", "@", "\t", "\r")
+
+
+def _is_safe_numeric_string(text: str) -> bool:
+    """Return True if text parses as a signed or unsigned number."""
+    try:
+        float(text)
+        return True
+    except ValueError:
+        return False
+
+
+def sanitize_csv_cell(value: object) -> object:
+    """Neutralize spreadsheet formula triggers (CWE-1236)."""
+    if not isinstance(value, str):
+        return value
+    if value.startswith(FORMULA_PREFIXES):
+        return f"'{value}"
+    if value.startswith(("+", "-")) and not _is_safe_numeric_string(value):
+        return f"'{value}"
+    return value
+
+
+def sanitize_dataframe_for_csv(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a DataFrame copy with formula triggers neutralized for CSV export."""
+    sanitized = df.copy()
+    for col in sanitized.columns:
+        sanitized[col] = sanitized[col].map(sanitize_csv_cell)
+    return sanitized
 
 
 def _single_summary(summaries: list[SummaryRecord]) -> SummaryRecord:
@@ -111,9 +142,16 @@ class BankStatementParser(ABC):
             redact_pii: Mask identities, narratives and provenance fields.
 
         Raises:
-            IOError: If file cannot be written.
+            ExportError: If file cannot be written or path is invalid.
         """
-        temp_path = Path(f"{output_path}.tmp")
+        try:
+            validated_path = InputValidator().validate_output_file_path(
+                str(output_path)
+            )
+        except Exception as exc:
+            raise ExportError(f"Failed to export CSV: {exc}") from exc
+
+        temp_path = Path(f"{validated_path}.tmp")
         try:
             df = self.parse()
             if redact_pii:
@@ -121,10 +159,11 @@ class BankStatementParser(ABC):
                     [redact_record(row) for row in df.to_dict("records")],
                     columns=df.columns,
                 )
+            df = sanitize_dataframe_for_csv(df)
             df.to_csv(temp_path, index=False)
 
             # Atomic rename to prevent corruption
-            temp_path.replace(output_path)
+            temp_path.replace(validated_path)
         except Exception as exc:
             # Clean up temp file if it exists
             if temp_path.exists():
@@ -141,9 +180,16 @@ class BankStatementParser(ABC):
             redact_pii: Mask records and summaries using the common policy.
 
         Raises:
-            IOError: If file cannot be written.
+            ExportError: If file cannot be written or path is invalid.
         """
-        temp_path = Path(f"{output_path}.tmp")
+        try:
+            validated_path = InputValidator().validate_output_file_path(
+                str(output_path)
+            )
+        except Exception as exc:
+            raise ExportError(f"Failed to export JSON: {exc}") from exc
+
+        temp_path = Path(f"{validated_path}.tmp")
         try:
             df = self.parse()
 
@@ -166,7 +212,7 @@ class BankStatementParser(ABC):
                 json.dump(data, f, indent=2, default=str)
 
             # Atomic rename to prevent corruption
-            temp_path.replace(output_path)
+            temp_path.replace(validated_path)
         except Exception as exc:
             # Clean up temp file if it exists
             if temp_path.exists():
