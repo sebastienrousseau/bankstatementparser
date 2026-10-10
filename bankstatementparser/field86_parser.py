@@ -50,17 +50,127 @@ _SLASH_SUBFIELD_RE = re.compile(r"/([A-Z0-9]{2,12})/([^/]+)")
 _GVC_TAG_RE = re.compile(r"\?(\d{2})([^\?]+)")
 _IBAN_RE = re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b")
 _BIC_RE = re.compile(r"\b[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b")
+_CURRENCY_PREFIX_RE = re.compile(r"^[A-Z]{3}")
+
+_TAG_DIRECT_MAP: dict[str, str] = {
+    "EREF": "end_to_end_id",
+    "MARF": "mandate_id",
+    "MREF": "mandate_id",
+    "CDTR": "creditor_name",
+    "CNAM": "creditor_name",
+    "CRED": "creditor_name",
+    "DBTR": "debtor_name",
+    "DNAM": "debtor_name",
+    "DEBT": "debtor_name",
+    "CDTRID": "creditor_id",
+    "CI": "creditor_id",
+    "IBAN": "counterparty_iban",
+    "PURP": "purpose_code",
+    "CODP": "purpose_code",
+    "SVCR": "service_reference",
+    "SRV": "service_reference",
+}
 
 
 def _parse_decimal_safe(val: str) -> Decimal | None:
     """Safely convert amount string with comma or dot to Decimal."""
     cleaned = val.strip().replace(",", ".").replace(" ", "")
-    # Strip leading/trailing currency codes if present (e.g. EUR123.45)
-    cleaned = re.sub(r"^[A-Z]{3}", "", cleaned)
+    cleaned = _CURRENCY_PREFIX_RE.sub("", cleaned)
     try:
         return Decimal(cleaned)
     except (InvalidOperation, ValueError):
         return None
+
+
+def _handle_gvc_code(
+    code: str,
+    val_clean: str,
+    res: dict[str, Any],
+    remittance_parts: list[str],
+    creditor_parts: list[str],
+) -> None:
+    """Process a single GVC tag and assign to target accumulator."""
+    if code == "00":
+        res["transaction_code"] = val_clean
+    elif code == "10":
+        res["end_to_end_id"] = val_clean
+    elif code in ("30", "31"):
+        key = "counterparty_bic" if code == "30" else "counterparty_iban"
+        res[key] = val_clean
+    elif code in ("32", "33"):
+        creditor_parts.append(val_clean)
+    elif "20" <= code <= "29":
+        remittance_parts.append(val_clean)
+    else:
+        res["additional_tags"][f"?{code}"] = val_clean
+
+
+def _parse_gvc_subfields(text: str, res: dict[str, Any]) -> None:
+    """Parse German SEPA GVC codes (?00..?63)."""
+    if "?" not in text or not _GVC_TAG_RE.search(text):
+        return
+    remittance_parts: list[str] = []
+    creditor_parts: list[str] = []
+    for code, val in _GVC_TAG_RE.findall(text):
+        val_clean = val.strip()
+        if val_clean:
+            _handle_gvc_code(
+                code, val_clean, res, remittance_parts, creditor_parts
+            )
+    if remittance_parts:
+        res["remittance_info"] = " ".join(remittance_parts)
+    if creditor_parts:
+        res["creditor_name"] = " ".join(creditor_parts)
+
+
+def _handle_slash_tag(
+    tag: str,
+    val_clean: str,
+    res: dict[str, Any],
+    remittance_parts: list[str],
+) -> None:
+    """Process a single slash-delimited tag."""
+    if tag in ("REMI", "RMTINF"):
+        remittance_parts.append(val_clean)
+    elif tag in _TAG_DIRECT_MAP:
+        res[_TAG_DIRECT_MAP[tag]] = val_clean
+    elif tag in ("BIC", "SWIFT"):
+        if val_clean not in ("NOTPROVIDED", "UNDEFINED"):
+            res["counterparty_bic"] = val_clean
+    elif tag in ("OCMT", "ORAMT"):
+        res["original_amount"] = _parse_decimal_safe(val_clean)
+    elif tag in ("CHGS", "FEE"):
+        res["charges_amount"] = _parse_decimal_safe(val_clean)
+    else:
+        res["additional_tags"][tag] = val_clean
+
+
+def _parse_slash_subfields(text: str, res: dict[str, Any]) -> None:
+    """Parse SWIFT standard slash-separated subfields (/TAG/value)."""
+    if "/" not in text:
+        return
+    remittance_parts: list[str] = []
+    for tag, val in _SLASH_SUBFIELD_RE.findall(text):
+        val_clean = val.strip()
+        if val_clean:
+            _handle_slash_tag(tag, val_clean, res, remittance_parts)
+    if remittance_parts and not res.get("remittance_info"):
+        res["remittance_info"] = " ".join(remittance_parts)
+
+
+def _detect_iban_bic_fallback(text: str, res: dict[str, Any]) -> None:
+    """Fallback regex detection for IBAN and BIC if not yet discovered."""
+    if not res.get("counterparty_iban"):
+        iban_match = _IBAN_RE.search(text)
+        if iban_match:
+            res["counterparty_iban"] = iban_match.group(0)
+
+    if not res.get("counterparty_bic"):
+        bic_match = _BIC_RE.search(text)
+        if bic_match:
+            candidate = bic_match.group(0)
+            if candidate not in ("NOTPROVIDED", "UNDEFINED"):
+                res["counterparty_bic"] = candidate
 
 
 def parse_field_86(narrative: str | None) -> Field86Structure:
@@ -84,101 +194,9 @@ def parse_field_86(narrative: str | None) -> Field86Structure:
         "additional_tags": {},
     }
 
-    # 1. Check for German SEPA GVC codes (?00..?63)
-    if "?" in text and _GVC_TAG_RE.search(text):
-        gvc_matches = _GVC_TAG_RE.findall(text)
-        remittance_parts: list[str] = []
-        creditor_parts: list[str] = []
-
-        for code, val in gvc_matches:
-            val_clean = val.strip()
-            if not val_clean:
-                continue
-
-            if code == "00":
-                res["transaction_code"] = val_clean
-            elif code == "10":
-                res["end_to_end_id"] = val_clean
-            elif code in (
-                "20",
-                "21",
-                "22",
-                "23",
-                "24",
-                "25",
-                "26",
-                "27",
-                "28",
-                "29",
-            ):
-                remittance_parts.append(val_clean)
-            elif code == "30":
-                res["counterparty_bic"] = val_clean
-            elif code == "31":
-                res["counterparty_iban"] = val_clean
-            elif code in ("32", "33"):
-                creditor_parts.append(val_clean)
-            else:
-                res["additional_tags"][f"?{code}"] = val_clean
-
-        if remittance_parts:
-            res["remittance_info"] = " ".join(remittance_parts)
-        if creditor_parts:
-            res["creditor_name"] = " ".join(creditor_parts)
-
-    # 2. Check for SWIFT standard slash-separated subfields (/TAG/value)
-    if "/" in text:
-        slash_matches = _SLASH_SUBFIELD_RE.findall(text)
-        remittance_slash_parts: list[str] = []
-
-        for tag, val in slash_matches:
-            val_clean = val.strip()
-            if not val_clean:
-                continue
-
-            if tag == "EREF":
-                res["end_to_end_id"] = val_clean
-            elif tag in ("REMI", "RMTINF"):
-                remittance_slash_parts.append(val_clean)
-            elif tag in ("MARF", "MREF"):
-                res["mandate_id"] = val_clean
-            elif tag in ("CDTR", "CNAM", "CRED"):
-                res["creditor_name"] = val_clean
-            elif tag in ("DBTR", "DNAM", "DEBT"):
-                res["debtor_name"] = val_clean
-            elif tag in ("CDTRID", "CI"):
-                res["creditor_id"] = val_clean
-            elif tag == "IBAN":
-                res["counterparty_iban"] = val_clean
-            elif tag in ("BIC", "SWIFT"):
-                if val_clean not in ("NOTPROVIDED", "UNDEFINED"):
-                    res["counterparty_bic"] = val_clean
-            elif tag in ("PURP", "CODP"):
-                res["purpose_code"] = val_clean
-            elif tag in ("OCMT", "ORAMT"):
-                res["original_amount"] = _parse_decimal_safe(val_clean)
-            elif tag in ("CHGS", "FEE"):
-                res["charges_amount"] = _parse_decimal_safe(val_clean)
-            elif tag in ("SVCR", "SRV"):
-                res["service_reference"] = val_clean
-            else:
-                res["additional_tags"][tag] = val_clean
-
-        if remittance_slash_parts and not res.get("remittance_info"):
-            res["remittance_info"] = " ".join(remittance_slash_parts)
-
-    # 3. Fallback regex detection for IBAN and BIC if not yet discovered
-    if not res.get("counterparty_iban"):
-        iban_match = _IBAN_RE.search(text)
-        if iban_match:
-            res["counterparty_iban"] = iban_match.group(0)
-
-    if not res.get("counterparty_bic"):
-        bic_match = _BIC_RE.search(text)
-        if bic_match:
-            candidate = bic_match.group(0)
-            if candidate not in ("NOTPROVIDED", "UNDEFINED"):
-                res["counterparty_bic"] = candidate
+    _parse_gvc_subfields(text, res)
+    _parse_slash_subfields(text, res)
+    _detect_iban_bic_fallback(text, res)
 
     if not res["additional_tags"]:
         res["additional_tags"] = None
