@@ -5,7 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.26] - Unreleased
+## [0.0.27] - Unreleased
+
+### Added
+
+- Add dedicated SWIFT MT942 interim transaction report parser engine in `bankstatementparser/parsers/mt942.py` (`Mt942Parser`) supporting floor limits (:34F:), intraday date/time indications (:13D:), and interim transaction entries (:61:/:86:).
+- Add streaming columnar Parquet exporter (`ParquetStreamWriter`) in `bankstatementparser/export/parquet.py` with chunked PyArrow writing and zero intermediate DataFrame memory overhead.
+- Modularize `bankstatementparser/input_validator.py` into focused submodules bringing all files in the repository strictly below 500 lines of code.
+
+## [0.0.26] - 2026-10-10
 
 ### Added
 
