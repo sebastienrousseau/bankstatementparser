@@ -195,7 +195,9 @@ class PersistentWorkerPool:
         """Initialize the persistent worker pool if not already running."""
         if self._executor is None:
             kwargs: dict[str, Any] = {}
-            if sys.version_info >= (3, 11) and self._max_tasks_per_child:
+            if (
+                sys.version_info >= (3, 11) and self._max_tasks_per_child
+            ):  # pragma: no cover - version dependent
                 kwargs["max_tasks_per_child"] = self._max_tasks_per_child
             self._executor = ProcessPoolExecutor(
                 max_workers=self._max_workers,

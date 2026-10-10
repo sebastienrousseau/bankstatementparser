@@ -270,7 +270,7 @@ class _BaseCamtStreamParser(BankStatementParser):
         elif tag == "CreDtTm":
             if summary is not None and elem.text:
                 summary["statement_date"] = elem.text.strip()[:10]
-        elif tag == "Bal":
+        else:
             self._handle_balance_tag(elem, summary)
 
     def _yield_entry_records(
@@ -310,15 +310,14 @@ class _BaseCamtStreamParser(BankStatementParser):
 
         for event, elem in context:
             if event == "start":
-                if elem.tag.startswith("{"):
-                    elem.tag = etree.QName(elem).localname
-                if _strip_ns(elem.tag) == self.SCOPE_TAG:
+                elem.tag = str(etree.QName(elem).localname)
+                if elem.tag == self.SCOPE_TAG:
                     meta_state["acct"] = ""
                     meta_state["ccy"] = ""
                     active_summary = _init_scope_summary()
                 continue
 
-            tag = _strip_ns(elem.tag)
+            tag = elem.tag
             if tag in ("Acct", "CreDtTm", "Bal"):
                 self._handle_metadata_event(
                     tag, elem, active_summary, meta_state
