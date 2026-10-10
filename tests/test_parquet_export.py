@@ -201,3 +201,72 @@ def test_parquet_redaction_preserves_financial_values(
     CsvStatementParser(source).to_parquet(redact_pii=True)
     assert observed[-1][0]["description"] == "***REDACTED***"
     assert observed[-1][0]["amount"] == Decimal("1.234")
+
+
+def test_parquet_stream_writer_lifecycle_and_methods(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test ParquetStreamWriter lifecycle: context manager, batches, flush, and close."""
+    from types import SimpleNamespace
+
+    from bankstatementparser.export.parquet import ParquetStreamWriter
+
+    batches = []
+
+    class MockWriter:
+        def __init__(self, path: Any, schema: Any, **kwargs: Any) -> None:
+            self.path = Path(path)
+
+        def __enter__(self) -> "MockWriter":
+            self.path.write_bytes(b"PAR1")
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+        def write_table(self, table: Any) -> None:
+            batches.append(list(table))
+
+    pa = SimpleNamespace(
+        Table=SimpleNamespace(from_pylist=lambda rows, **kwargs: list(rows))
+    )
+    pq = SimpleNamespace(ParquetWriter=MockWriter)
+    monkeypatch.setattr(
+        "bankstatementparser.export.parquet.importlib.import_module",
+        lambda name: pa if name == "pyarrow" else pq,
+    )
+
+    class MockSchema:
+        def __init__(self) -> None:
+            self.names = ["id", "description"]
+
+        def __iter__(self) -> Any:
+            return iter(
+                [
+                    SimpleNamespace(name="id", nullable=False),
+                    SimpleNamespace(name="description", nullable=True),
+                ]
+            )
+
+    schema = MockSchema()
+    out_file = tmp_path / "stream_direct.parquet"
+
+    with ParquetStreamWriter(out_file, schema=schema, batch_size=2) as writer:
+        writer.write_record({"id": 1, "description": "First"})
+        assert writer.rows_written == 1
+        writer.write_batch(
+            [
+                {"id": 2, "description": "Second"},
+                {"id": 3, "description": "Third"},
+            ]
+        )
+        assert writer.rows_written == 3
+        writer.flush()
+
+    assert out_file.exists()
+    assert writer.close() == 3
+    assert len(batches) == 2  # first batch of 2, second flushed on close
+
+    # Writing to closed writer raises ValueError
+    with pytest.raises(ValueError, match="closed"):
+        writer.write_record({"id": 4, "description": "Fourth"})

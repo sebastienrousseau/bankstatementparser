@@ -25,6 +25,7 @@ from .additional_parsers import (
     Camt054Parser,
     CsvStatementParser,
     Mt940Parser,
+    Mt942Parser,
     OfxParser,
     QfxParser,
     create_parser,
@@ -51,7 +52,11 @@ from .exceptions import (
     Pain001ParseError,
     ParserError,
 )
-from .export.parquet import export_parquet, export_parquet_stream
+from .export.parquet import (
+    ParquetStreamWriter,
+    export_parquet,
+    export_parquet_stream,
+)
 from .field86_parser import Field86Structure, parse_field_86
 from .forensics import (
     ForensicFinding,
@@ -129,10 +134,12 @@ __all__ = [
     "InputValidator",
     "MatchGroup",
     "Mt940Parser",
+    "Mt942Parser",
     "NullSpan",
     "OfxParser",
     "Pain001ParseError",
     "Pain001Parser",
+    "ParquetStreamWriter",
     "ParserError",
     "QfxParser",
     "ReconciliationMatch",

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add dedicated SWIFT MT942 interim transaction report parser engine in `bankstatementparser/parsers/mt942.py` (`Mt942Parser`) supporting floor limits (:34F:), intraday date/time indications (:13D:), and interim transaction entries (:61:/:86:).
 - Add streaming columnar Parquet exporter (`ParquetStreamWriter`) in `bankstatementparser/export/parquet.py` with chunked PyArrow writing and zero intermediate DataFrame memory overhead.
 - Modularize `bankstatementparser/input_validator.py` into focused submodules bringing all files in the repository strictly below 500 lines of code.
+- Synchronize documentation, layout, and test suites to 1058 tests across 55 modules.
 
 ## [0.0.26] - 2026-10-10
 
