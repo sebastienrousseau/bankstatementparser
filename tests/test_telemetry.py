@@ -96,6 +96,19 @@ def test_trace_span_with_opentelemetry(
     )
 
 
+def test_trace_span_fallback_null_span(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """trace_span falls back to NullSpan when OpenTelemetry is unavailable."""
+    monkeypatch.setattr(
+        "bankstatementparser.telemetry.is_telemetry_available", lambda: False
+    )
+    with trace_span("fallback_op", attributes={"mode": "fallback"}) as span:
+        assert isinstance(span, NullSpan)
+        assert span.name == "fallback_op"
+        assert span.attributes == {"mode": "fallback"}
+
+
 def test_traced_decorator_sync() -> None:
     """traced wraps sync callables in spans."""
 

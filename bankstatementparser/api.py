@@ -63,6 +63,14 @@ from .api_worker import (
 from .input_validator import InputValidator
 from .telemetry import trace_span
 
+try:
+    from fastapi import File, UploadFile
+    from fastapi.responses import JSONResponse
+except ImportError:  # pragma: no cover
+    File = None  # type: ignore[assignment]
+    UploadFile = Any  # type: ignore[misc,assignment]
+    JSONResponse = Any  # type: ignore[misc,assignment]
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -107,6 +115,9 @@ def _build_ingest_handler(
     from fastapi.responses import JSONResponse
 
     from .hybrid import smart_ingest
+
+    globals()["UploadFile"] = UploadFile
+    globals()["JSONResponse"] = JSONResponse
 
     _file_field = File(...)
 
