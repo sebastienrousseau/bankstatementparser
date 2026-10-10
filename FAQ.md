@@ -63,7 +63,7 @@ No file is written to disk. XML bytes pass directly to `CamtParser.from_bytes()`
 |---|---|
 | **CAMT** | `Amount` (float), `Currency` (str), `DrCr` (`"CRDT"`/`"DBIT"`), `Debtor`, `Creditor`, `Reference`, `ValDt` (ISO date), `BookgDt` (ISO datetime), `AccountId` |
 | **PAIN.001** | `PmtInfId`, `PmtMtd`, `InstdAmt`, `Currency`, `CdtrNm`, `EndToEndId`, plus header fields (`MsgId`, `CreDtTm`, `NbOfTxs`) |
-| **CSV/OFX/MT940** | `date`, `description`, `amount` (normalized) |
+| **CSV/OFX/QFX/MT940/MT942/BAI2** | `date`, `description`, `amount` (normalized) |
 
 ### 8. Does the parser handle bank-specific dialects of CAMT.053?
 
@@ -98,7 +98,7 @@ bankstatementparser --type ingest --input statement.pdf
 
 `smart_ingest()` auto-routes between three paths:
 
-1. **Deterministic** — for ISO/exchange formats (CAMT, PAIN.001, CSV, OFX, MT940). Free, fastest, $0 cost.
+1. **Deterministic** — for ISO/exchange formats (CAMT, PAIN.001, CSV, OFX, QFX, MT940, MT942, BAI2). Free, fastest, $0 cost.
 2. **Text-LLM** — for digital PDFs where `pypdf` extracts ≥ 50 characters. Uses LiteLLM with `BSP_HYBRID_MODEL` (default `ollama/llama3`).
 3. **Vision-LLM** — for scanned/photocopied PDFs (auto-routed when text density falls below `LOW_TEXT_DENSITY_THRESHOLD`). Requires `BSP_HYBRID_VISION_MODEL` to be explicitly set — no default, since vision inference is resource-heavy.
 

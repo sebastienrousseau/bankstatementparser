@@ -213,6 +213,12 @@ BLOCK_SPECS: tuple[BlockSpec, ...] = (
         ),
         requires=("polars",),
     ),
+    # README — Parquet export
+    BlockSpec(
+        marker='ParquetStreamWriter("output_stream.parquet"',
+        preamble=_TRANSACTIONS_PREAMBLE,
+        requires=("pyarrow",),
+    ),
     # README — hledger/beancount export
     BlockSpec(
         marker="to_hledger(transactions",
