@@ -181,7 +181,7 @@ module = ["polars", "polars.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*", "httpx", "httpx.*", "fastapi", "fastapi.*", "uvicorn", "uvicorn.*"]
+module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*", "httpx", "httpx.*", "fastapi", "fastapi.*", "uvicorn", "uvicorn.*", "opentelemetry", "opentelemetry.*"]
 ignore_missing_imports = true
 
 # fastapi is an optional extra. When it is installed its route

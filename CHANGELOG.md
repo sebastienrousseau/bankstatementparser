@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initialize iteration v0.0.25.
+- Add structured OpenTelemetry tracing hooks in `bankstatementparser/telemetry.py` (`trace_span`, `traced`, `trace_stream`, `trace_async_stream`) with zero-dependency fallback via `NullSpan`.
+- Add unit test suite in `tests/test_telemetry.py` verifying tracing hooks and fallback behavior with 100% statement and branch coverage.
+
+### Changed
+
+- Modularize `bankstatementparser/analytics.py` (691 lines) into dedicated package `bankstatementparser/analytics/` (`models.py`, `common.py`, `cash_flow.py`, `patterns.py`, `__init__.py`) bringing all files strictly under 500 lines and all functions within McCabe complexity ceilings.
+- Modularize `bankstatementparser/api.py` (584 lines) into `api_limits.py`, `api_worker.py`, and `api.py` (< 260 lines per file).
+- Instrument REST API endpoints and worker processes with distributed tracing spans.
+- Update documentation and test count to 1022 tests across 51 modules.
 
 ## [0.0.24] - 2026-10-10
 

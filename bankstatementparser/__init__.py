@@ -71,6 +71,14 @@ from .reconciliation import (
     ReconciliationStatus,
     reconcile_payments_and_statements,
 )
+from .telemetry import (
+    NullSpan,
+    is_telemetry_available,
+    trace_async_stream,
+    trace_span,
+    trace_stream,
+    traced,
+)
 from .transaction_deduplicator import (
     DeduplicationResult,
     Deduplicator,
@@ -115,6 +123,7 @@ __all__ = [
     "InputValidator",
     "MatchGroup",
     "Mt940Parser",
+    "NullSpan",
     "OfxParser",
     "Pain001ParseError",
     "Pain001Parser",
@@ -143,6 +152,7 @@ __all__ = [
     "export_parquet",
     "export_parquet_stream",
     "inspect_pdf_forensics",
+    "is_telemetry_available",
     "iter_files_parallel",
     "iter_secure_statement_entries",
     "iter_secure_xml_entries",
@@ -151,4 +161,8 @@ __all__ = [
     "reconcile_payments_and_statements",
     "register_loader",
     "register_writer",
+    "trace_async_stream",
+    "trace_span",
+    "trace_stream",
+    "traced",
 ]
