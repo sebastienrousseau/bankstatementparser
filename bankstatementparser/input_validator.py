@@ -74,6 +74,8 @@ class InputValidator:
         ".XLS",
         ".json",
         ".JSON",
+        ".parquet",
+        ".PARQUET",
     }
 
     # Dangerous path patterns to block
@@ -441,6 +443,58 @@ class InputValidator:
                 f"XML content is too large ({size_mb:.1f}MB). Maximum allowed: {max_mb:.1f}MB"
             )
 
+    def _read_file_header(self, path: Path) -> bytes:
+        """Read the initial bytes of a file for format detection."""
+        try:
+            with open(path, "rb") as f:
+                return f.read(1024)
+        except (OSError, UnicodeDecodeError) as e:
+            raise ValidationError(
+                f"Cannot read file for format validation: {e}"
+            ) from e
+
+    def _validate_pdf_format(self, path: Path) -> None:
+        """Validate that a PDF input begins with the PDF magic signature."""
+        header = self._read_file_header(path)
+        if not header.startswith(b"%PDF"):
+            raise ValidationError(f"File is not a valid PDF document: {path}")
+
+    def _check_binary_signatures(self, header: bytes, path: Path) -> None:
+        """Check for known binary signatures that indicate invalid text formats."""
+        binary_signatures = [
+            b"\x89PNG",
+            b"GIF8",
+            b"\xff\xd8\xff",
+            b"PK",
+            b"\x7fELF",
+            b"MZ",
+            b"\x00\x00\x01\x00",
+            b"%PDF",
+        ]
+        for sig in binary_signatures:
+            if header[: len(sig)] == sig:
+                raise ValidationError(
+                    f"File appears to contain binary data, expected XML: {path}"
+                )
+
+    def _check_xml_indicators(self, header: bytes, path: Path) -> None:
+        """Check for XML declaration or common root namespace indicators."""
+        header_str = header.decode("utf-8", errors="ignore").lower()
+        xml_indicators = [
+            "<?xml",
+            "<document",
+            "xmlns",
+            "camt.053",
+            "pain.001",
+            "iso:std:iso:20022",
+        ]
+        if not any(ind in header_str for ind in xml_indicators):
+            if any(c < 32 and c not in (9, 10, 13) for c in header[:100]):
+                raise ValidationError(
+                    f"File appears to contain binary data, expected XML: {path}"
+                )
+            logger.warning(f"File may not be a valid XML document: {path}")
+
     def _validate_input_format(self, path: Path) -> None:
         """Validate input file format by checking file content.
 
@@ -450,84 +504,31 @@ class InputValidator:
         Raises:
             ValidationError: If format validation fails.
         """
-        try:
-            # Check MIME type
-            mime_type, _ = mimetypes.guess_type(str(path))
-            if mime_type and not any(
-                xml_type in mime_type for xml_type in ["xml", "text"]
-            ):
-                logger.warning(
-                    f"Unexpected MIME type '{mime_type}' for file: {path}"
-                )
-
-            # Read first few bytes to check for XML declaration
-            with open(path, "rb") as f:
-                header = f.read(1024)  # Read first 1KB
-
-            # Check for known binary file signatures (magic bytes)
-            binary_signatures = [
-                b"\x89PNG",  # PNG
-                b"GIF8",  # GIF
-                b"\xff\xd8\xff",  # JPEG
-                b"PK",  # ZIP/XLSX/DOCX
-                b"\x7fELF",  # ELF executable
-                b"MZ",  # Windows executable
-                b"\x00\x00\x01\x00",  # ICO
-                b"%PDF",  # PDF
-            ]
-            for sig in binary_signatures:
-                if header[: len(sig)] == sig:
-                    raise ValidationError(
-                        f"File appears to contain binary data, expected XML: {path}"
-                    )
-
-            # Validate UTF-8 encoding
-            try:
-                header.decode("utf-8")
-            except UnicodeDecodeError as exc:
-                raise ValidationError(
-                    f"File encoding is not valid UTF-8: {path}"
-                ) from exc
-
-            if path.suffix.lower() != ".xml":
-                return
-
-            # Check for XML declaration or root elements
-            header_str = header.decode("utf-8", errors="ignore").lower()
-
-            # Look for XML indicators
-            xml_indicators = [
-                "<?xml",
-                "<document",
-                "xmlns",
-                "camt.053",
-                "pain.001",
-                "iso:std:iso:20022",
-            ]
-
-            has_xml_indicator = any(
-                indicator in header_str for indicator in xml_indicators
+        mime_type, _ = mimetypes.guess_type(str(path))
+        if mime_type and not any(
+            xml_type in mime_type for xml_type in ["xml", "text"]
+        ):
+            logger.warning(
+                f"Unexpected MIME type '{mime_type}' for file: {path}"
             )
 
-            if not has_xml_indicator:
-                # Check if it's binary data (control chars other than whitespace)
-                if any(c < 32 and c not in (9, 10, 13) for c in header[:100]):
-                    raise ValidationError(
-                        f"File appears to contain binary data, expected XML: {path}"
-                    )
-                else:
-                    logger.warning(
-                        f"File may not be a valid XML document: {path}"
-                    )
+        suffix = path.suffix.lower()
+        if suffix == ".pdf":
+            self._validate_pdf_format(path)
+            return
 
+        header = self._read_file_header(path)
+        self._check_binary_signatures(header, path)
+
+        try:
+            header.decode("utf-8")
         except UnicodeDecodeError as exc:
             raise ValidationError(
                 f"File encoding is not valid UTF-8: {path}"
             ) from exc
-        except OSError as e:
-            raise ValidationError(
-                f"Cannot read file for format validation: {e}"
-            ) from e
+
+        if suffix == ".xml":
+            self._check_xml_indicators(header, path)
 
     def _validate_xml_bytes_format(
         self, xml_bytes: bytes, source_name: str

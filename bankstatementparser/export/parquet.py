@@ -15,6 +15,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..input_validator import InputValidator
 from ..privacy import redact_record
 
 
@@ -36,6 +37,11 @@ def export_parquet(
     Returns:
         Parquet file contents as bytes.
     """
+    validated_destination = (
+        InputValidator().validate_output_file_path(str(output_path))
+        if output_path is not None
+        else None
+    )
     if isinstance(transactions, pd.DataFrame):
         df = transactions.copy()
     else:
@@ -78,10 +84,8 @@ def export_parquet(
         ) from exc
     parquet_bytes = buf.getvalue()
 
-    if output_path is not None:
-        p = Path(output_path)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_bytes(parquet_bytes)
+    if validated_destination is not None:
+        validated_destination.write_bytes(parquet_bytes)
 
     return parquet_bytes
 
@@ -121,8 +125,7 @@ def export_parquet_stream(
     if len(names) != len(schema.names):
         raise ValueError("Parquet schema field names must be unique")
     required = [field.name for field in schema if not field.nullable]
-    destination = Path(output_path)
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination = InputValidator().validate_output_file_path(str(output_path))
     with tempfile.NamedTemporaryFile(
         dir=destination.parent,
         prefix=".bsp_",
