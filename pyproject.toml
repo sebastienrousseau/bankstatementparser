@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.24"
+version = "0.0.25"
 description = "Parse bank statements (CAMT.053, PAIN.001, MT940, OFX, BAI2, CSV, and PDF) into unified Transactions with treasury analytics, 2-way reconciliation, PDF forensics, and ledger export."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache-2.0 OR MIT"
@@ -181,7 +181,7 @@ module = ["polars", "polars.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*", "httpx", "httpx.*", "fastapi", "fastapi.*", "uvicorn", "uvicorn.*"]
+module = ["litellm", "litellm.*", "pypdf", "pypdf.*", "pdfplumber", "pdfplumber.*", "pypdfium2", "pypdfium2.*", "httpx", "httpx.*", "fastapi", "fastapi.*", "uvicorn", "uvicorn.*", "opentelemetry", "opentelemetry.*"]
 ignore_missing_imports = true
 
 # fastapi is an optional extra. When it is installed its route

@@ -5,11 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.24] - Unreleased
+## [0.0.25] - Unreleased
 
 ### Added
 
-- Initialize iteration v0.0.24.
+- Add structured OpenTelemetry tracing hooks in `bankstatementparser/telemetry.py` (`trace_span`, `traced`, `trace_stream`, `trace_async_stream`) with zero-dependency fallback via `NullSpan`.
+- Add unit test suite in `tests/test_telemetry.py` verifying tracing hooks and fallback behavior with 100% statement and branch coverage.
+
+### Changed
+
+- Modularize `bankstatementparser/analytics.py` (691 lines) into dedicated package `bankstatementparser/analytics/` (`models.py`, `common.py`, `cash_flow.py`, `patterns.py`, `__init__.py`) bringing all files strictly under 500 lines and all functions within McCabe complexity ceilings.
+- Modularize `bankstatementparser/api.py` (584 lines) into `api_limits.py`, `api_worker.py`, and `api.py` (< 260 lines per file).
+- Instrument REST API endpoints and worker processes with distributed tracing spans.
+- Update documentation and test count to 1023 tests across 51 modules.
+
+## [0.0.24] - 2026-10-10
+
+### Changed
+
+- Modularize statement parsers into dedicated engine modules under `bankstatementparser/parsers/` (`csv_parser.py`, `ofx.py`, `mt940.py`, `common.py`) while preserving 100% backward compatibility and re-export parity.
+- Reduce cyclomatic complexity across MT940 line parsing, format detection, and SWIFT field 86 narrative extraction to bring all routines within complexity ceilings.
 
 ## [0.0.23] - 2026-10-10
 
@@ -1047,7 +1062,7 @@ See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
 [Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.24...HEAD
-[0.0.24]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.23...HEAD
+[0.0.24]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.23...v0.0.24
 [0.0.23]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.22...v0.0.23
 [0.0.22]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.21...v0.0.22
 [0.0.21]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.20...v0.0.21

@@ -71,6 +71,14 @@ from .reconciliation import (
     ReconciliationStatus,
     reconcile_payments_and_statements,
 )
+from .telemetry import (
+    NullSpan,
+    is_telemetry_available,
+    trace_async_stream,
+    trace_span,
+    trace_stream,
+    traced,
+)
 from .transaction_deduplicator import (
     DeduplicationResult,
     Deduplicator,
@@ -91,7 +99,7 @@ from .zip_security import (
 #: so the conformance gate can compare it statically against
 #: pyproject.toml -- that comparison is the thing that catches drift, and
 #: a runtime lookup would make the two trivially equal and check nothing.
-__version__ = "0.0.24"
+__version__ = "0.0.25"
 
 __all__ = [
     "AnalyticsReport",
@@ -115,6 +123,7 @@ __all__ = [
     "InputValidator",
     "MatchGroup",
     "Mt940Parser",
+    "NullSpan",
     "OfxParser",
     "Pain001ParseError",
     "Pain001Parser",
@@ -143,6 +152,7 @@ __all__ = [
     "export_parquet",
     "export_parquet_stream",
     "inspect_pdf_forensics",
+    "is_telemetry_available",
     "iter_files_parallel",
     "iter_secure_statement_entries",
     "iter_secure_xml_entries",
@@ -151,4 +161,8 @@ __all__ = [
     "reconcile_payments_and_statements",
     "register_loader",
     "register_writer",
+    "trace_async_stream",
+    "trace_span",
+    "trace_stream",
+    "traced",
 ]
