@@ -20,6 +20,9 @@ operations.
 """
 
 from .additional_parsers import (
+    Bai2Parser,
+    Camt052Parser,
+    Camt054Parser,
     CsvStatementParser,
     Mt940Parser,
     OfxParser,
@@ -104,9 +107,12 @@ __version__ = "0.0.26"
 __all__ = [
     "AnalyticsReport",
     "AnomalyFinding",
+    "Bai2Parser",
     "BankStatementParser",
     "BankStatementParserError",
     "BoundingBox",
+    "Camt052Parser",
+    "Camt054Parser",
     "CamtParser",
     "CashFlowMetrics",
     "CsvStatementParser",

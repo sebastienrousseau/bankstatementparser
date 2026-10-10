@@ -21,10 +21,12 @@ from pathlib import Path
 
 from .base_parser import BankStatementParser
 from .camt_parser import CamtParser
+from .camt_reports import Camt052Parser, Camt054Parser
 from .input_validator import ValidationError
 from .pain001_parser import Pain001Parser
 from .parsers import (
     CSV_COLUMN_GROUPS,
+    Bai2Parser,
     CsvStatementParser,
     Mt940Parser,
     OfxParser,
@@ -42,6 +44,9 @@ from .plugins import get_registered_loaders
 
 __all__ = [
     "CSV_COLUMN_GROUPS",
+    "Bai2Parser",
+    "Camt052Parser",
+    "Camt054Parser",
     "CsvStatementParser",
     "Mt940Parser",
     "OfxParser",
@@ -67,7 +72,7 @@ def _detect_by_suffix(suffix: str) -> str | None:
         return "ofx"
     if suffix in {".mt940", ".sta"}:
         return "mt940"
-    if suffix == ".bai2":
+    if suffix in {".bai2", ".bai"}:
         return "bai2"
     if suffix == ".mt942":
         return "mt942"
@@ -78,6 +83,10 @@ def _detect_xml_format(lowered: str) -> str | None:
     """Detect statement format from XML content tags."""
     if "cstmrcdttrfinitn" in lowered or "pain.001" in lowered:
         return "pain001"
+    if "bktocstmrdbtcdtntfctn" in lowered or "camt.054" in lowered:
+        return "camt054"
+    if "bktocstmracctrpt" in lowered or "camt.052" in lowered:
+        return "camt052"
     if "bktocstmrstmt" in lowered or "camt." in lowered:
         return "camt"
     return None
@@ -135,11 +144,14 @@ def create_parser(
     selected = (format_name or detect_statement_format(file_name)).lower()
     parser_map: dict[str, type[BankStatementParser]] = {
         "camt": CamtParser,
+        "camt052": Camt052Parser,
+        "camt054": Camt054Parser,
         "pain001": Pain001Parser,
         "csv": CsvStatementParser,
         "ofx": OfxParser,
         "qfx": QfxParser,
         "mt940": Mt940Parser,
+        "bai2": Bai2Parser,
     }
     # Augment with dynamic plugins
     parser_map.update(get_registered_loaders())

@@ -21,11 +21,23 @@ import asyncio
 import json
 import sys
 import tempfile
+from concurrent.futures import ProcessPoolExecutor
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, Optional, cast
 
 from .api_limits import APIError
+
+__all__ = [
+    "PersistentWorkerPool",
+    "_ingest_in_process",
+    "_ingest_in_thread",
+    "_reap_worker",
+    "_result_to_dict",
+    "_run_ingest_worker",
+    "_run_worker_job",
+    "_verification_dict",
+]
 
 
 def _verification_dict(v: Any) -> Optional[dict[str, Any]]:
@@ -74,6 +86,17 @@ def _run_ingest_worker(input_path: str, output_path: str) -> None:
         payload = _result_to_dict(smart_ingest(input_path))
         with open(output_path, "w", encoding="utf-8") as output:
             json.dump(payload, output)
+
+
+def _run_worker_job(input_path: str) -> dict[str, Any]:
+    """Execute ingestion in a warm process worker and serialize to dict."""
+    from .hybrid import smart_ingest
+    from .telemetry import trace_span
+
+    with trace_span(
+        "bankstatementparser.api.worker_pool", {"input_path": input_path}
+    ):
+        return _result_to_dict(smart_ingest(input_path))
 
 
 async def _reap_worker(process: asyncio.subprocess.Process) -> None:
@@ -148,3 +171,55 @@ async def _ingest_in_process(path: str, timeout: float) -> dict[str, Any]:
                     with suppress(ProcessLookupError):
                         process.kill()
                 await _reap_worker(process)
+
+
+class PersistentWorkerPool:
+    """Persistent warm process pool with memory recycling and execution deadlines."""
+
+    def __init__(
+        self,
+        max_workers: int = 4,
+        max_tasks_per_child: int = 50,
+    ) -> None:
+        """Initialize worker pool with concurrency and memory recycling bounds."""
+        self._max_workers = max_workers
+        self._max_tasks_per_child = max_tasks_per_child
+        self._executor: ProcessPoolExecutor | None = None
+
+    @property
+    def is_running(self) -> bool:
+        """Check whether the process pool is currently initialized and active."""
+        return self._executor is not None
+
+    def start(self) -> None:
+        """Initialize the persistent worker pool if not already running."""
+        if self._executor is None:
+            kwargs: dict[str, Any] = {}
+            if sys.version_info >= (3, 11) and self._max_tasks_per_child:
+                kwargs["max_tasks_per_child"] = self._max_tasks_per_child
+            self._executor = ProcessPoolExecutor(
+                max_workers=self._max_workers,
+                **kwargs,
+            )
+
+    def shutdown(self, wait: bool = True) -> None:
+        """Shut down the pool and release worker processes."""
+        if self._executor is not None:
+            self._executor.shutdown(wait=wait, cancel_futures=True)
+            self._executor = None
+
+    async def run_ingest(self, path: str, timeout: float) -> dict[str, Any]:
+        """Execute statement ingestion in a warm worker under an execution deadline."""
+        if self._executor is None:
+            self.start()
+        executor = self._executor
+        if executor is None:
+            raise APIError("Worker pool failed to initialize")
+        loop = asyncio.get_running_loop()
+        future = loop.run_in_executor(executor, _run_worker_job, path)
+        try:
+            return await asyncio.wait_for(future, timeout=timeout)
+        except asyncio.TimeoutError:
+            raise
+        except Exception as exc:
+            raise APIError(f"Worker ingestion failed: {exc}") from exc

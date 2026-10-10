@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from .bai2 import Bai2Parser
 from .common import (
     CSV_COLUMN_GROUPS,
     _amount_or_zero,
@@ -34,6 +35,7 @@ from .ofx import OfxParser, QfxParser
 
 __all__ = [
     "CSV_COLUMN_GROUPS",
+    "Bai2Parser",
     "CsvStatementParser",
     "Mt940Parser",
     "OfxParser",

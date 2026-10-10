@@ -193,17 +193,31 @@ class TestAdditionalParsers(unittest.TestCase):
         ) as mt942_handle:
             mt942_handle.write(":34F:EUR0,\n:61:260320C10,00REF\n")
             mt942_path = Path(mt942_handle.name)
+        with tempfile.NamedTemporaryFile(
+            suffix=".xml", mode="w", encoding="utf-8", delete=False
+        ) as c52_handle:
+            c52_handle.write("<Document><BkToCstmrAcctRpt/></Document>")
+            c52_path = Path(c52_handle.name)
+        with tempfile.NamedTemporaryFile(
+            suffix=".xml", mode="w", encoding="utf-8", delete=False
+        ) as c54_handle:
+            c54_handle.write("<Document><BkToCstmrDbtCdtNtfctn/></Document>")
+            c54_path = Path(c54_handle.name)
 
         try:
             self.assertEqual(detect_statement_format(ofx_path), "ofx")
             self.assertEqual(detect_statement_format(mt940_path), "mt940")
             self.assertEqual(detect_statement_format(bai2_path), "bai2")
             self.assertEqual(detect_statement_format(mt942_path), "mt942")
+            self.assertEqual(detect_statement_format(c52_path), "camt052")
+            self.assertEqual(detect_statement_format(c54_path), "camt054")
         finally:
             ofx_path.unlink(missing_ok=True)
             mt940_path.unlink(missing_ok=True)
             bai2_path.unlink(missing_ok=True)
             mt942_path.unlink(missing_ok=True)
+            c52_path.unlink(missing_ok=True)
+            c54_path.unlink(missing_ok=True)
 
     def test_empty_csv_and_missing_ofx_tag_paths(self):
         with tempfile.NamedTemporaryFile(
