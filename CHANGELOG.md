@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.23] - 2026-10-10
+
+### Changed
+
+- Update repository topics and description to include Python, SEPA, and plain text accounting formats.
+- Adjust CAMT streaming throughput test assertions for consistent coverage profiling runs.
+
 ## [0.0.22] - 2026-10-10
 
 ### Security
@@ -1035,7 +1042,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.22...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.23...HEAD
+[0.0.23]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.22...v0.0.23
 [0.0.22]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.21...v0.0.22
 [0.0.21]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.20...v0.0.21
 [0.0.20]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.20
@@ -1051,5 +1059,3 @@ introduced in v0.0.5; earlier releases are not back-filled.
 [0.0.6]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.6
 [0.0.5]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.5
 [0.0.4]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.4
-
-[0.0.19]: https://github.com/sebastienrousseau/bankstatementparser/releases/tag/v0.0.19
