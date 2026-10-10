@@ -457,9 +457,7 @@ class InputValidator:
         """Validate that a PDF input begins with the PDF magic signature."""
         header = self._read_file_header(path)
         if not header.startswith(b"%PDF"):
-            raise ValidationError(
-                f"File is not a valid PDF document: {path}"
-            )
+            raise ValidationError(f"File is not a valid PDF document: {path}")
 
     def _check_binary_signatures(self, header: bytes, path: Path) -> None:
         """Check for known binary signatures that indicate invalid text formats."""

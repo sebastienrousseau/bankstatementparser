@@ -44,7 +44,9 @@ _LEDGER_ACCOUNT_DISALLOWED = re.compile(r"[\r\n\t;\"#]+")
 _LEDGER_CURRENCY_RE = re.compile(r"^[A-Za-z0-9_]{1,10}$")
 
 
-def _sanitize_account(account: str, fallback: str = "Expenses:Uncategorized") -> str:
+def _sanitize_account(
+    account: str, fallback: str = "Expenses:Uncategorized"
+) -> str:
     """Sanitize account name to prevent plaintext accounting syntax injection."""
     cleaned = _LEDGER_ACCOUNT_DISALLOWED.sub(" ", account).strip()
     return cleaned or fallback
@@ -53,10 +55,7 @@ def _sanitize_account(account: str, fallback: str = "Expenses:Uncategorized") ->
 def _sanitize_currency(currency: str, fallback: str = "EUR") -> str:
     """Sanitize currency symbol to prevent newline injection in postings."""
     cleaned = (
-        currency.strip()
-        .replace("\r", "")
-        .replace("\n", "")
-        .replace("\t", "")
+        currency.strip().replace("\r", "").replace("\n", "").replace("\t", "")
     )
     if _LEDGER_CURRENCY_RE.match(cleaned):
         return cleaned
@@ -102,7 +101,9 @@ def to_hledger(
         if redact_pii
         else _sanitize_account(account, "Assets:Bank:Checking")
     )
-    contra_account = _sanitize_account(contra_account, "Expenses:Uncategorized")
+    contra_account = _sanitize_account(
+        contra_account, "Expenses:Uncategorized"
+    )
     clean_default_currency = _sanitize_currency(default_currency, "EUR")
     for tx in transactions:
         date = (
@@ -168,7 +169,9 @@ def to_beancount(
         if redact_pii
         else _sanitize_account(account, "Assets:Bank:Checking")
     )
-    contra_account = _sanitize_account(contra_account, "Expenses:Uncategorized")
+    contra_account = _sanitize_account(
+        contra_account, "Expenses:Uncategorized"
+    )
     clean_default_currency = _sanitize_currency(default_currency, "EUR")
     for tx in transactions:
         date = (
