@@ -705,7 +705,8 @@ cleanly — see each companion's README for runnable examples.
 ## Project Layout
 
 ```text
-bankstatementparser/            Source code (39 modules)
+bankstatementparser/            Source code (44 modules)
+bankstatementparser/parsers/    Modular statement parsers (CSV, MT940, OFX/QFX)
 bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
 bankstatementparser/export/     hledger + beancount journal export, Apache Parquet columnar export
