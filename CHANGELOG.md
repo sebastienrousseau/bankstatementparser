@@ -5,11 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.24] - Unreleased
+## [0.0.25] - Unreleased
 
 ### Added
 
-- Initialize iteration v0.0.24.
+- Initialize iteration v0.0.25.
+
+## [0.0.24] - 2026-10-10
+
+### Changed
+
+- Modularize statement parsers into dedicated engine modules under `bankstatementparser/parsers/` (`csv_parser.py`, `ofx.py`, `mt940.py`, `common.py`) while preserving 100% backward compatibility and re-export parity.
+- Reduce cyclomatic complexity across MT940 line parsing, format detection, and SWIFT field 86 narrative extraction to bring all routines within complexity ceilings.
 
 ## [0.0.23] - 2026-10-10
 
@@ -1047,7 +1054,7 @@ See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
 [Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.24...HEAD
-[0.0.24]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.23...HEAD
+[0.0.24]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.23...v0.0.24
 [0.0.23]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.22...v0.0.23
 [0.0.22]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.21...v0.0.22
 [0.0.21]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.20...v0.0.21
