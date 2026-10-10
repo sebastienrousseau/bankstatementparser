@@ -63,14 +63,6 @@ from .api_worker import (
 from .input_validator import InputValidator
 from .telemetry import trace_span
 
-try:
-    from fastapi import File, UploadFile
-    from fastapi.responses import JSONResponse
-except ImportError:  # pragma: no cover
-    File = None  # type: ignore[assignment]
-    UploadFile = Any  # type: ignore[misc,assignment]
-    JSONResponse = Any  # type: ignore[misc,assignment]
-
 logger = logging.getLogger(__name__)
 
 __all__ = [
