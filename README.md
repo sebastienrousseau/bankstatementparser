@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://github.com/sebastienrousseau/bankstatementparser/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/bankstatementparser/quality-gates.yml?style=for-the-badge&logo=github" alt="Build" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.23" alt="PyPI" /></a>
+  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.24" alt="PyPI" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge" alt="PyPI Downloads" /></a>
   <a href="https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main"><img src="https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge" alt="Codecov" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge" alt="License" /></a>
@@ -705,7 +705,8 @@ cleanly — see each companion's README for runnable examples.
 ## Project Layout
 
 ```text
-bankstatementparser/            Source code (39 modules)
+bankstatementparser/            Source code (44 modules)
+bankstatementparser/parsers/    Modular statement parsers (CSV, MT940, OFX/QFX)
 bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
 bankstatementparser/export/     hledger + beancount journal export, Apache Parquet columnar export

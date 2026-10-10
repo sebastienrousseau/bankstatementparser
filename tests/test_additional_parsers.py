@@ -106,6 +106,31 @@ class TestAdditionalParsers(unittest.TestCase):
         self.assertEqual(summary["opening_balance"], 1000.0)
         self.assertEqual(summary["closing_balance"], 2170.25)
 
+        with tempfile.NamedTemporaryFile(
+            suffix=".mt940", mode="w", encoding="utf-8", delete=False
+        ) as handle:
+            handle.write(
+                ":20:STMT1\n"
+                ":25:NL91ABNA0417164300\n"
+                ":60F:C260101EUR1000,00\n"
+                ":61:260101C100,00NTRF\n"
+                ":86:FIRST LINE\n"
+                "SECOND LINE\n"
+                "-\n"
+                "-\n"
+                ":62F:C260101EUR1100,00\n"
+            )
+            file_path = Path(handle.name)
+        try:
+            multiline_parser = Mt940Parser(file_path)
+            multiline_df = multiline_parser.parse()
+            self.assertEqual(len(multiline_df), 1)
+            self.assertEqual(
+                multiline_df["description"].iloc[0], "FIRST LINE SECOND LINE"
+            )
+        finally:
+            file_path.unlink(missing_ok=True)
+
     def test_detect_statement_format_and_factory(self):
         self.assertEqual(detect_statement_format(self.csv_file), "csv")
         self.assertEqual(detect_statement_format(self.ofx_file), "ofx")
@@ -158,13 +183,27 @@ class TestAdditionalParsers(unittest.TestCase):
         ) as mt940_handle:
             mt940_handle.write(":20:ABC\n:61:260320C10,00REF")
             mt940_path = Path(mt940_handle.name)
+        with tempfile.NamedTemporaryFile(
+            suffix=".xml", mode="w", encoding="utf-8", delete=False
+        ) as bai2_handle:
+            bai2_handle.write("01,BANK,CLIENT\n02,ACCOUNT\n")
+            bai2_path = Path(bai2_handle.name)
+        with tempfile.NamedTemporaryFile(
+            suffix=".xml", mode="w", encoding="utf-8", delete=False
+        ) as mt942_handle:
+            mt942_handle.write(":34F:EUR0,\n:61:260320C10,00REF\n")
+            mt942_path = Path(mt942_handle.name)
 
         try:
             self.assertEqual(detect_statement_format(ofx_path), "ofx")
             self.assertEqual(detect_statement_format(mt940_path), "mt940")
+            self.assertEqual(detect_statement_format(bai2_path), "bai2")
+            self.assertEqual(detect_statement_format(mt942_path), "mt942")
         finally:
             ofx_path.unlink(missing_ok=True)
             mt940_path.unlink(missing_ok=True)
+            bai2_path.unlink(missing_ok=True)
+            mt942_path.unlink(missing_ok=True)
 
     def test_empty_csv_and_missing_ofx_tag_paths(self):
         with tempfile.NamedTemporaryFile(

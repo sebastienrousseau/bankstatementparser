@@ -1,12 +1,34 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.23"
-description = "BankStatementParser is your essential tool for easy bank statement management. Designed with finance and treasury experts in mind, it offers a simple way to handle CAMT (ISO 20022) formats and more. Get quick, accurate insights from your financial data and spend less time on processing. It's the smart, hassle-free way to stay on top of your transactions."
+version = "0.0.24"
+description = "Parse bank statements (CAMT.053, PAIN.001, MT940, OFX, BAI2, CSV, and PDF) into unified Transactions with treasury analytics, 2-way reconciliation, PDF forensics, and ledger export."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 repository = "https://github.com/sebastienrousseau/bankstatementparser"
 homepage = "https://bankstatementparser.com"
+keywords = [
+    "banking",
+    "finance",
+    "iso20022",
+    "camt053",
+    "pain001",
+    "mt940",
+    "ofx",
+    "bai2",
+    "sepa",
+    "fintech",
+    "treasury",
+    "python",
+    "reconciliation",
+    "hledger",
+    "beancount",
+    "parquet",
+    "pdf-parsing",
+    "fastapi",
+    "cli",
+    "bank-statements",
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
