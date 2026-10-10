@@ -107,7 +107,7 @@ from .zip_security import (
 #: so the conformance gate can compare it statically against
 #: pyproject.toml -- that comparison is the thing that catches drift, and
 #: a runtime lookup would make the two trivially equal and check nothing.
-__version__ = "0.0.27"
+__version__ = "0.0.28"
 
 __all__ = [
     "AnalyticsReport",

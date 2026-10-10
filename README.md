@@ -12,14 +12,14 @@
 <h1 align="center">Bank Statement Parser</h1>
 
 <p align="center">
-  Bank statement parsing for Python — six structured formats and
+  Bank statement parsing for Python — eight structured formats and
   PDFs, digital or scanned, into one auditable
   <code>Transaction</code> model.
 </p>
 
 <p align="center">
   <a href="https://github.com/sebastienrousseau/bankstatementparser/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/bankstatementparser/quality-gates.yml?style=for-the-badge&logo=github" alt="Build" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.27" alt="PyPI" /></a>
+  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge&v=0.0.28" alt="PyPI" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge" alt="PyPI Downloads" /></a>
   <a href="https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main"><img src="https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge" alt="Codecov" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/sebastienrousseau/bankstatementparser?style=for-the-badge" alt="License" /></a>
@@ -27,8 +27,8 @@
 
 ---
 
-Parse bank statements across **six structured formats** (CAMT,
-PAIN.001, CSV, OFX/QFX, MT940) **and PDFs** — both digital and
+Parse bank statements across **eight structured formats** (CAMT,
+PAIN.001, CSV, OFX, QFX, MT940, MT942, BAI2) **and PDFs** — both digital and
 scanned — into a single unified `Transaction` model. ISO 20022
 files take the deterministic path; PDFs fall through to a
 configurable LLM (Ollama by default, any LiteLLM-supported
@@ -62,7 +62,7 @@ services unless they explicitly opt in.
 - [Parallel Parsing](#parallel-parsing) — multi-file batches across CPU cores
 - [Command Line](#command-line) — console script and REST API
 - [Deduplication](#deduplication) — exact hashes + suspected matches
-- [Export](#export) — CSV, JSON, Excel, Polars, hledger, beancount
+- [Export](#export) — CSV, JSON, Excel, Polars, Parquet, hledger, beancount
 - [Examples](#examples) — 23 runnable scripts (14 deterministic + 9 hybrid)
 - [XML Tag Mapping](#xml-tag-mapping) — ISO 20022 tags to DataFrame columns
 - [Ecosystem](#ecosystem) — companion packages (MCP, LSP, writers, loaders)
@@ -83,11 +83,17 @@ services unless they explicitly opt in.
 ## Install
 
 ```bash
-# Core install — deterministic parsers only (CAMT, PAIN.001, CSV, OFX, QFX, MT940)
+# Core install — deterministic parsers only (CAMT, PAIN.001, CSV, OFX, QFX, MT940, MT942, BAI2)
 pip install bankstatementparser
 
 # Add Excel (.xlsx) export support (openpyxl)
 pip install 'bankstatementparser[excel]'
+
+# Add Apache Parquet export support (pyarrow)
+pip install 'bankstatementparser[parquet]'
+
+# Add Polars DataFrame export support
+pip install 'bankstatementparser[polars]'
 
 # Add the text-LLM path for digital PDFs (litellm + pypdf)
 pip install 'bankstatementparser[hybrid]'
@@ -116,7 +122,7 @@ required.
 - Poetry (for local development).
 
 > **Python version note.** The deterministic core (CAMT, PAIN.001,
-> CSV, OFX, QFX, MT940) supports Python **3.10–3.14**. The optional
+> CSV, OFX, QFX, MT940, MT942, BAI2) supports Python **3.10–3.14**. The optional
 > `[hybrid]`, `[hybrid-plus]`, `[hybrid-vision]`, and
 > `[enrichment]` extras pull in `litellm`, which currently requires
 > **Python <3.14** upstream — on Python 3.14 the LLM extras will
@@ -271,7 +277,7 @@ Gemini, …).
 ```mermaid
 flowchart TD
     A["smart_ingest(path)"] --> B{"detect_statement_format"}
-    B -->|CAMT/PAIN/OFX/MT940/CSV| C["Path A: deterministic parser<br/>$0, fastest"]
+    B -->|CAMT/PAIN/OFX/MT940/MT942/BAI2/CSV| C["Path A: deterministic parser<br/>$0, fastest"]
     C --> Z["IngestResult<br/>source_method='deterministic'"]
 
     B -->|pdf or unknown| D["pypdf extract_text"]
@@ -303,7 +309,7 @@ for the full surface.
 
 | Feature | Description |
 |---|---|
-| **6 structured formats** | CAMT.053, PAIN.001, CSV, OFX, QFX, MT940 |
+| **8 structured formats** | CAMT (052, 053, 054), PAIN.001, MT940, MT942, BAI2, OFX, QFX, CSV |
 | **Auto-detection** | `detect_statement_format()` identifies the format; `create_parser()` returns the right parser |
 | **Streaming** | `parse_streaming()` at 27,000+ tx/s (CAMT) and 52,000+ tx/s (PAIN.001) with bounded memory |
 | **Parallel** | `parse_files_parallel()` for multi-file batch processing across CPU cores |
@@ -336,7 +342,7 @@ for the full surface.
 | **Categorization** *(v0.0.6)* | `bankstatementparser.enrichment.Categorizer` tags transactions with a pluggable category schema (Plaid 13-category default) and an optional `is_business_expense` flag. Wrapper model — never mutates the original `Transaction`. |
 | **Account mapping** *(v0.0.8)* | `AccountMapper` with ordered regex rules loaded from JSON config. First match wins. Pairs with the ledger exporter for end-to-end plaintext-accounting workflows. |
 | **hledger + beancount export** *(v0.0.8)* | `to_hledger()` and `to_beancount()` produce journal strings for plaintext-accounting workflows. Uses `Transaction.category` as the contra-account when set. |
-| **Export** | CSV, JSON, Excel (`.xlsx`), and optional Polars DataFrames |
+| **Export** | CSV, JSON, Excel (`.xlsx`), Apache Parquet (`.parquet`), and optional Polars DataFrames |
 | **REST API** *(v0.0.8)* | FastAPI microservice: `POST /ingest` a file, get JSON back. `GET /health` for monitoring. `pip install 'bankstatementparser[api]'`. |
 
 ### Security & quality
@@ -552,6 +558,24 @@ lazy_df = parser.to_polars_lazy()
 
 Install with `pip install bankstatementparser[polars]`.
 
+### Apache Parquet (optional)
+
+Export transactions to Apache Parquet columnar files in batch or streaming mode:
+
+```python
+from bankstatementparser.export import export_parquet, ParquetStreamWriter
+
+# Batch export
+export_parquet(transactions, "output.parquet")
+
+# Streaming export with bounded memory and atomic file commits
+with ParquetStreamWriter("output_stream.parquet", batch_size=1000) as writer:
+    for tx in transactions:
+        writer.write_record(tx)
+```
+
+Install with `pip install 'bankstatementparser[parquet]'`.
+
 ### hledger + beancount *(v0.0.8)*
 
 Export transactions to plaintext-accounting journal formats:
@@ -656,7 +680,7 @@ results.
 ## XML Tag Mapping
 
 See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference
-of ISO 20022 XML tags to DataFrame columns across all six formats.
+of ISO 20022 XML tags to DataFrame columns across all structured formats.
 Use this when integrating with ERP systems or building
 reconciliation pipelines.
 
@@ -671,7 +695,7 @@ stays dependency-light.
 
 | Package | GitHub Repository | PyPI | Role | Description |
 |---|---|---|---|---|
-| [`bankstatementparser`](https://github.com/sebastienrousseau/bankstatementparser) | [`sebastienrousseau/bankstatementparser`](https://github.com/sebastienrousseau/bankstatementparser) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser.svg)](https://pypi.org/project/bankstatementparser/) | Core Engine | Unified parser for CAMT (052/053), PAIN.001, CSV, OFX, QFX, MT940, and PDF statements |
+| [`bankstatementparser`](https://github.com/sebastienrousseau/bankstatementparser) | [`sebastienrousseau/bankstatementparser`](https://github.com/sebastienrousseau/bankstatementparser) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser.svg)](https://pypi.org/project/bankstatementparser/) | Core Engine | Unified parser for CAMT (052/053/054), PAIN.001, CSV, OFX, QFX, MT940, MT942, BAI2, and PDF statements |
 | [`bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | [`sebastienrousseau/bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-mcp.svg)](https://pypi.org/project/bankstatementparser-mcp/) | AI Protocol | Model Context Protocol (MCP) server exposing statement tools to LLMs & AI agents |
 | [`bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | [`sebastienrousseau/bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-lsp.svg)](https://pypi.org/project/bankstatementparser-lsp/) | Developer Tooling | Language Server Protocol (LSP) with live SWIFT MT940 statement validation & diagnostics |
 | [`bankstatementparser-transport-ebics`](https://github.com/sebastienrousseau/bankstatementparser-transport-ebics) | [`sebastienrousseau/bankstatementparser-transport-ebics`](https://github.com/sebastienrousseau/bankstatementparser-transport-ebics) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-transport-ebics.svg)](https://pypi.org/project/bankstatementparser-transport-ebics/) | Transport | Automated bank statement retrieval over EBICS 3.0 (`H005`) and 2.5 (`H004`) protocols |
@@ -707,7 +731,7 @@ cleanly — see each companion's README for runnable examples.
 ```text
 bankstatementparser/            Source code (55 modules)
 bankstatementparser/analytics/  Financial metrics, cash flow, cadence & anomaly detection
-bankstatementparser/parsers/    Modular statement parsers (CSV, MT940, OFX/QFX)
+bankstatementparser/parsers/    Modular statement parsers (CSV, MT940, MT942, BAI2, OFX/QFX)
 bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, vision, scanner, ollama_direct, verification
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
 bankstatementparser/export/     hledger + beancount journal export, Apache Parquet columnar export
@@ -780,7 +804,7 @@ Signed commits required. See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## FAQ
 
 **What formats are supported?**
-CAMT.053, PAIN.001, CSV, OFX, QFX, and MT940.
+CAMT (CAMT.052, CAMT.053, CAMT.054), PAIN.001, SWIFT MT940, SWIFT MT942, BAI2, OFX, QFX, CSV, and PDF.
 
 **Does any data leave my infrastructure?**
 No. Zero network calls. XML parsers enforce `no_network=True`. No

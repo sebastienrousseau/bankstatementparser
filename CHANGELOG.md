@@ -5,7 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.27] - Unreleased
+## [0.0.28] - 2026-10-10
+
+### Changed
+
+- Update documentation, README, ecosystem references, topics, and descriptions to accurately reflect all 8 supported structured banking formats (CAMT.052/053/054, PAIN.001, MT940, MT942, BAI2, OFX, QFX, CSV) and Apache Parquet export capabilities.
+
+## [0.0.27] - 2026-10-10
 
 ### Added
 
@@ -1079,7 +1085,10 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.25...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.28...HEAD
+[0.0.28]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.27...v0.0.28
+[0.0.27]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.26...v0.0.27
+[0.0.26]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.25...v0.0.26
 [0.0.25]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.24...v0.0.25
 [0.0.24]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.23...v0.0.24
 [0.0.23]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.22...v0.0.23
