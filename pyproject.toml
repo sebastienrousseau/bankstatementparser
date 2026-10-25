@@ -40,13 +40,24 @@ defusedxml = "^0.7.1"
 pydantic = "^2.11.0"
 polars = {version = "^1.32.0", optional = true}
 litellm = {version = ">=1.83.10", optional = true, python = "<3.14"}
-pypdf = {version = ">=4.0.0", optional = true}
-pdfplumber = {version = ">=0.11.0", optional = true}
+pypdf = {version = ">=6.21.2", optional = true}
+# pdfplumber pulls Pillow; the first Pillow without its open advisories
+# (13.0.0) needs Python 3.11, so hybrid-plus does too.
+pdfplumber = {version = ">=0.11.0", optional = true, python = ">=3.11"}
 pypdfium2 = {version = ">=4.30.0", optional = true}
 fastapi = {version = ">=0.115.0", optional = true}
 uvicorn = {version = ">=0.34.0", optional = true}
 python-multipart = {version = ">=0.0.32", optional = true}
 pyarrow = {version = ">=14.0.0", optional = true}
+# Floors for packages the extras pull in transitively, set to the first
+# release without a published advisory so no affected version resolves.
+pillow = {version = ">=13.0.0", optional = true, python = ">=3.11"}
+certifi = {version = ">=2026.10.19", optional = true}
+aiohttp = {version = ">=3.14.4", optional = true, python = "<3.14"}
+# 3.20.3 is the only filelock clear of every advisory: earlier ones are
+# fixed in 3.20.3, newer ones affect 3.20.4 through 4.2.0, and litellm
+# still requires filelock < 4.
+filelock = {version = ">=3.20.3,<3.20.4", optional = true, python = "<3.14"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0.0,<10.0.0"
@@ -73,10 +84,10 @@ mkdocstrings = {version = ">=0.27", extras = ["python"]}
 excel = ["openpyxl"]
 polars = ["polars"]
 parquet = ["pyarrow"]
-hybrid = ["litellm", "pypdf"]
-hybrid-plus = ["litellm", "pypdf", "pdfplumber"]
-hybrid-vision = ["litellm", "pypdf", "pypdfium2"]
-enrichment = ["litellm"]
+hybrid = ["litellm", "pypdf", "certifi", "aiohttp", "filelock"]
+hybrid-plus = ["litellm", "pypdf", "pdfplumber", "pillow", "certifi", "aiohttp", "filelock"]
+hybrid-vision = ["litellm", "pypdf", "pypdfium2", "certifi", "aiohttp", "filelock"]
+enrichment = ["litellm", "certifi", "aiohttp", "filelock"]
 api = ["fastapi", "uvicorn", "python-multipart"]
 
 [tool.poetry.scripts]

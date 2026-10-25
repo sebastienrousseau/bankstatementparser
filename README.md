@@ -130,6 +130,9 @@ required.
 > **Python <3.14** upstream — on Python 3.14 the LLM extras will
 > not install. Pin `Python 3.13` for the full hybrid pipeline;
 > upgrade to 3.14 freely if you only need deterministic parsing.
+> The `pdfplumber` engine in `[hybrid-plus]` needs Python **3.11+**:
+> it pulls Pillow, whose first release without open advisories
+> (13.0.0) dropped 3.10, so on 3.10 the extra installs without it.
 
 ### Local development
 
