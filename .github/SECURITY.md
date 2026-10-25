@@ -3,7 +3,8 @@
 ## Supported Versions
 
 | Version | Supported | Notes |
-| 0.0.28 (current) | Yes | Requires Python ≥ 3.10 (LLM extras: ≤ 3.13) |
+| 0.0.29 (current) | Yes | Requires Python ≥ 3.10 (LLM extras: ≤ 3.13; hybrid-plus pdfplumber: ≥ 3.11) |
+| 0.0.28 | Yes | Requires Python ≥ 3.10 (LLM extras: ≤ 3.13) |
 | 0.0.27 | Yes | Requires Python ≥ 3.10 (LLM extras: ≤ 3.13) |
 | 0.0.26 | Yes | Requires Python ≥ 3.10 (LLM extras: ≤ 3.13) |
 | 0.0.25 | Yes | Requires Python ≥ 3.10 (LLM extras: ≤ 3.13) |

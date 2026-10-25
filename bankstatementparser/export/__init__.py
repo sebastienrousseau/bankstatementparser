@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 from .ledger import to_beancount, to_hledger
-from .parquet import export_parquet, export_parquet_stream
+from .parquet import ParquetStreamWriter, export_parquet, export_parquet_stream
 
 __all__ = [
+    "ParquetStreamWriter",
     "export_parquet",
     "export_parquet_stream",
     "to_beancount",
