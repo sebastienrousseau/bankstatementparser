@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.29] - Unreleased
+
+### Security
+
+- Hold the packages the optional extras pull in at their first versions without a published advisory, clearing all 65 open Dependabot alerts (7 critical): Pillow >= 13.0.0, pypdf >= 6.21.2, certifi >= 2026.10.19, aiohttp >= 3.14.4 and filelock 3.20.3 (the one release clear of every filelock advisory while litellm requires filelock < 4).
+
+### Changed
+
+- The `pdfplumber` engine in `[hybrid-plus]` needs Python 3.11 or later, because Pillow 13 dropped Python 3.10; on 3.10 the extra installs without it. The core parser and the other extras still support Python 3.10.
+- Allow polars 2 and ruff 0.17, and update litellm (1.106.3), fastapi (0.162.0), pydantic (2.14.1), hypothesis and pypdfium2 (5.14.0) in the lock.
+- Bump the pinned upload-artifact, download-artifact and codeql-action versions in CI.
+
+### Fixed
+
+- `ParquetStreamWriter` is exported from `bankstatementparser.export`, and the README streaming example passes the required Arrow schema and writes mappings.
+
 ## [0.0.28] - 2026-10-10
 
 ### Changed

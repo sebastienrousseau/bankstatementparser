@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://github.com/sebastienrousseau/bankstatementparser/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/bankstatementparser/quality-gates.yml?style=for-the-badge&logo=github" alt="Build" height="28" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.28" alt="PyPI version" height="28" /></a>
+  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.29" alt="PyPI version" height="28" /></a>
   <a href="https://bankstatementparser.com"><img src="https://img.shields.io/badge/docs-bankstatementparser.com-blue?style=for-the-badge&labelColor=555555&logo=googlechrome" alt="Docs" height="28" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge" alt="Python versions" height="28" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge" alt="PyPI downloads" height="28" /></a>
