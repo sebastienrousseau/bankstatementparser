@@ -38,7 +38,7 @@ openpyxl = {version = "^3.1.5", optional = true}
 pandas = "^2.3.3"
 defusedxml = "^0.7.1"
 pydantic = "^2.11.0"
-polars = {version = "^1.32.0", optional = true}
+polars = {version = ">=1.32.0,<3", optional = true}
 litellm = {version = ">=1.83.10", optional = true, python = "<3.14"}
 pypdf = {version = ">=6.21.2", optional = true}
 # pdfplumber pulls Pillow; the first Pillow without its open advisories
