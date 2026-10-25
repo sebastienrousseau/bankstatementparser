@@ -568,15 +568,23 @@ Install with `pip install bankstatementparser[polars]`.
 Export transactions to Apache Parquet columnar files in batch or streaming mode:
 
 ```python
+import pyarrow as pa
 from bankstatementparser.export import export_parquet, ParquetStreamWriter
 
 # Batch export
 export_parquet(transactions, "output.parquet")
 
-# Streaming export with bounded memory and atomic file commits
-with ParquetStreamWriter("output_stream.parquet", batch_size=1000) as writer:
+# Streaming export with bounded memory and atomic file commits. The writer
+# takes mappings and an explicit Arrow schema covering every field written.
+schema = pa.schema([
+    ("booking_date", pa.date32()),
+    ("amount", pa.decimal128(18, 2)),
+    ("currency", pa.string()),
+    ("description", pa.string()),
+])
+with ParquetStreamWriter("output_stream.parquet", schema=schema, batch_size=1000) as writer:
     for tx in transactions:
-        writer.write_record(tx)
+        writer.write_record(tx.model_dump(include=set(schema.names)))
 ```
 
 Install with `pip install 'bankstatementparser[parquet]'`.
