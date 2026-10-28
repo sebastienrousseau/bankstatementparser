@@ -57,7 +57,7 @@ aiohttp = {version = ">=3.14.4", optional = true, python = "<3.14"}
 # 3.20.3 is the only filelock clear of every advisory: earlier ones are
 # fixed in 3.20.3, newer ones affect 3.20.4 through 4.2.0, and litellm
 # still requires filelock < 4.
-filelock = {version = ">=3.20.3,<3.20.4", optional = true, python = "<3.14"}
+filelock = {version = ">=3.20.3,<3.32.8", optional = true, python = "<3.14"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0.0,<10.0.0"
