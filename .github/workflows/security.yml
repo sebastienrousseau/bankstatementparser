@@ -108,8 +108,26 @@ jobs:
           poetry run python scripts/validate_sbom.py /tmp/sbom.cyclonedx.json
 
       - name: Pip audit
+        # The all-extras audit ignores two filelock advisories, and only those:
+        # GHSA-69hj-f68j-2879 (CVE-2026-112909) and GHSA-8mx5-7m5m-r77g
+        # (CVE-2026-112910), fixed in filelock 4.2.1. Both need a local user
+        # who can write to the lock directory; neither is reachable remotely.
+        # filelock comes in only through litellm in the optional hybrid and
+        # enrichment extras, and every litellm release up to 1.109.0.dev2
+        # requires filelock < 4. litellm's main branch already allows < 5, so
+        # the next release lifts the cap: then raise filelock to >= 4.2.1 in
+        # pyproject.toml and delete this ignore. The date check fails the job
+        # on REVIEW_BY so the ignore cannot outlive its reason.
+        env:
+          REVIEW_BY: "2026-12-01"
         run: |
+          if [[ "$(date -u +%F)" > "$REVIEW_BY" || "$(date -u +%F)" == "$REVIEW_BY" ]]; then
+            echo "::error::The filelock advisory ignore expired on $REVIEW_BY: check for a litellm release that allows filelock 4."
+            exit 1
+          fi
           poetry run python scripts/export_locked_requirements.py --with dev --output /tmp/requirements-audit.txt
           pip-audit -r /tmp/requirements-audit.txt
           poetry run python scripts/export_locked_requirements.py --with dev --all-extras --output /tmp/requirements-all-extras.txt
-          pip-audit -r /tmp/requirements-all-extras.txt
+          pip-audit -r /tmp/requirements-all-extras.txt \
+            --ignore-vuln GHSA-69hj-f68j-2879 \
+            --ignore-vuln GHSA-8mx5-7m5m-r77g
