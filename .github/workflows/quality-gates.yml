@@ -44,6 +44,22 @@ jobs:
       - name: Mypy
         run: poetry run mypy bankstatementparser
 
+  lint-and-typecheck-all:
+    # Branch protection requires this check by name. It stands for every
+    # leg of the lint-and-typecheck matrix, so adding or dropping a version never
+    # renames a required check.
+    name: Lint and Type Check (all)
+    if: always()
+    needs: lint-and-typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Every leg of the matrix passed
+        env:
+          RESULT: ${{ needs.lint-and-typecheck.result }}
+        run: test "$RESULT" = success
+
   unit-tests:
     name: Unit Tests
     runs-on: ${{ matrix.os }}
@@ -98,6 +114,22 @@ jobs:
             --ignore=tests/integration/test_supply_chain_tools.py \
             --ignore=tests/test_benchmark_suite.py
 
+  unit-tests-all:
+    # Branch protection requires this check by name. It stands for every
+    # leg of the unit-tests matrix, so adding or dropping a version never
+    # renames a required check.
+    name: Unit Tests (all)
+    if: always()
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Every leg of the matrix passed
+        env:
+          RESULT: ${{ needs.unit-tests.result }}
+        run: test "$RESULT" = success
+
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -142,6 +174,22 @@ jobs:
         run: |
           poetry run pytest --no-cov -m slow tests/test_performance_contracts.py
 
+  integration-tests-all:
+    # Branch protection requires this check by name. It stands for every
+    # leg of the integration-tests matrix, so adding or dropping a version never
+    # renames a required check.
+    name: Integration Tests (all)
+    if: always()
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Every leg of the matrix passed
+        env:
+          RESULT: ${{ needs.integration-tests.result }}
+        run: test "$RESULT" = success
+
   platform-parity:
     name: Platform Parity
     runs-on: ${{ matrix.os }}
@@ -177,6 +225,22 @@ jobs:
           tests/test_pain001_parser.py
           tests/test_cli.py
           tests/integration/test_supply_chain_tools.py
+
+  platform-parity-all:
+    # Branch protection requires this check by name. It stands for every
+    # leg of the platform-parity matrix, so adding or dropping a version never
+    # renames a required check.
+    name: Platform Parity (all)
+    if: always()
+    needs: platform-parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Every leg of the matrix passed
+        env:
+          RESULT: ${{ needs.platform-parity.result }}
+        run: test "$RESULT" = success
 
   benchmarks:
     name: Benchmark Regression (non-blocking)
@@ -307,6 +371,22 @@ jobs:
           "$RUNNER_TEMP/bsp-wheel/bin/python" -m pip install --no-deps dist/bankstatementparser-*.whl
           "$RUNNER_TEMP/bsp-wheel/bin/python" -m pip check
           "$RUNNER_TEMP/bsp-wheel/bin/python" -I scripts/verify_installed_wheel.py --expected-version "$(poetry version --short)"
+
+  optional-integrations-all:
+    # Branch protection requires this check by name. It stands for every
+    # leg of the optional-integrations matrix, so adding or dropping a version never
+    # renames a required check.
+    name: Real API and Parquet (all)
+    if: always()
+    needs: optional-integrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Every leg of the matrix passed
+        env:
+          RESULT: ${{ needs.optional-integrations.result }}
+        run: test "$RESULT" = success
 
   required-quality:
     name: Required Quality Gates

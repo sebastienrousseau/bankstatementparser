@@ -40,7 +40,8 @@ defusedxml = "^0.7.1"
 pydantic = "^2.11.0"
 polars = {version = ">=1.32.0,<3", optional = true}
 litellm = {version = ">=1.83.10", optional = true, python = "<3.14"}
-pypdf = {version = ">=6.21.2", optional = true}
+# CVE-2026-119206 and CVE-2026-119208: pypdf < 6.21.3.
+pypdf = {version = ">=6.21.3", optional = true}
 # pdfplumber pulls Pillow; the first Pillow without its open advisories
 # (13.0.0) needs Python 3.11, so hybrid-plus does too.
 pdfplumber = {version = ">=0.11.0", optional = true, python = ">=3.11"}
@@ -54,9 +55,10 @@ pyarrow = {version = ">=14.0.0", optional = true}
 pillow = {version = ">=13.0.0", optional = true, python = ">=3.11"}
 certifi = {version = ">=2026.10.19", optional = true}
 aiohttp = {version = ">=3.14.4", optional = true, python = "<3.14"}
-# 3.20.3 is the only filelock clear of every advisory: earlier ones are
-# fixed in 3.20.3, newer ones affect 3.20.4 through 4.2.0, and litellm
-# still requires filelock < 4.
+# 3.20.3 is the newest filelock litellm accepts (it requires < 4) and is
+# clear of every advisory but GHSA-69hj-f68j-2879 and GHSA-8mx5-7m5m-r77g,
+# which are fixed only in 4.2.1 and ignored in security.yml until a litellm
+# release allows filelock 4. Then raise this to >= 4.2.1.
 filelock = {version = ">=3.20.3,<3.20.4", optional = true, python = "<3.14"}
 
 [tool.poetry.group.dev.dependencies]
