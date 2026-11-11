@@ -977,9 +977,9 @@ py==1.11.0 ; (python_full_version < "4.0" and python_full_version >= "3.10") and
 py-cpuinfo2==10.1.1 ; (python_full_version < "4.0" and python_full_version >= "3.10") and python_full_version >= "3.9" \
     --hash=sha256:7861133863663f16e06eca63b12904ef100b5760415e92372dac0162799a4771 \
     --hash=sha256:adc53396bfb206e6498d078ec2ab407f85799ecd819584ac36a8f80a2d4d762d
-pydantic==2.14.2 ; (python_full_version < "4.0" and python_full_version >= "3.10") and python_full_version >= "3.10" \
-    --hash=sha256:7efbf7507b937931cd32a5755acb00ea1cf5ccb1d4e8067a5850d5069e382118 \
-    --hash=sha256:fb7b2db6cefe8414dd612edeede49c4c433acb0432b0f92b95024e45f66c505d
+pydantic==2.14.3 ; (python_full_version < "4.0" and python_full_version >= "3.10") and python_full_version >= "3.10" \
+    --hash=sha256:1054f237f4d4733e5a30e1e2333bd33a2004ab9ab1510bd053a9a31bb48e232d \
+    --hash=sha256:3f7b347782ab7e4cf4c798496ae3a82787d9f21ec12676a9c564355eeef8daa8
 pydantic-core==2.50.2 ; (python_full_version < "4.0" and python_full_version >= "3.10") and python_full_version >= "3.10" \
     --hash=sha256:01eb0282d0b3a065d55956d1be9ce398c46db3dd6d277a6cb2358c8aa8c53179 \
     --hash=sha256:04cf672960b8c4fc28bb159c8cdd101fbd311c520237a5c0360448b851adfb41 \
