@@ -1552,6 +1552,6 @@ typing-extensions==4.16.0 ; (python_full_version < "4.0" and python_full_version
 typing-inspection==0.4.4 ; (python_full_version < "4.0" and python_full_version >= "3.10") and python_full_version >= "3.10" \
     --hash=sha256:547274fa6b0a561ccf549cc9524b999a578e737d015d8709d021f9d0d13bea47 \
     --hash=sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147
-tzdata==2026.2 ; (python_full_version < "4.0" and python_full_version >= "3.10") and python_full_version >= "2" \
-    --hash=sha256:9173fde7d80d9018e02a662e168e5a2d04f87c41ea174b139fbef642eda62d10 \
-    --hash=sha256:bbe9af844f658da81a5f95019480da3a89415801f6cc966806612cc7169bffe7
+tzdata==2026.6 ; (python_full_version < "4.0" and python_full_version >= "3.10") and python_full_version >= "2" \
+    --hash=sha256:0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec \
+    --hash=sha256:85d2cd9c09f81f0bb29db27759fc83af4f1e620efb814f8c5bf8b4cc4feece6d
