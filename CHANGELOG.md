@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `scripts/release_suite.sh` waits for the Suite Consistency run it
+  starts in each repository and reruns a failure, up to 5 attempts a
+  minute apart. GitHub's runners read the same cached PyPI JSON API, so
+  in the 0.0.33 release core's and lsp's runs failed seconds after the
+  local check had passed, and passed on rerun.
+
 ## [0.0.33] - 2026-11-18
 
 ### Added
