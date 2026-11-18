@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.32] - 2026-11-18
 
 ### Changed
 
@@ -1141,7 +1141,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.31...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.32...HEAD
+[0.0.32]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.31...v0.0.32
 [0.0.31]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.30...v0.0.31
 [0.0.30]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.29...v0.0.30
 [0.0.29]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.28...v0.0.29
