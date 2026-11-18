@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://github.com/sebastienrousseau/bankstatementparser/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/bankstatementparser/quality-gates.yml?style=for-the-badge&logo=github" alt="Build" height="28" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.31" alt="PyPI version" height="28" /></a>
+  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.32" alt="PyPI version" height="28" /></a>
   <a href="https://bankstatementparser.com"><img src="https://img.shields.io/badge/docs-bankstatementparser.com-blue?style=for-the-badge&labelColor=555555&logo=googlechrome" alt="Docs" height="28" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge" alt="Python versions" height="28" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge" alt="PyPI downloads" height="28" /></a>
@@ -358,7 +358,7 @@ for the full surface.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 1058 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
+| **Tested** | 1075 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
 
 ---
 
@@ -754,7 +754,7 @@ bankstatementparser/api.py      REST API microservice (FastAPI)
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 9 hybrid runnable example scripts
 scripts/                        SBOM generation, checksums, signature verification
-tests/                          1058 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          1075 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---
