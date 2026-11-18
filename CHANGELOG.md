@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.33] - 2026-11-18
+
+### Added
+
+- `scripts/release_suite.sh <version>` releases the whole suite: it
+  merges each repository's green `feat/v<version>` PR, preflights all
+  six, tags core first and waits for PyPI, tags the members, then checks
+  Suite Consistency, the MCP Registry and every release's title and
+  notes. It retries the suite check for up to 10 minutes, because
+  PyPI's cached JSON API can lag behind an upload (0.0.32's check failed
+  once with every package already published).
+
 ## [0.0.32] - 2026-11-18
 
 ### Changed
@@ -1141,7 +1153,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.32...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.33...HEAD
+[0.0.33]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.32...v0.0.33
 [0.0.32]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.31...v0.0.32
 [0.0.31]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.30...v0.0.31
 [0.0.30]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.29...v0.0.30
