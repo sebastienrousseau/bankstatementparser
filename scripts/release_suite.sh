@@ -4,7 +4,8 @@
 # repository's publish workflow (PyPI trusted publishing).
 #
 # Phases:
-#   0. Merge the six green release PRs; wait for CI on each new main.
+#   0. Check all six release PRs (waiting for running checks), merge
+#      them only once every one is green, then wait for CI on each main.
 #   1. Preflight every repository before tagging any of them.
 #   2. Tag + push the core, wait until PyPI serves ${VERSION}.
 #   3. Tag + push each member, wait until PyPI serves ${VERSION}.
@@ -119,16 +120,31 @@ release_pr() {
   echo "${pr}"
 }
 
-merge_release_pr() {
-  local repo="$1" pr state failing
-  pr="$(release_pr "${repo}")"
+# Waits while checks are still running, then fails on any that did not
+# pass. A merged PR is accepted as is.
+pr_ready() {
+  local repo="$1" pr="$2" state waited=0 pending failing
   state="$(gh pr view "${pr}" -R "${OWNER}/${repo}" --json state --jq .state)"
-  if [ "${state}" = "OPEN" ]; then
-    failing="$(gh pr checks "${pr}" -R "${OWNER}/${repo}" | awk -F'\t' '$2 != "pass" && $2 != "skipping"' | wc -l | tr -d ' ')"
-    [ "${failing}" = "0" ] || die "${repo} #${pr}: ${failing} check(s) not passing"
-    gh pr merge "${pr}" -R "${OWNER}/${repo}" --merge
-    state="$(gh pr view "${pr}" -R "${OWNER}/${repo}" --json state --jq .state)"
-  fi
+  [ "${state}" = "MERGED" ] && return
+  [ "${state}" = "OPEN" ] || die "${repo} #${pr} is ${state}"
+  while :; do
+    pending="$(gh pr checks "${pr}" -R "${OWNER}/${repo}" --json bucket --jq '[.[] | select(.bucket == "pending")] | length')"
+    [ "${pending}" = "0" ] && break
+    [ "${waited}" -lt 3600 ] || die "${repo} #${pr}: ${pending} check(s) still running after 60 minutes"
+    echo "${repo} #${pr}: ${pending} check(s) still running"
+    sleep 60
+    waited=$((waited + 60))
+  done
+  failing="$(gh pr checks "${pr}" -R "${OWNER}/${repo}" --json bucket --jq '[.[] | select(.bucket != "pass" and .bucket != "skipping")] | length')"
+  [ "${failing}" = "0" ] || die "${repo} #${pr}: ${failing} check(s) not passing"
+  echo "${repo} #${pr}: ready"
+}
+
+merge_release_pr() {
+  local repo="$1" pr="$2" state
+  state="$(gh pr view "${pr}" -R "${OWNER}/${repo}" --json state --jq .state)"
+  [ "${state}" = "OPEN" ] && gh pr merge "${pr}" -R "${OWNER}/${repo}" --merge
+  state="$(gh pr view "${pr}" -R "${OWNER}/${repo}" --json state --jq .state)"
   [ "${state}" = "MERGED" ] || die "${repo} #${pr} is ${state}, not merged"
   echo "${repo} #${pr}: merged"
 }
@@ -145,8 +161,16 @@ wait_for_main_ci() {
   echo "${repo}: CI on ${sha:0:7} finished"
 }
 
+# Every PR must exist and be green before any is merged, so a missing
+# or failing member can never leave the suite half merged.
+say "Checking release PRs"
+declare -A PRS=()
+for repo in "${CORE}" "${MEMBERS[@]}"; do
+  PRS[${repo}]="$(release_pr "${repo}")"
+  pr_ready "${repo}" "${PRS[${repo}]}"
+done
 say "Merging release PRs"
-for repo in "${CORE}" "${MEMBERS[@]}"; do merge_release_pr "${repo}"; done
+for repo in "${CORE}" "${MEMBERS[@]}"; do merge_release_pr "${repo}" "${PRS[${repo}]}"; done
 say "Waiting for CI on main"
 for repo in "${CORE}" "${MEMBERS[@]}"; do wait_for_main_ci "${repo}"; done
 
