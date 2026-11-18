@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Release notes are written by the release workflow. A final
+  `release-notes` job in `pypi-publish.yml` runs after every asset is
+  attached and rewrites the GitHub release in the suite's format:
+  Highlights, What's Changed, New Contributors (when any), Checksums of
+  every asset, and the Full Changelog link. Until now the body was
+  GitHub's generated list alone, and each release had to be corrected
+  by hand (0.0.30 and 0.0.31).
+- The Highlights are the one hand-written part, kept in
+  `.github/releases/<tag>.md`. The build job refuses to publish when
+  that file is missing, has fewer than 2 or more than 4
+  `* **Headline**: text` bullets, or contains an em dash.
+- `scripts/release_notes.py` composes the body from the GitHub API and
+  the downloaded assets; the same file ships in every suite repository.
+
+### Fixed
+
+- The stale `[Unreleased]` heading left below 0.0.18 is removed; the
+  section sits at the top of the file again.
+
 ## [0.0.31] - 2026-11-18
 
 ### Changed
@@ -268,10 +291,6 @@ the benchmark and drift check this repository was missing.
   packages, which had drifted to `0.0.14`, `0.0.15`, `0.0.17`, `0.0.16`,
   `0.0.16` and `0.0.15`. This repository was the furthest behind, and had
   three releases in the tree that were never tagged.
-
-## [Unreleased]
-
-_Nothing yet._
 
 ## [0.0.14] — 2026-08-09
 

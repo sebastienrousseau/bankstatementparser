@@ -84,6 +84,11 @@ jobs:
             exit 1
           fi
 
+      # The release body's Highlights are the one hand-written part.
+      # Refuse to publish anything when they are missing or malformed.
+      - name: Check release highlights
+        run: python3 scripts/release_notes.py check ".github/releases/$TAG.md"
+
       - name: Build sdist and wheel
         run: |
           poetry build
@@ -175,21 +180,17 @@ jobs:
           name: release-assets
           path: release
 
-      # Creates the release when it does not exist yet (notes from
-      # docs/releases/<tag>.md when present, otherwise generated), and
-      # otherwise leaves a hand-written release body untouched.
+      # Creates the release when it does not exist yet, with the
+      # highlights as a placeholder body; the release-notes job writes
+      # the full body once every asset is attached.
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if ! gh release view "$TAG" > /dev/null 2>&1; then
-            notes="docs/releases/$TAG.md"
-            if [ -f "$notes" ]; then
-              gh release create "$TAG" --verify-tag --title "bankstatementparser ${TAG#v}" --notes-file "$notes"
-            else
-              gh release create "$TAG" --verify-tag --title "bankstatementparser ${TAG#v}" --generate-notes
-            fi
+            gh release create "$TAG" --verify-tag --title "bankstatementparser ${TAG#v}" \
+              --notes-file ".github/releases/$TAG.md"
           fi
           gh release upload "$TAG" release/* --clobber
 
@@ -212,3 +213,33 @@ jobs:
       base64-subjects: ${{ needs.build.outputs.hashes }}
       upload-assets: true
       upload-tag-name: ${{ inputs.tag || github.ref_name }}
+
+  # Runs last, after provenance has attached multiple.intoto.jsonl, so
+  # the Checksums section covers every asset on the release. Rewrites
+  # the title and body in the suite's format (scripts/release_notes.py).
+  release-notes:
+    name: Write the release notes
+    needs: [github-release, provenance]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # edit the release body
+      pull-requests: read # list the pull requests in the release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Compose and apply the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets
+          python3 scripts/release_notes.py compose \
+            --repo "$GITHUB_REPOSITORY" --tag "$TAG" \
+            --highlights ".github/releases/$TAG.md" \
+            --assets assets --output release-notes.md
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "bankstatementparser ${TAG#v}" \
+            --notes-file release-notes.md
