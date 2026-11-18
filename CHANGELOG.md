@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `scripts/release_suite.sh <version>` releases the whole suite: it
+  merges each repository's green `feat/v<version>` PR, preflights all
+  six, tags core first and waits for PyPI, tags the members, then checks
+  Suite Consistency, the MCP Registry and every release's title and
+  notes. It retries the suite check for up to 10 minutes, because
+  PyPI's cached JSON API can lag behind an upload (0.0.32's check failed
+  once with every package already published).
+
 ## [0.0.32] - 2026-11-18
 
 ### Changed
