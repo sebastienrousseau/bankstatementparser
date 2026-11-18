@@ -5,7 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.29] - Unreleased
+## [0.0.30] - Unreleased
+
+### Security
+
+- Require filelock >= 4.2.1 (GHSA-69hj-f68j-2879, GHSA-8mx5-7m5m-r77g) and opentelemetry-api >= 1.45.2 (GHSA-mf5v-w3w3-f6cg), clearing all 5 open Dependabot alerts. litellm 1.108.3 is the first release that accepts filelock 4, so it is the new litellm floor, and the all-extras `pip-audit` in CI no longer ignores any advisory.
+
+### Changed
+
+- The LLM extras (`[hybrid]`, `[hybrid-plus]`, `[hybrid-vision]`, `[enrichment]`) need Python 3.11 to 3.13, because the patched filelock dropped Python 3.10, which reached end of life in October 2026; on 3.10 they install without litellm. The core parser and the other extras still support Python 3.10.
+- Update litellm (1.110.0), pydantic (2.14.3), pydantic-core, anyio, pluggy, ast-serialize, tzdata, pygments, mypy-extensions and idna in the lock, and regenerate `requirements.txt`.
+- Update pytest-benchmark to 5.3.1: 5.3.0 errors on pytest 9.2 (`'Function' object has no attribute '_nodeid'`), which broke the benchmark tests in `make verify`.
+- Bump the pinned codeql-action version in CI.
+
+## [0.0.29] - 2026-10-25
 
 ### Security
 

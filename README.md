@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://github.com/sebastienrousseau/bankstatementparser/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/bankstatementparser/quality-gates.yml?style=for-the-badge&logo=github" alt="Build" height="28" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.29" alt="PyPI version" height="28" /></a>
+  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.30" alt="PyPI version" height="28" /></a>
   <a href="https://bankstatementparser.com"><img src="https://img.shields.io/badge/docs-bankstatementparser.com-blue?style=for-the-badge&labelColor=555555&logo=googlechrome" alt="Docs" height="28" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge" alt="Python versions" height="28" /></a>
   <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge" alt="PyPI downloads" height="28" /></a>
@@ -127,9 +127,11 @@ required.
 > CSV, OFX, QFX, MT940, MT942, BAI2) supports Python **3.10–3.14**. The optional
 > `[hybrid]`, `[hybrid-plus]`, `[hybrid-vision]`, and
 > `[enrichment]` extras pull in `litellm`, which currently requires
-> **Python <3.14** upstream — on Python 3.14 the LLM extras will
-> not install. Pin `Python 3.13` for the full hybrid pipeline;
-> upgrade to 3.14 freely if you only need deterministic parsing.
+> **Python <3.14** upstream, and filelock, whose first release
+> without open advisories (4.2.1) dropped 3.10. The LLM extras
+> therefore need Python **3.11–3.13**; on 3.10 or 3.14 they install
+> without `litellm`. Use Python 3.11–3.13 for the full hybrid
+> pipeline; any supported version works for deterministic parsing.
 > The `pdfplumber` engine in `[hybrid-plus]` needs Python **3.11+**:
 > it pulls Pillow, whose first release without open advisories
 > (13.0.0) dropped 3.10, so on 3.10 the extra installs without it.
