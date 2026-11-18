@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bankstatementparser"
-version = "0.0.29"
+version = "0.0.30"
 description = "Parse bank statements (CAMT, PAIN.001, MT940, MT942, OFX, BAI2, CSV, and PDF) into unified Transactions with treasury analytics, 2-way reconciliation, PDF forensics, and ledger export."
 authors = ["Sebastien Rousseau <sebastian.rousseau@gmail.com>"]
 license = "Apache-2.0 OR MIT"
@@ -39,7 +39,9 @@ pandas = "^2.3.3"
 defusedxml = "^0.7.1"
 pydantic = "^2.11.0"
 polars = {version = ">=1.32.0,<3", optional = true}
-litellm = {version = ">=1.83.10", optional = true, python = "<3.14"}
+# litellm 1.108.3 is the first release that accepts filelock 4, and the
+# patched filelock needs Python 3.11, so the LLM extras do too.
+litellm = {version = ">=1.108.3", optional = true, python = ">=3.11,<3.14"}
 # CVE-2026-119206 and CVE-2026-119208: pypdf < 6.21.3.
 pypdf = {version = ">=6.21.3", optional = true}
 # pdfplumber pulls Pillow; the first Pillow without its open advisories
@@ -55,11 +57,10 @@ pyarrow = {version = ">=14.0.0", optional = true}
 pillow = {version = ">=13.0.0", optional = true, python = ">=3.11"}
 certifi = {version = ">=2026.10.19", optional = true}
 aiohttp = {version = ">=3.14.4", optional = true, python = "<3.14"}
-# 3.20.3 is the newest filelock litellm accepts (it requires < 4) and is
-# clear of every advisory but GHSA-69hj-f68j-2879 and GHSA-8mx5-7m5m-r77g,
-# which are fixed only in 4.2.1 and ignored in security.yml until a litellm
-# release allows filelock 4. Then raise this to >= 4.2.1.
-filelock = {version = ">=3.20.3,<3.20.4", optional = true, python = "<3.14"}
+# GHSA-69hj-f68j-2879 and GHSA-8mx5-7m5m-r77g: filelock < 4.2.1.
+filelock = {version = ">=4.2.1", optional = true, python = ">=3.11,<3.14"}
+# GHSA-mf5v-w3w3-f6cg: opentelemetry-api <= 1.45.1, pulled in by fastapi.
+opentelemetry-api = {version = ">=1.45.2", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0.0,<10.0.0"
@@ -90,7 +91,7 @@ hybrid = ["litellm", "pypdf", "certifi", "aiohttp", "filelock"]
 hybrid-plus = ["litellm", "pypdf", "pdfplumber", "pillow", "certifi", "aiohttp", "filelock"]
 hybrid-vision = ["litellm", "pypdf", "pypdfium2", "certifi", "aiohttp", "filelock"]
 enrichment = ["litellm", "certifi", "aiohttp", "filelock"]
-api = ["fastapi", "uvicorn", "python-multipart"]
+api = ["fastapi", "uvicorn", "python-multipart", "opentelemetry-api"]
 
 [tool.poetry.scripts]
 bankstatementparser = "bankstatementparser.cli:main"
