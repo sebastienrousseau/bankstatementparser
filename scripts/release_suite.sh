@@ -9,7 +9,8 @@
 #   1. Preflight every repository before tagging any of them.
 #   2. Tag + push the core, wait until PyPI serves ${VERSION}.
 #   3. Tag + push each member, wait until PyPI serves ${VERSION}.
-#   4. Run the suite consistency check and re-run its workflow everywhere.
+#   4. Run the suite consistency check, then its workflow in every
+#      repository, rerunning a run that saw stale PyPI metadata.
 #   5. Wait for the MCP Registry to list bankstatementparser-mcp ${VERSION}.
 #   6. Wait for each release-notes job, then check every GitHub release:
 #      title "<project> ${VERSION}", the four required sections, no em dash,
@@ -198,9 +199,28 @@ until python3 "${BASE}/${CORE}/scripts/check_suite_consistency.py"; do
   sleep 30
   waited=$((waited + 30))
 done
+# The workflow runs hit the same PyPI cache from GitHub's runners, so a
+# run can still see the old version after the local check has passed
+# (0.0.33: core's and lsp's runs failed and passed on rerun). Wait for
+# each run and rerun a failure, up to 5 attempts a minute apart.
+declare -A SUITE_RUNS=()
 for repo in "${CORE}" "${MEMBERS[@]}"; do
-  gh workflow run suite-consistency.yml -R "${OWNER}/${repo}" --ref main
-  echo "${repo}: Suite Consistency re-run requested"
+  url="$(gh workflow run suite-consistency.yml -R "${OWNER}/${repo}" --ref main 2>&1 | grep -o 'https://[^ ]*/actions/runs/[0-9]*' || true)"
+  [ -n "${url}" ] || die "${repo}: could not start Suite Consistency"
+  SUITE_RUNS[${repo}]="${url##*/}"
+  echo "${repo}: Suite Consistency started (${url})"
+done
+for repo in "${CORE}" "${MEMBERS[@]}"; do
+  run="${SUITE_RUNS[${repo}]}" attempt=1
+  until gh run watch "${run}" -R "${OWNER}/${repo}" --exit-status > /dev/null 2>&1; do
+    [ "${attempt}" -lt 5 ] || die "${repo}: Suite Consistency failed ${attempt} times; see https://github.com/${OWNER}/${repo}/actions/runs/${run}"
+    echo "${repo}: Suite Consistency failed (attempt ${attempt}); rerunning in 60s"
+    sleep 60
+    gh run rerun "${run}" -R "${OWNER}/${repo}"
+    sleep 15
+    attempt=$((attempt + 1))
+  done
+  echo "${repo}: Suite Consistency passed"
 done
 
 # ---- 5. MCP Registry --------------------------------------------------------
