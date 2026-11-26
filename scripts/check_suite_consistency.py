@@ -52,7 +52,19 @@ MEMBERS = (
     "bankstatementparser-loader-bai2",
     "bankstatementparser-loader-mt942",
     "bankstatementparser-writer-xlsx",
+    "bankstatementparser-loader-bacs",
+    "bankstatementparser-loader-camt054",
+    "bankstatementparser-loader-cfonb",
+    "bankstatementparser-loader-sepa",
+    "bankstatementparser-transport-ebics",
+    "bankstatementparser-writer-ofx",
+    "bankstatementparser-writer-qif",
+    "bankstatementparser-writer-swift",
 )
+
+#: The suite's website ships the same version as a GitHub release, not on
+#: PyPI, so it is read from the GitHub API instead.
+WEBSITE = "sebastienrousseau/bankstatementparser.github.io"
 
 TIMEOUT = 30
 
@@ -80,6 +92,24 @@ def published_version(distribution: str) -> str | None:
         return None
 
 
+def website_version(repository: str = WEBSITE) -> str | None:
+    """The version of ``repository``'s latest GitHub release, or None."""
+    url = (
+        "https://api.github.com/repos/"
+        + quote(repository, safe="/")
+        + "/releases/latest"
+    )
+    if not url.startswith("https://api.github.com/"):  # pragma: no cover
+        raise ValueError(f"refusing to fetch a non-GitHub URL: {url}")
+    try:
+        # B310: scheme checked above, as in published_version.
+        opened = urllib.request.urlopen(url, timeout=TIMEOUT)  # nosec B310
+        with opened as response:
+            return str(json.load(response)["tag_name"]).removeprefix("v")
+    except (urllib.error.URLError, KeyError, ValueError, TimeoutError):
+        return None
+
+
 def tree_version() -> str:
     """The version this checkout declares."""
     with (ROOT / "pyproject.toml").open("rb") as handle:
@@ -93,6 +123,7 @@ def check() -> tuple[list[str], dict[str, object]]:
     problems: list[str] = []
     tree = tree_version()
     published = {name: published_version(name) for name in MEMBERS}
+    published[WEBSITE] = website_version()
 
     core_published = published[MEMBERS[0]]
 
@@ -108,7 +139,8 @@ def check() -> tuple[list[str], dict[str, object]]:
     # 2. Every member ships the core's number.
     for name, version in published.items():
         if version is None:
-            problems.append(f"{name}: could not read PyPI")
+            source = "GitHub" if name == WEBSITE else "PyPI"
+            problems.append(f"{name}: could not read {source}")
         elif core_published and version != core_published:
             problems.append(
                 f"{name}: published {version}, but the suite is at "
@@ -135,7 +167,7 @@ def main() -> int:
     else:
         print(f"tree version: {report['tree']}")
         for name, version in report["published"].items():  # type: ignore[union-attr]
-            print(f"  {name:34} {version}")
+            print(f"  {name:48} {version}")
         if problems:
             print("\nproblems:")
             for problem in problems:
