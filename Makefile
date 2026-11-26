@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: install install-all install-hooks dist release test test-slow lint format-check typecheck security verify clean
+.PHONY: install install-all install-hooks dist release test test-slow lint format-check typecheck complexity security verify clean
 
 # ----- Local development -----------------------------------------------------
 
@@ -51,11 +51,18 @@ format-check:
 typecheck:
 	poetry run mypy bankstatementparser
 
+# Per-function ceilings (cyclomatic 10, cognitive 15, Halstead 30,
+# 60 lines; 500 lines per file) against scripts/complexity_baseline.json,
+# which may only shrink. Record an improvement with
+# `python3 scripts/check_complexity.py --update`.
+complexity:
+	python3 scripts/check_complexity.py
+
 security:
 	poetry run bandit -r bankstatementparser examples scripts -c pyproject.toml
 
 # Run every gate the GitHub Actions pipeline runs, in the same order.
-verify: lint format-check typecheck test security
+verify: lint format-check typecheck complexity test security
 
 # ----- Build & release ------------------------------------------------------
 

@@ -44,6 +44,9 @@ jobs:
       - name: Mypy
         run: poetry run mypy bankstatementparser
 
+      - name: Complexity baseline
+        run: python3 scripts/check_complexity.py
+
   lint-and-typecheck-all:
     # Branch protection requires this check by name. It stands for every
     # leg of the lint-and-typecheck matrix, so adding or dropping a version never

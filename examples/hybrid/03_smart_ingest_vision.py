@@ -222,7 +222,13 @@ def _install_fake_pdfium() -> None:
                     """Write placeholder PNG bytes to the buffer."""
                     buffer.write(b"PNG_BYTES")
 
+                def close(self) -> None:
+                    """Release nothing; the stand-in holds no resources."""
+
             return _PilLike()
+
+        def close(self) -> None:
+            """Release nothing; the stand-in holds no resources."""
 
     class _Page:
         """Stand-in for a pypdfium2 page."""
@@ -230,6 +236,9 @@ def _install_fake_pdfium() -> None:
         def render(self, scale: float) -> _Bitmap:
             """Return a fake rendered bitmap for the page."""
             return _Bitmap()
+
+        def close(self) -> None:
+            """Release nothing; the stand-in holds no resources."""
 
     class _PdfDocument:
         """Stand-in for a single-page pypdfium2 document."""
@@ -242,6 +251,9 @@ def _install_fake_pdfium() -> None:
 
         def __getitem__(self, _index: int) -> _Page:
             return _Page()
+
+        def close(self) -> None:
+            """Release nothing; the stand-in holds no resources."""
 
     fake.PdfDocument = _PdfDocument  # type: ignore[attr-defined]
     _sys.modules["pypdfium2"] = fake

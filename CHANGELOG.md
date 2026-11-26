@@ -5,6 +5,44 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.35] - 2026-11-26
+
+### Added
+
+- The suite now ships one version across fifteen repositories. Eight
+  packages that sat at 0.0.19 and had never been on PyPI
+  (`bankstatementparser-loader-bacs`, `-loader-camt054`,
+  `-loader-cfonb`, `-loader-sepa`, `-transport-ebics`, `-writer-ofx`,
+  `-writer-qif`, `-writer-swift`) and the bankstatementparser.com
+  website join the release at 0.0.35.
+  `scripts/check_suite_consistency.py` checks all fourteen packages on
+  PyPI and the website's latest GitHub release, and
+  `scripts/release_suite.sh` merges, tags and verifies all fifteen.
+- `scripts/check_complexity.py`, a standard-library complexity gate
+  shared byte for byte by the suite: cyclomatic 10, cognitive 15,
+  Halstead difficulty 30 and 60 lines per function, 500 lines per
+  file. The 129 functions and files already over a ceiling are
+  recorded in `scripts/complexity_baseline.json`; CI and `make verify`
+  fail when one gets worse, a new one appears, or an improvement is
+  left unrecorded, so the baseline can only shrink.
+
+### Fixed
+
+- `examples/hybrid/03_smart_ingest_vision.py`: the mock run failed with
+  `AttributeError: '_PdfDocument' object has no attribute 'close'`,
+  because the vision extractor closes the document, page, bitmap and
+  image it renders and the example's stand-ins had no `close()`. CI
+  skipped the example, since its sample PDFs need reportlab.
+
+### Changed
+
+- Dependencies: pypdf 7.1.1, fastapi 0.162.5 (Python 3.10) and 0.165.0
+  (3.11+), pypdfium2 5.15.2, pydantic 2.14.4 with pydantic-core 2.50.5,
+  ruff 0.17.6, certifi 2026.11.20, click 8.5.1, markdown-it-py 4.3.0,
+  pyyaml 6.0.4, typing-inspection 0.4.5; `requirements.txt`
+  re-exported from the lock. GitHub Actions: dependency-review-action
+  and codeql-action updated.
+
 ## [0.0.34] - 2026-11-18
 
 ### Fixed
@@ -1163,7 +1201,8 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.34...HEAD
+[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.35...HEAD
+[0.0.35]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.34...v0.0.35
 [0.0.34]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.33...v0.0.34
 [0.0.33]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.32...v0.0.33
 [0.0.32]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.31...v0.0.32

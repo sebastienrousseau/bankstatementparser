@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
-# Release the bankstatementparser suite at one version, core first, then the
-# five members Suite Consistency checks. Each signed tag triggers that
-# repository's publish workflow (PyPI trusted publishing).
+# Release the bankstatementparser suite at one version: core first, then the
+# thirteen member packages Suite Consistency checks, then the website
+# (bankstatementparser.com). Each signed tag triggers that repository's
+# publish workflow (PyPI trusted publishing; a GitHub release for the site).
 #
 # Phases:
-#   0. Check all six release PRs (waiting for running checks), merge
+#   0. Check all fifteen release PRs (waiting for running checks), merge
 #      them only once every one is green, then wait for CI on each main.
 #   1. Preflight every repository before tagging any of them.
 #   2. Tag + push the core, wait until PyPI serves ${VERSION}.
-#   3. Tag + push each member, wait until PyPI serves ${VERSION}.
+#   3. Tag + push each member, wait until PyPI serves ${VERSION}, then
+#      tag + push the website.
 #   4. Run the suite consistency check, then its workflow in every
 #      repository, rerunning a run that saw stale PyPI metadata.
 #   5. Wait for the MCP Registry to list bankstatementparser-mcp ${VERSION}.
-#   6. Wait for each release-notes job, then check every GitHub release:
-#      title "<project> ${VERSION}", the four required sections, no em dash,
-#      and a checksum line for every attached asset.
+#   6. Wait for each release-notes job, then check every GitHub release,
+#      the website's included: title "<project> ${VERSION}", the four
+#      required sections, no em dash, and a checksum line for every asset.
+#
+# A member's first PyPI release needs a pending trusted publisher
+# registered on pypi.org before its tag is pushed, or phase 3 times out.
 #
 # Usage: zsh scripts/release_suite.sh <version>     (e.g. 0.0.33)
 #
@@ -36,14 +41,35 @@ MEMBERS=(
   bankstatementparser-loader-bai2
   bankstatementparser-loader-mt942
   bankstatementparser-writer-xlsx
+  bankstatementparser-loader-bacs
+  bankstatementparser-loader-camt054
+  bankstatementparser-loader-cfonb
+  bankstatementparser-loader-sepa
+  bankstatementparser-transport-ebics
+  bankstatementparser-writer-ofx
+  bankstatementparser-writer-qif
+  bankstatementparser-writer-swift
 )
+# The website ships the suite's version as a GitHub release, not on PyPI.
+WEBSITE="bankstatementparser.github.io"
+WEBSITE_PROJECT="bankstatementparser.com"
+WEBSITE_DIR="${HOME}/Code/Public/Web/${WEBSITE}"
 PYPI_WAIT_SECONDS=1800
 
 say() { printf '\n==> %s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+repo_dir() {
+  if [ "$1" = "${WEBSITE}" ]; then echo "${WEBSITE_DIR}"; else echo "${BASE}/$1"; fi
+}
+
+# The name in tag messages and release titles: the site's is its domain.
+project_name() {
+  if [ "$1" = "${WEBSITE}" ]; then echo "${WEBSITE_PROJECT}"; else echo "$1"; fi
+}
+
 remote_has_tag() {
-  git -C "${BASE}/$1" ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1
+  git -C "$(repo_dir "$1")" ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1
 }
 
 pypi_version() {
@@ -51,7 +77,8 @@ pypi_version() {
 }
 
 preflight() {
-  local repo="$1" dir="${BASE}/$1" sha ver alerts issues bad
+  local repo="$1" dir sha ver alerts issues bad
+  dir="$(repo_dir "${repo}")"
   say "Preflight ${repo}"
   [ -d "${dir}/.git" ] || die "${dir} is not a git repository"
   git -C "${dir}" fetch -q origin --tags
@@ -60,11 +87,18 @@ preflight() {
   [ -z "$(git -C "${dir}" status --porcelain)" ] || die "${repo}: working tree not clean"
   sha="$(git -C "${dir}" rev-parse HEAD)"
   [ "${sha}" = "$(git -C "${dir}" rev-parse origin/main)" ] || die "${repo}: main differs from origin/main"
-  ver="$(python3 -c 'import tomllib,sys; d=tomllib.load(open(sys.argv[1],"rb")); print(d.get("tool",{}).get("poetry",{}).get("version") or d["project"]["version"])' "${dir}/pyproject.toml")"
-  [ "${ver}" = "${VERSION}" ] || die "${repo}: pyproject version is ${ver}, expected ${VERSION}"
+  if [ "${repo}" = "${WEBSITE}" ]; then
+    ver="$(tr -d '[:space:]' < "${dir}/VERSION")"
+    [ "${ver}" = "${VERSION}" ] || die "${repo}: VERSION is ${ver}, expected ${VERSION}"
+    (cd "${dir}" && python3 scripts/release_notes.py --check) \
+      || die "${repo}: release notes for ${TAG} are missing or malformed"
+  else
+    ver="$(python3 -c 'import tomllib,sys; d=tomllib.load(open(sys.argv[1],"rb")); print(d.get("tool",{}).get("poetry",{}).get("version") or d["project"]["version"])' "${dir}/pyproject.toml")"
+    [ "${ver}" = "${VERSION}" ] || die "${repo}: pyproject version is ${ver}, expected ${VERSION}"
+    python3 "${dir}/scripts/release_notes.py" check "${dir}/.github/releases/${TAG}.md" \
+      || die "${repo}: release highlights for ${TAG} are missing or malformed"
+  fi
   grep -q "^## \[${VERSION}\]" "${dir}/CHANGELOG.md" || die "${repo}: CHANGELOG has no ${VERSION} section"
-  python3 "${dir}/scripts/release_notes.py" check "${dir}/.github/releases/${TAG}.md" \
-    || die "${repo}: release highlights for ${TAG} are missing or malformed"
   alerts="$(gh api "repos/${OWNER}/${repo}/dependabot/alerts?state=open" --jq length)"
   [ "${alerts}" = "0" ] || die "${repo}: ${alerts} open Dependabot alert(s)"
   issues="$(gh issue list -R "${OWNER}/${repo}" --state open --json number --jq length)"
@@ -81,16 +115,18 @@ preflight() {
 }
 
 tag_and_push() {
-  local repo="$1" dir="${BASE}/$1" subject
+  local repo="$1" dir name subject
+  dir="$(repo_dir "${repo}")"
+  name="$(project_name "${repo}")"
   if remote_has_tag "${repo}"; then
     say "${repo}: ${TAG} already pushed, skipping"
     return
   fi
   say "Tag ${repo} ${TAG}"
-  git -C "${dir}" tag -s "${TAG}" -m "${repo} ${TAG}"
+  git -C "${dir}" tag -s "${TAG}" -m "${name} ${TAG}"
   git -C "${dir}" tag -v "${TAG}" >/dev/null 2>&1 || die "${repo}: ${TAG} signature does not verify"
   subject="$(git -C "${dir}" tag -l --format='%(contents:subject)' "${TAG}")"
-  [ "${subject}" = "${repo} ${TAG}" ] || die "${repo}: tag message is '${subject}'"
+  [ "${subject}" = "${name} ${TAG}" ] || die "${repo}: tag message is '${subject}'"
   [ "$(git -C "${dir}" rev-parse "${TAG}^{commit}")" = "$(git -C "${dir}" rev-parse origin/main)" ] \
     || die "${repo}: ${TAG} does not point at origin/main"
   git -C "${dir}" push origin "refs/tags/${TAG}"
@@ -107,6 +143,24 @@ wait_for_pypi() {
     fi
     [ "${waited}" -lt "${PYPI_WAIT_SECONDS}" ] \
       || die "${dist}: PyPI still serves '${got}' after ${PYPI_WAIT_SECONDS}s; check its publish workflow"
+    sleep 30
+    waited=$((waited + 30))
+  done
+}
+
+# The site's release workflow builds ssg before it publishes, and Suite
+# Consistency (phase 4) reads its latest release, so wait for it here.
+wait_for_website_release() {
+  local waited=0 got
+  say "Waiting for the ${WEBSITE_PROJECT} ${TAG} GitHub release"
+  while :; do
+    got="$(gh api "repos/${OWNER}/${WEBSITE}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+    if [ "${got}" = "${TAG}" ]; then
+      echo "${WEBSITE}: latest release is ${got}"
+      return
+    fi
+    [ "${waited}" -lt "${PYPI_WAIT_SECONDS}" ] \
+      || die "${WEBSITE}: latest release is still '${got}' after ${PYPI_WAIT_SECONDS}s; check its Release workflow"
     sleep 30
     waited=$((waited + 30))
   done
@@ -166,17 +220,17 @@ wait_for_main_ci() {
 # or failing member can never leave the suite half merged.
 say "Checking release PRs"
 declare -A PRS=()
-for repo in "${CORE}" "${MEMBERS[@]}"; do
+for repo in "${CORE}" "${MEMBERS[@]}" "${WEBSITE}"; do
   PRS[${repo}]="$(release_pr "${repo}")"
   pr_ready "${repo}" "${PRS[${repo}]}"
 done
 say "Merging release PRs"
-for repo in "${CORE}" "${MEMBERS[@]}"; do merge_release_pr "${repo}" "${PRS[${repo}]}"; done
+for repo in "${CORE}" "${MEMBERS[@]}" "${WEBSITE}"; do merge_release_pr "${repo}" "${PRS[${repo}]}"; done
 say "Waiting for CI on main"
-for repo in "${CORE}" "${MEMBERS[@]}"; do wait_for_main_ci "${repo}"; done
+for repo in "${CORE}" "${MEMBERS[@]}" "${WEBSITE}"; do wait_for_main_ci "${repo}"; done
 
 # ---- 1. Preflight ---------------------------------------------------------
-for repo in "${CORE}" "${MEMBERS[@]}"; do preflight "${repo}"; done
+for repo in "${CORE}" "${MEMBERS[@]}" "${WEBSITE}"; do preflight "${repo}"; done
 
 # ---- 2. Core --------------------------------------------------------------
 tag_and_push "${CORE}"
@@ -185,6 +239,8 @@ wait_for_pypi "${CORE}"
 # ---- 3. Members -----------------------------------------------------------
 for repo in "${MEMBERS[@]}"; do tag_and_push "${repo}"; done
 for repo in "${MEMBERS[@]}"; do wait_for_pypi "${repo}"; done
+tag_and_push "${WEBSITE}"
+wait_for_website_release
 
 # ---- 4. Suite Consistency -------------------------------------------------
 say "Suite consistency"
@@ -247,7 +303,9 @@ repo, rel = sys.argv[1], json.loads(sys.argv[2])
 body = rel["body"]
 want = ["## Highlights \u2b50\ufe0f", "## What's Changed", "## Checksums", "**Full Changelog**: "]
 missing = [w for w in want if w not in body]
-unsummed = [a["name"] for a in rel["assets"] if f"  {a['name']}\n" not in body]
+# The site's notes list assets as "./<name>"; the packages' as "<name>".
+unsummed = [a["name"] for a in rel["assets"]
+            if f"  {a['name']}\n" not in body and f"  ./{a['name']}\n" not in body]
 problems = []
 if missing: problems.append(f"missing {missing}")
 if unsummed: problems.append(f"no checksum for {unsummed}")
@@ -255,7 +313,7 @@ if "\u2014" in body: problems.append("em dash in body")
 print("; ".join(problems))
 PYCHECK
 }
-for repo in "${CORE}" "${MEMBERS[@]}"; do
+for repo in "${CORE}" "${MEMBERS[@]}" "${WEBSITE}"; do
   waited=0
   while :; do
     rel="$(gh release view "${TAG}" -R "${OWNER}/${repo}" --json name,body,assets 2>/dev/null || true)"
@@ -265,7 +323,7 @@ for repo in "${CORE}" "${MEMBERS[@]}"; do
     waited=$((waited + 30))
   done
   title="$(jq -r .name <<<"${rel}")"
-  [ "${title}" = "${repo} ${VERSION}" ] || die "${repo}: release title is '${title}'"
+  [ "${title}" = "$(project_name "${repo}") ${VERSION}" ] || die "${repo}: release title is '${title}'"
   problems="$(check_release "${repo}" "${rel}")"
   [ -z "${problems}" ] || die "${repo}: ${problems}"
   echo "${repo}: ${title}, notes complete"
