@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/check_suite_consistency.py` checks all fourteen packages on
   PyPI and the website's latest GitHub release, and
   `scripts/release_suite.sh` merges, tags and verifies all fifteen.
+- `scripts/check_complexity.py`, a standard-library complexity gate
+  shared byte for byte by the suite: cyclomatic 10, cognitive 15,
+  Halstead difficulty 30 and 60 lines per function, 500 lines per
+  file. The 129 functions and files already over a ceiling are
+  recorded in `scripts/complexity_baseline.json`; CI and `make verify`
+  fail when one gets worse, a new one appears, or an improvement is
+  left unrecorded, so the baseline can only shrink.
 
 ### Fixed
 

@@ -1,0 +1,444 @@
+{
+  "bankstatementparser/api.py::_build_ingest_handler": {
+    "lines": 85
+  },
+  "bankstatementparser/api.py::_build_ingest_handler.ingest": {
+    "lines": 67
+  },
+  "bankstatementparser/api.py::create_app": {
+    "cyclomatic": 11
+  },
+  "bankstatementparser/bank_statement_parsers.py::Camt053Parser.__init__": {
+    "cognitive": 19,
+    "cyclomatic": 13,
+    "lines": 82
+  },
+  "bankstatementparser/camt_parser.py": {
+    "file_lines": 1270
+  },
+  "bankstatementparser/camt_parser.py::CamtParser._detail_amounts": {
+    "cyclomatic": 13
+  },
+  "bankstatementparser/camt_parser.py::CamtParser._get_balances_for_statement": {
+    "lines": 71
+  },
+  "bankstatementparser/camt_parser.py::CamtParser._get_transactions_for_entries": {
+    "cognitive": 139,
+    "cyclomatic": 67,
+    "lines": 247
+  },
+  "bankstatementparser/camt_parser.py::CamtParser._parse_streaming_transaction": {
+    "cognitive": 40,
+    "cyclomatic": 31,
+    "lines": 120
+  },
+  "bankstatementparser/camt_parser.py::CamtParser._parse_xml_bytes": {
+    "lines": 62
+  },
+  "bankstatementparser/camt_parser.py::CamtParser._statement_summaries": {
+    "cognitive": 27,
+    "cyclomatic": 14
+  },
+  "bankstatementparser/camt_parser.py::CamtParser.parse_streaming": {
+    "cognitive": 39,
+    "cyclomatic": 23,
+    "lines": 95
+  },
+  "bankstatementparser/camt_reports.py::_BaseCamtStreamParser._handle_metadata_event": {
+    "cyclomatic": 11
+  },
+  "bankstatementparser/camt_reports.py::_parse_entry_records": {
+    "cyclomatic": 22,
+    "lines": 66
+  },
+  "bankstatementparser/cli.py": {
+    "file_lines": 892
+  },
+  "bankstatementparser/cli.py::BankStatementCLI._parse_statement_file": {
+    "cognitive": 40,
+    "cyclomatic": 19,
+    "lines": 144
+  },
+  "bankstatementparser/cli.py::BankStatementCLI.run": {
+    "cognitive": 24,
+    "cyclomatic": 20,
+    "lines": 123
+  },
+  "bankstatementparser/cli.py::BankStatementCLI.run_ingest": {
+    "cognitive": 22,
+    "cyclomatic": 18,
+    "lines": 87
+  },
+  "bankstatementparser/cli.py::BankStatementCLI.run_review": {
+    "cognitive": 27,
+    "cyclomatic": 24,
+    "lines": 195
+  },
+  "bankstatementparser/cli.py::BankStatementCLI.setup_arg_parser": {
+    "lines": 69
+  },
+  "bankstatementparser/enrichment/categorizer.py::_build_enriched": {
+    "cognitive": 20,
+    "cyclomatic": 12,
+    "lines": 74
+  },
+  "bankstatementparser/export/ledger.py::to_beancount": {
+    "lines": 72
+  },
+  "bankstatementparser/export/ledger.py::to_hledger": {
+    "lines": 71
+  },
+  "bankstatementparser/forensics.py::_extract_pdf_metadata": {
+    "cognitive": 25,
+    "cyclomatic": 23,
+    "lines": 70
+  },
+  "bankstatementparser/forensics.py::inspect_pdf_forensics": {
+    "cognitive": 25,
+    "cyclomatic": 23,
+    "lines": 148
+  },
+  "bankstatementparser/hybrid/evaluation.py::load_eval_case": {
+    "cyclomatic": 11,
+    "lines": 64
+  },
+  "bankstatementparser/hybrid/evaluation.py::score_extraction": {
+    "cyclomatic": 11,
+    "lines": 82
+  },
+  "bankstatementparser/hybrid/llm_extractor.py::_build_result": {
+    "cognitive": 19,
+    "cyclomatic": 13,
+    "lines": 75
+  },
+  "bankstatementparser/hybrid/ollama_direct.py::ollama_direct_completion": {
+    "lines": 82
+  },
+  "bankstatementparser/hybrid/orchestrator.py": {
+    "file_lines": 575
+  },
+  "bankstatementparser/hybrid/orchestrator.py::IngestResult._from_dict": {
+    "cyclomatic": 11
+  },
+  "bankstatementparser/hybrid/orchestrator.py::smart_ingest": {
+    "lines": 70
+  },
+  "bankstatementparser/hybrid/scanner.py::scan_and_ingest": {
+    "cognitive": 17,
+    "cyclomatic": 15,
+    "lines": 113
+  },
+  "bankstatementparser/hybrid/verification.py::verify_balance": {
+    "lines": 75
+  },
+  "bankstatementparser/hybrid/verification.py::verify_continuity": {
+    "lines": 90
+  },
+  "bankstatementparser/hybrid/vision.py": {
+    "file_lines": 659
+  },
+  "bankstatementparser/hybrid/vision.py::VisionExtractor._extract_strip": {
+    "cognitive": 23,
+    "cyclomatic": 15,
+    "lines": 95
+  },
+  "bankstatementparser/hybrid/vision.py::VisionExtractor._render_strips": {
+    "lines": 79
+  },
+  "bankstatementparser/input_validator.py::InputValidator.validate_input_file_path": {
+    "lines": 75
+  },
+  "bankstatementparser/input_validator.py::InputValidator.validate_output_file_path": {
+    "lines": 61
+  },
+  "bankstatementparser/pain001_parser.py": {
+    "file_lines": 745
+  },
+  "bankstatementparser/pain001_parser.py::Pain001Parser._load_tree": {
+    "cyclomatic": 11
+  },
+  "bankstatementparser/pain001_parser.py::Pain001Parser._parse_streaming_payment": {
+    "cognitive": 23,
+    "cyclomatic": 13
+  },
+  "bankstatementparser/pain001_parser.py::Pain001Parser.get_summaries": {
+    "cognitive": 37,
+    "cyclomatic": 21,
+    "lines": 97
+  },
+  "bankstatementparser/pain001_parser.py::Pain001Parser.parse": {
+    "cognitive": 74,
+    "cyclomatic": 30,
+    "lines": 157
+  },
+  "bankstatementparser/pain001_parser.py::Pain001Parser.parse_streaming": {
+    "cognitive": 96,
+    "cyclomatic": 52,
+    "lines": 250
+  },
+  "bankstatementparser/parallel.py::iter_files_parallel": {
+    "cyclomatic": 11
+  },
+  "bankstatementparser/parsers/bai2.py::Bai2Parser._handle_account_03": {
+    "cyclomatic": 11
+  },
+  "bankstatementparser/parsers/bai2.py::Bai2Parser._handle_detail_16": {
+    "cyclomatic": 15
+  },
+  "bankstatementparser/parsers/mt942.py::Mt942Parser.parse_streaming": {
+    "cyclomatic": 11
+  },
+  "bankstatementparser/reconciliation.py::reconcile_payments_and_statements": {
+    "cognitive": 84,
+    "cyclomatic": 40,
+    "lines": 233
+  },
+  "bankstatementparser/reconciliation.py::reconcile_payments_and_statements.compatible": {
+    "cyclomatic": 12
+  },
+  "bankstatementparser/transaction_deduplicator.py::Deduplicator._find_probable_matches": {
+    "cyclomatic": 11
+  },
+  "bankstatementparser/transaction_deduplicator.py::Deduplicator._find_temporal_matches": {
+    "cognitive": 19,
+    "cyclomatic": 17,
+    "lines": 79
+  },
+  "bankstatementparser/transaction_models.py::Transaction.from_record": {
+    "lines": 100
+  },
+  "bankstatementparser/zip_security.py::iter_secure_statement_entries": {
+    "cyclomatic": 11,
+    "lines": 72
+  },
+  "bankstatementparser/zip_security.py::iter_secure_xml_entries": {
+    "cyclomatic": 11,
+    "lines": 69
+  },
+  "benches/bench_deduplicate.py::render": {
+    "cyclomatic": 13
+  },
+  "examples/hybrid/02_smart_ingest_text_llm.py::_mock_completion": {
+    "lines": 92
+  },
+  "examples/hybrid/02_smart_ingest_text_llm.py::main": {
+    "cyclomatic": 11
+  },
+  "examples/hybrid/03_smart_ingest_vision.py::main": {
+    "cognitive": 19,
+    "cyclomatic": 15,
+    "lines": 94
+  },
+  "examples/hybrid/04_golden_rule.py::main": {
+    "lines": 87
+  },
+  "examples/hybrid/05_dedupe_recurring.py::main": {
+    "lines": 83
+  },
+  "scripts/export_locked_requirements.py::_project_node": {
+    "cyclomatic": 11
+  },
+  "scripts/export_locked_requirements.py::_selected": {
+    "cyclomatic": 11
+  },
+  "scripts/run_llm_eval.py::main": {
+    "cyclomatic": 11,
+    "lines": 79
+  },
+  "scripts/verify_installed_wheel.py::verify": {
+    "cyclomatic": 12,
+    "lines": 82
+  },
+  "tests/integration/test_supply_chain_tools.py::test_generate_sbom_script": {
+    "cyclomatic": 11
+  },
+  "tests/test_analytics.py::test_analytics_all_cadences_and_extractors": {
+    "cyclomatic": 21,
+    "lines": 146
+  },
+  "tests/test_analytics.py::test_compute_cash_flow_summary_multi_currency": {
+    "cyclomatic": 12
+  },
+  "tests/test_analytics.py::test_detect_anomalies_and_nsf": {
+    "cyclomatic": 11
+  },
+  "tests/test_analytics.py::test_detect_recurring_transactions_cadences": {
+    "cyclomatic": 16
+  },
+  "tests/test_api.py": {
+    "file_lines": 756
+  },
+  "tests/test_api.py::test_request_admission_timeout_disconnect_and_cleanup": {
+    "lines": 68
+  },
+  "tests/test_api.py::test_request_limits_before_parser": {
+    "lines": 61
+  },
+  "tests/test_api_worker_pool.py::test_ingest_route_with_worker_pool": {
+    "lines": 70
+  },
+  "tests/test_audit_regressions.py": {
+    "file_lines": 610
+  },
+  "tests/test_audit_regressions.py::test_compatibility_wrappers_redact_after_account_joins": {
+    "cyclomatic": 13
+  },
+  "tests/test_audit_regressions.py::test_pain_redaction_covers_records_summaries_and_csv": {
+    "cyclomatic": 16
+  },
+  "tests/test_audit_regressions.py::test_real_api_openapi_ingestion_and_upload_cleanup": {
+    "lines": 61
+  },
+  "tests/test_bai2.py::test_bai2_standard_parsing": {
+    "cyclomatic": 19
+  },
+  "tests/test_camt_reports.py::test_camt052_parsing_and_summaries": {
+    "cyclomatic": 21
+  },
+  "tests/test_camt_reports.py::test_camt054_parsing_and_streaming": {
+    "cyclomatic": 16
+  },
+  "tests/test_camt_reports.py::test_camt_parsing_error_branches": {
+    "lines": 61
+  },
+  "tests/test_edge_cases.py": {
+    "file_lines": 730
+  },
+  "tests/test_edge_cases.py::TestBankStatementParsersEdgeCases.test_repr_methods": {
+    "lines": 66
+  },
+  "tests/test_enrichment_categorizer.py": {
+    "file_lines": 582
+  },
+  "tests/test_enterprise_coverage.py::TestCLICoverageExtra.test_run_argparse_failure_and_missing_required_and_parse_failure": {
+    "lines": 90
+  },
+  "tests/test_error_paths.py": {
+    "file_lines": 1378
+  },
+  "tests/test_field86_parser.py::test_parse_field_86_standard_slash_tags": {
+    "cyclomatic": 16
+  },
+  "tests/test_financial_scopes.py::test_camt_foreign_amounts_and_payment_identifiers": {
+    "cyclomatic": 13
+  },
+  "tests/test_financial_scopes.py::test_camt_summaries_keep_statement_currency_and_balances": {
+    "cyclomatic": 13
+  },
+  "tests/test_financial_scopes.py::test_csv_summary_scopes_missing_metadata_and_precision": {
+    "cyclomatic": 11
+  },
+  "tests/test_financial_scopes.py::test_mt940_statement_boundaries_signed_balances_and_funds_code": {
+    "cyclomatic": 11
+  },
+  "tests/test_hybrid_llm_extractor.py": {
+    "file_lines": 586
+  },
+  "tests/test_hybrid_llm_extractor.py::test_extract_parses_well_formed_response": {
+    "cyclomatic": 12
+  },
+  "tests/test_hybrid_orchestrator.py": {
+    "file_lines": 840
+  },
+  "tests/test_hybrid_orchestrator.py::test_ingest_result_json_round_trip_preserves_everything": {
+    "cyclomatic": 16
+  },
+  "tests/test_hybrid_orchestrator.py::test_smart_ingest_routes_scanned_pdf_to_vision": {
+    "lines": 85
+  },
+  "tests/test_hybrid_review_cli.py": {
+    "file_lines": 784
+  },
+  "tests/test_hybrid_vision.py": {
+    "file_lines": 757
+  },
+  "tests/test_hybrid_vision.py::test_strip_extractor_calls_completion_per_strip": {
+    "lines": 84
+  },
+  "tests/test_hybrid_vision.py::test_strip_merge_preserves_occurrences_and_maps_page_coordinates": {
+    "cyclomatic": 11
+  },
+  "tests/test_large_file_streaming.py": {
+    "file_lines": 558
+  },
+  "tests/test_parquet_export.py::test_parquet_stream_writer_lifecycle_and_methods": {
+    "lines": 67
+  },
+  "tests/test_parser_edge_behavior.py": {
+    "file_lines": 705
+  },
+  "tests/test_performance.py": {
+    "file_lines": 581
+  },
+  "tests/test_performance.py::TestCLIStreamingFlag.test_cli_streaming_execution": {
+    "lines": 68
+  },
+  "tests/test_performance.py::TestCLIStreamingFlag.test_cli_streaming_vs_normal_mode": {
+    "lines": 76
+  },
+  "tests/test_pii_redaction.py": {
+    "file_lines": 583
+  },
+  "tests/test_plugins_and_v019.py": {
+    "file_lines": 502
+  },
+  "tests/test_plugins_and_v019.py::test_camt_extract_transactions_batch_and_redact": {
+    "cyclomatic": 14,
+    "lines": 88
+  },
+  "tests/test_plugins_and_v019.py::test_categorizer_concurrency_and_currency": {
+    "cyclomatic": 12,
+    "lines": 83
+  },
+  "tests/test_plugins_and_v019.py::test_mt940_reversals_and_multiline_86": {
+    "cyclomatic": 11
+  },
+  "tests/test_plugins_and_v019.py::test_zip_security_multi_format_and_errors": {
+    "lines": 76
+  },
+  "tests/test_property_based.py": {
+    "file_lines": 525
+  },
+  "tests/test_property_based.py::_build_ntry_xml": {
+    "cyclomatic": 12,
+    "lines": 67
+  },
+  "tests/test_reconciliation.py::test_reconcile_exact_end_to_end_id": {
+    "cyclomatic": 13
+  },
+  "tests/test_reconciliation.py::test_reconcile_partial_amount_deduction_and_helpers": {
+    "cyclomatic": 15,
+    "lines": 73
+  },
+  "tests/test_regression_docs.py": {
+    "file_lines": 535
+  },
+  "tests/test_regression_docs.py::test_documented_python_block": {
+    "cyclomatic": 11
+  },
+  "tests/test_security.py": {
+    "file_lines": 635
+  },
+  "tests/test_security_updated.py": {
+    "file_lines": 588
+  },
+  "tests/test_suite_conformance.py": {
+    "file_lines": 678
+  },
+  "tests/test_suite_conformance.py::_dev_spec": {
+    "cognitive": 23,
+    "cyclomatic": 12
+  },
+  "tests/test_transaction_deduplicator.py::test_transaction_from_camt_style_record": {
+    "cyclomatic": 11
+  },
+  "tests/test_transaction_deduplicator.py::test_transaction_model_helpers_cover_edge_cases": {
+    "cyclomatic": 11
+  },
+  "tests/test_unified_interface.py": {
+    "file_lines": 589
+  },
+  "tests/test_unified_interface.py::TestUnifiedParserInterface.test_large_file_handling": {
+    "lines": 76
+  }
+}
