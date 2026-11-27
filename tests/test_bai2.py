@@ -62,6 +62,34 @@ def test_parse_bai2_amount_helpers() -> None:
     assert _parse_bai2_amount("  ", "USD") == Decimal("0.00")
 
 
+@pytest.mark.parametrize("raw", ["12A4", "1-2", "NaN", "Infinity", "sNaN"])
+def test_parse_bai2_amount_rejects_garbage(raw: str) -> None:
+    """A malformed or non-finite amount raises ValueError.
+
+    Found by fuzzing: ``Decimal("12A4")`` raised the arithmetic signal
+    ``InvalidOperation`` out of the parser, and ``"NaN"`` parsed as a
+    NaN amount instead of failing.
+    """
+    with pytest.raises(ValueError, match="BAI2 amount"):
+        _parse_bai2_amount(raw, "USD")
+
+
+def test_bai2_file_with_garbled_amount_raises_value_error() -> None:
+    """A transaction amount that is not a number fails the parse loudly."""
+    path = _write_temp_file(
+        "01,CITI,CORP,250115,1000,1,80,2/\n"
+        "02,CORP,CITI,1,250115,1000,USD/\n"
+        "03,987654321,USD,010,1000000,,,015,1250000,,,/\n"
+        "16,175,5O000,Z,BNK001,CUST001,Customer Deposit/\n"
+        "49,2300000,2/\n98,2300000,1,4/\n99,2300000,1,6/\n"
+    )
+    try:
+        with pytest.raises(ValueError, match="BAI2 amount"):
+            Bai2Parser(str(path)).parse()
+    finally:
+        path.unlink()
+
+
 def test_bai2_standard_parsing() -> None:
     """Verify full end-to-end parsing of a standard BAI2 statement."""
     content = """01,CITI,CORP,250115,1000,1,80,2/

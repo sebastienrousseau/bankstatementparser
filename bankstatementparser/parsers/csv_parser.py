@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import csv
 from decimal import Decimal
 from pathlib import Path
 
@@ -96,13 +97,20 @@ class CsvStatementParser(BankStatementParser):
         if self._parsed_df is not None:
             return self._parsed_df.copy()
 
-        raw_df = pd.read_csv(
-            self._path,
-            sep=None,
-            engine="python",
-            dtype=str,
-            keep_default_na=False,
-        )
+        try:
+            raw_df = pd.read_csv(
+                self._path,
+                sep=None,
+                engine="python",
+                dtype=str,
+                keep_default_na=False,
+            )
+        except csv.Error as exc:
+            # The delimiter sniffer raises csv.Error, which is not a
+            # ValueError, when no delimiter fits the text.
+            raise ValidationError(
+                f"CSV delimiter could not be determined: {exc}"
+            ) from exc
         parsed = pd.DataFrame(index=raw_df.index)
 
         date_col = self._find_column(raw_df, "date")

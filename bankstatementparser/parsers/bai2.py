@@ -25,6 +25,7 @@ from typing import Any
 
 import pandas as pd
 
+from .._amounts import iso_decimal
 from ..base_parser import BankStatementParser, _single_summary
 from ..record_types import SummaryRecord, TransactionRecord
 from ..transaction_models import Transaction
@@ -45,14 +46,19 @@ def _parse_bai2_date(date_str: str) -> date | None:
 
 
 def _parse_bai2_amount(raw: str, currency: str | None) -> Decimal:
-    """Parse integer cents or decimal string into Decimal amount."""
+    """Parse integer cents or decimal string into Decimal amount.
+
+    Raises:
+        ValueError: If the field is not a finite decimal number.
+    """
     val = raw.strip()
     if not val:
         return Decimal("0.00")
+    value = iso_decimal(val, context="BAI2 amount field")
     if "." in val:
-        return Decimal(val)
+        return value
     # Default 2 decimal places for standard currencies
-    return Decimal(val) / Decimal("100")
+    return value / Decimal("100")
 
 
 class _Bai2State:

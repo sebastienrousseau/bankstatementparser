@@ -289,6 +289,18 @@ class TestAdditionalParsers(unittest.TestCase):
         self.assertEqual(_amount_or_zero("   ", context="test"), Decimal("0"))
 
 
+class TestCsvDelimiter(unittest.TestCase):
+    """CSV input whose delimiter cannot be sniffed."""
+
+    def test_undetectable_delimiter_raises_validation_error(self) -> None:
+        """Found by fuzzing: csv.Error escaped the parser untranslated."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "statement.csv"
+            path.write_text("\u00e9\n" * 20, encoding="utf-8")
+            with self.assertRaisesRegex(ValidationError, "delimiter"):
+                CsvStatementParser(str(path)).parse()
+
+
 class TestNormalizedHeaderName(unittest.TestCase):
     def test_accents_fold_to_ascii(self):
         self.assertEqual(_normalized_name("Libellé"), "libelle")
