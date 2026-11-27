@@ -47,6 +47,9 @@ jobs:
       - name: Complexity baseline
         run: python3 scripts/check_complexity.py
 
+      - name: Shell completions are current
+        run: poetry run python scripts/generate_completions.py --check
+
   lint-and-typecheck-all:
     # Branch protection requires this check by name. It stands for every
     # leg of the lint-and-typecheck matrix, so adding or dropping a version never

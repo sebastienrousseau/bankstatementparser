@@ -33,6 +33,7 @@ Or import the app for ASGI deployment::
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import logging
 import math
@@ -248,12 +249,15 @@ def create_app(
     return app
 
 
-def main() -> None:
-    """Console-script entry point for ``bankstatementparser-api``."""
-    import argparse
+def build_arg_parser() -> argparse.ArgumentParser:
+    """Return the ``bankstatementparser-api`` command-line parser.
 
+    Kept separate from :func:`main` so the shell completions are
+    generated from the same definition the command parses with.
+    """
     parser = argparse.ArgumentParser(
-        description="Start the Bank Statement Parser REST API."
+        prog="bankstatementparser-api",
+        description="Start the Bank Statement Parser REST API.",
     )
     parser.add_argument(
         "--host",
@@ -261,7 +265,12 @@ def main() -> None:
         help="Bind address (use 0.0.0.0 for container deployments)",
     )
     parser.add_argument("--port", type=int, default=8000, help="Port")
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    """Console-script entry point for ``bankstatementparser-api``."""
+    args = build_arg_parser().parse_args()
 
     try:
         import uvicorn
