@@ -40,6 +40,20 @@ def _combine(values: list[bool | str], operator: str) -> bool | str:
     return f" {operator} ".join(f"({value})" for value in residual)
 
 
+def _project_atom(node: tuple[Any, Any, Any], extras: set[str]) -> bool | str:
+    """Evaluate one comparison: an extra atom to a bool, anything else kept."""
+    left, operator, right = (term.serialize() for term in node)
+    atom = f"{left} {operator} {right}"
+    if "extra" not in (left, right):
+        return atom
+    if operator not in {"==", "!=", "in", "not in"}:
+        raise ValueError("Unsupported comparison on an extra marker")
+    matches = [
+        Marker(atom).evaluate({"extra": extra}) for extra in (extras or {""})
+    ]
+    return all(matches) if operator in {"!=", "not in"} else any(matches)
+
+
 def _project_node(node: Any, extras: set[str]) -> bool | str:
     """Substitute extra atoms in packaging's parsed marker tree.
 
@@ -48,17 +62,7 @@ def _project_node(node: Any, extras: set[str]) -> bool | str:
     Unsupported extra comparisons fail instead of silently widening selection.
     """
     if isinstance(node, tuple):
-        left, operator, right = (term.serialize() for term in node)
-        atom = f"{left} {operator} {right}"
-        if "extra" not in (left, right):
-            return atom
-        if operator not in {"==", "!=", "in", "not in"}:
-            raise ValueError("Unsupported comparison on an extra marker")
-        matches = [
-            Marker(atom).evaluate({"extra": extra})
-            for extra in (extras or {""})
-        ]
-        return all(matches) if operator in {"!=", "not in"} else any(matches)
+        return _project_atom(node, extras)
     groups: list[bool | str] = []
     conjunction: list[bool | str] = []
     for term in node:
@@ -101,6 +105,27 @@ def _check_scope(
         raise ValueError("Unknown requested dependency groups")
 
 
+def _extras_marker(
+    package: dict[str, Any], groups: set[str], extras: set[str]
+) -> bool | str:
+    """The package's lock marker for the selected groups, extras projected.
+
+    False when no selected group or requested extra pulls the package in.
+    """
+    selected_groups = groups.intersection(package["groups"])
+    if not selected_groups:
+        return False
+    locked_marker = package.get("markers", "")
+    markers = (
+        [locked_marker.get(group, "") for group in sorted(selected_groups)]
+        if isinstance(locked_marker, dict)
+        else [locked_marker]
+    )
+    return _combine(
+        [project_extras(marker, extras) for marker in markers], "or"
+    )
+
+
 def _selected(
     lock: dict[str, Any], groups: set[str], extras: set[str]
 ) -> list[tuple[dict[str, Any], str]]:
@@ -110,18 +135,7 @@ def _selected(
     for package in sorted(
         lock["package"], key=lambda item: (item["name"], item["version"])
     ):
-        selected_groups = groups.intersection(package["groups"])
-        if not selected_groups:
-            continue
-        locked_marker = package.get("markers", "")
-        markers = (
-            [locked_marker.get(group, "") for group in sorted(selected_groups)]
-            if isinstance(locked_marker, dict)
-            else [locked_marker]
-        )
-        selected = _combine(
-            [project_extras(marker, extras) for marker in markers], "or"
-        )
+        selected = _extras_marker(package, groups, extras)
         if selected is False:
             continue
         if package.get("source"):

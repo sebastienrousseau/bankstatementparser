@@ -1,93 +1,86 @@
 <!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
+<!--
+README template. Global rules: see ~/Code/AGENTS.md and ~/Code/REPO-STANDARD.md.
+Releases adhere strictly to https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.5
+Every image (logo, demo) uses an absolute https URL so it renders on PyPI,
+crates.io, npm and other registries, which do not resolve relative paths.
+-->
 
 <p align="center">
-  <img
-    src="https://cloudcdn.pro/bankstatementparser/v1/logos/bankstatementparser.svg"
-    alt="bankstatementparser logo"
-    width="120"
-    height="120"
-  />
+  <img src="https://cloudcdn.pro/bankstatementparser/v1/logos/bankstatementparser.svg" alt="bankstatementparser logo" width="128" />
 </p>
 
-<h1 align="center">Bank Statement Parser</h1>
+<h1 align="center">bankstatementparser</h1>
 
 <p align="center">
-  Bank statement parsing for Python — eight structured formats and
-  PDFs, digital or scanned, into one auditable
-  <code>Transaction</code> model.
+  Parse bank statements in eight structured formats, and PDFs digital or scanned, into one auditable <code>Transaction</code> model for Python.
 </p>
 
 <p align="center">
   <a href="https://github.com/sebastienrousseau/bankstatementparser/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/bankstatementparser/quality-gates.yml?style=for-the-badge&logo=github" alt="Build" height="28" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.35" alt="PyPI version" height="28" /></a>
-  <a href="https://bankstatementparser.com"><img src="https://img.shields.io/badge/docs-bankstatementparser.com-blue?style=for-the-badge&labelColor=555555&logo=googlechrome" alt="Docs" height="28" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/pyversions/bankstatementparser.svg?style=for-the-badge" alt="Python versions" height="28" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/dm/bankstatementparser.svg?style=for-the-badge" alt="PyPI downloads" height="28" /></a>
-  <a href="https://codecov.io/github/sebastienrousseau/bankstatementparser?branch=main"><img src="https://img.shields.io/codecov/c/github/sebastienrousseau/bankstatementparser?style=for-the-badge" alt="Codecov" height="28" /></a>
+  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.36" alt="Registry" height="28" /></a>
+  <a href="https://docs.bankstatementparser.com/"><img src="https://img.shields.io/badge/docs-user%20manual-0a7bbb?style=for-the-badge&labelColor=555555&logo=materialformkdocs" alt="Docs" height="28" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/sebastienrousseau/bankstatementparser"><img src="https://img.shields.io/ossf-scorecard/github.com/sebastienrousseau/bankstatementparser?style=for-the-badge&label=OpenSSF%20Scorecard&logo=openssf" alt="OpenSSF Scorecard" height="28" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg?style=for-the-badge" alt="License: Apache-2.0 OR MIT" height="28" /></a>
+  <a href="https://github.com/sebastienrousseau/bankstatementparser/blob/main/docs/POLICIES.md"><img src="https://img.shields.io/badge/python-3.10%2B-93450a.svg?style=for-the-badge&logo=python" alt="Python 3.10+" height="28" /></a>
 </p>
 
----
-
-Parse bank statements across **eight structured formats** (CAMT,
-PAIN.001, CSV, OFX, QFX, MT940, MT942, BAI2) **and PDFs** — both digital and
-scanned — into a single unified `Transaction` model. ISO 20022
-files take the deterministic path; PDFs fall through to a
-configurable LLM (Ollama by default, any LiteLLM-supported
-provider) and finally to a multimodal vision model for
-scanned/photocopied statements.
-
-Built for finance teams, treasury analysts, and fintech developers
-who need reliable, auditable extraction across the full spectrum
-of bank statement formats — without sending data to external
-services unless they explicitly opt in.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sebastienrousseau/bankstatementparser/main/.github/demo.gif" alt="The bankstatementparser CLI summarising a CAMT.053 statement with PII masked, the same file parsed into a DataFrame from Python, and format detection across CSV, OFX, MT940 and CAMT fixtures" width="100%" />
+</p>
 
 ---
 
 ## Contents
 
+<!-- The fragments below hold placeholders until a README fills them in. -->
+<!-- markdownlint-disable MD051 -->
+
 **Getting started**
 
-- [Install](#install) — pip extras, requirements, local development
-- [Quick Start](#quick-start) — parse a statement in three lines
+- [Install](#install): pip and its extras, a container image, shell completions
+- [Requirements](#requirements): toolchain floor, platforms
+- [Quick Start](#quick-start): parse a statement in three lines
 
-**The pipeline**
+**The bankstatementparser ecosystem**
 
-- [How it works](#how-it-works) — routing diagram: deterministic first, LLM and vision as opt-in fallbacks
-- [Key Features](#key-features) — parsing, hybrid PDF pipeline, verification, enrichment, security
+- [The bankstatementparser ecosystem](#the-bankstatementparser-ecosystem): the MCP and LSP servers, the EBICS transport, four writers and six loaders
 
 **Library reference**
 
-- [PII Redaction](#pii-redaction) — masked by default, opt in to see full data
-- [Streaming](#streaming) — bounded memory at 50,000 transactions
-- [Performance](#performance) — throughput and latency, CI-enforced
-- [Parallel Parsing](#parallel-parsing) — multi-file batches across CPU cores
-- [Command Line](#command-line) — console script and REST API
-- [Deduplication](#deduplication) — exact hashes + suspected matches
-- [Export](#export) — CSV, JSON, Excel, Polars, Parquet, hledger, beancount
-- [Examples](#examples) — 23 runnable scripts (14 deterministic + 9 hybrid)
-- [XML Tag Mapping](#xml-tag-mapping) — ISO 20022 tags to DataFrame columns
-- [Ecosystem](#ecosystem) — companion packages (MCP, LSP, writers, loaders)
+- [Capabilities at a glance](#capabilities-at-a-glance): the current surface by theme
+- [Ecosystem comparison](#ecosystem-comparison): why there is no comparison table yet
+- [Benchmarks](#benchmarks): headline numbers; full table at [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)
+- [Features](#features): module-level capability list
+- [Configuration](#configuration): core options
+- [Examples](#examples): runnable example index
 
 **Operational**
 
-- [Project Layout](#project-layout)
-- [Security](#security) — XXE, ZIP-bomb, and path-traversal protection
-- [Verify the Repository](#verify-the-repository) — the five local gates
-- [Versioning](#versioning) — SemVer policy for the 0.y.z series
-- [Contributing](#contributing)
-- [FAQ](#faq)
-- [Documentation](#documentation) — all reference docs
+- [When not to use bankstatementparser](#when-not-to-use-bankstatementparser): limitations
+- [Development](#development): make targets, fuzzing, CI
+- [Security](#security): guarantees and compliance
+- [Documentation](#documentation): all reference docs
+- [Stability guarantees](#stability-guarantees): SemVer axis, output stability, minimum toolchain discipline
 - [License](#license)
+
+<!-- markdownlint-enable MD051 -->
 
 ---
 
 ## Install
 
-```bash
-# Core install — deterministic parsers only (CAMT, PAIN.001, CSV, OFX, QFX, MT940, MT942, BAI2)
-pip install bankstatementparser
+### As a Python library
 
+```bash
+pip install bankstatementparser
+```
+
+The core install parses CAMT, PAIN.001, CSV, OFX, QFX, MT940, MT942
+and BAI2 with no AI dependencies. Every extra is opt-in and pure
+Python: no `poppler`, no system libraries, no GPU.
+
+```bash
 # Add Excel (.xlsx) export support (openpyxl)
 pip install 'bankstatementparser[excel]'
 
@@ -113,48 +106,60 @@ pip install 'bankstatementparser[enrichment]'
 pip install 'bankstatementparser[api]'
 ```
 
-The core install has zero AI dependencies. Every extra is opt-in
-and pure-Python — no `poppler`, no system libraries, no GPU
-required.
+### As a container
 
-### Requirements
+The repository's `Dockerfile` builds the command-line interface on
+`python:3.14-slim` (pinned by digest) from the locked, hash-checked
+runtime dependencies. CI builds and runs it on every change; no image
+is published to a registry yet.
 
-- Python **3.10** through **3.14** (Python 3.9 was dropped in
-  v0.0.6 — pin to v0.0.5 if you cannot upgrade your interpreter).
-- Poetry (for local development).
+```bash
+docker build -t bankstatementparser .
+docker run --rm -v "$PWD:/data" bankstatementparser --type camt --input /data/statement.xml
+```
+
+### Shell completions
+
+`completions/` holds bash, zsh and tcsh completions for
+`bankstatementparser` and `bankstatementparser-api`, generated from the
+commands' own argument parsers:
+
+```bash
+source completions/bankstatementparser.bash
+```
+
+### Package trackers
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/python:bankstatementparser.svg)](https://repology.org/project/python:bankstatementparser/versions)
+
+---
+
+## Requirements
+
+- Python **3.10** through **3.14**. Python 3.9 was dropped in
+  v0.0.6; pin to v0.0.5 if you cannot upgrade your interpreter. The
+  policy, and how CI enforces it, is in
+  [`docs/POLICIES.md`](docs/POLICIES.md).
+- Linux, macOS and Windows: CI runs the full test suite on all three
+  for every supported Python.
+- Poetry, for local development.
 
 > **Python version note.** The deterministic core (CAMT, PAIN.001,
-> CSV, OFX, QFX, MT940, MT942, BAI2) supports Python **3.10–3.14**. The optional
-> `[hybrid]`, `[hybrid-plus]`, `[hybrid-vision]`, and
+> CSV, OFX, QFX, MT940, MT942, BAI2) supports Python **3.10 to 3.14**.
+> The optional `[hybrid]`, `[hybrid-plus]`, `[hybrid-vision]`, and
 > `[enrichment]` extras pull in `litellm`, which currently requires
 > **Python <3.14** upstream, and filelock, whose first release
 > without open advisories (4.2.1) dropped 3.10. The LLM extras
-> therefore need Python **3.11–3.13**; on 3.10 or 3.14 they install
-> without `litellm`. Use Python 3.11–3.13 for the full hybrid
+> therefore need Python **3.11 to 3.13**; on 3.10 or 3.14 they install
+> without `litellm`. Use Python 3.11 to 3.13 for the full hybrid
 > pipeline; any supported version works for deterministic parsing.
 > The `pdfplumber` engine in `[hybrid-plus]` needs Python **3.11+**:
 > it pulls Pillow, whose first release without open advisories
 > (13.0.0) dropped 3.10, so on 3.10 the extra installs without it.
 
-### Local development
-
-Clone and install on **macOS, Linux, or WSL**:
-
-```bash
-git clone https://github.com/sebastienrousseau/bankstatementparser.git
-cd bankstatementparser
-python3 -m venv .venv
-source .venv/bin/activate
-pip install poetry
-poetry install --with dev -E excel
-make install-hooks   # pre-commit hook runs `make verify` before every commit
-```
-
 ---
 
 ## Quick Start
-
-### Parse a CAMT statement
 
 ```python
 from bankstatementparser import CamtParser
@@ -170,6 +175,192 @@ print(transactions)
 -200000.0      SEK DBIT                  2010-10-18 50000000054910
   30000.0      SEK CRDT                  2010-10-18 50000000054910
 ```
+
+`CamtParser` reads a CAMT.053 file into a pandas DataFrame, one row
+per entry. Other formats have their own parser (`Pain001Parser`,
+`Mt940Parser`, `Bai2Parser`, and so on), `create_parser()` picks one
+for you, and `smart_ingest()` handles PDFs too; see
+[Features](#features). From the shell:
+
+```bash
+bankstatementparser --type camt --input statement.xml
+```
+
+---
+
+## The bankstatementparser ecosystem
+
+`bankstatementparser` is the core engine. Companion packages build on
+it, each its own repository and Python package, so you install only
+what you need and the core stays dependency-light. Loaders turn
+another source format into the same `Transaction` model; writers take
+parsed data out to another target. Every package releases in lockstep
+under the same version.
+
+| Component | Purpose | Use case |
+| :--- | :--- | :--- |
+| [`bankstatementparser`](https://pypi.org/project/bankstatementparser/) | Core engine: parsers for CAMT (052/053/054), PAIN.001, CSV, OFX, QFX, MT940, MT942, BAI2, and PDF statements | Parse a statement file into transactions |
+| [`bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | Model Context Protocol (MCP) server exposing statement tools to LLMs and AI agents | Let an agent read and summarise statements |
+| [`bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | Language Server Protocol (LSP) server with live SWIFT MT940 validation and diagnostics | Edit statement files with diagnostics in your editor |
+| [`bankstatementparser-transport-ebics`](https://github.com/sebastienrousseau/bankstatementparser-transport-ebics) | Statement retrieval over EBICS 3.0 (`H005`) and 2.5 (`H004`) | Fetch statements from a bank automatically |
+| [`bankstatementparser-writer-xlsx`](https://github.com/sebastienrousseau/bankstatementparser-writer-xlsx) | Styled Microsoft Excel (`.xlsx`) workbooks | Hand transactions to spreadsheet users |
+| [`bankstatementparser-writer-qif`](https://github.com/sebastienrousseau/bankstatementparser-writer-qif) | Quicken Interchange Format (`.qif`) files | Import into Quicken-compatible tools |
+| [`bankstatementparser-writer-ofx`](https://github.com/sebastienrousseau/bankstatementparser-writer-ofx) | Open Financial Exchange (`.ofx`) files | Import into OFX-compatible accounting tools |
+| [`bankstatementparser-writer-swift`](https://github.com/sebastienrousseau/bankstatementparser-writer-swift) | SWIFT MT940 customer statements and MT942 interim reports | Produce SWIFT statements from parsed data |
+| [`bankstatementparser-loader-bai2`](https://github.com/sebastienrousseau/bankstatementparser-loader-bai2) | BAI2 cash-management and account balance statements | Load BAI2 files as `Transaction` objects |
+| [`bankstatementparser-loader-mt942`](https://github.com/sebastienrousseau/bankstatementparser-loader-mt942) | SWIFT MT942 interim reports with credit/debit summary reconciliation | Load intraday MT942 reports |
+| [`bankstatementparser-loader-cfonb`](https://github.com/sebastienrousseau/bankstatementparser-loader-cfonb) | French CFONB 120 / AFB120 fixed-width statements | Load French bank statements |
+| [`bankstatementparser-loader-camt054`](https://github.com/sebastienrousseau/bankstatementparser-loader-camt054) | ISO 20022 CAMT.054 debit/credit notifications | Load real-time notification streams |
+| [`bankstatementparser-loader-sepa`](https://github.com/sebastienrousseau/bankstatementparser-loader-sepa) | ISO 20022 PAIN.002 payment status reports and PAIN.008 direct debit mandates | Load SEPA status and mandate files |
+| [`bankstatementparser-loader-bacs`](https://github.com/sebastienrousseau/bankstatementparser-loader-bacs) | UK BACS Standard 18 / Faster Payments 106-byte fixed-width files | Load UK BACS transmissions |
+
+```bash
+# Mix and match: e.g. fetch via EBICS 3.0, parse CAMT.053, and export to SWIFT MT940 or Excel
+pip install bankstatementparser-transport-ebics bankstatementparser-writer-swift bankstatementparser-writer-xlsx
+```
+
+Loaders hand back the same `Transaction` model the core parsers
+produce, so `load_mt942_file(...)` then `write_xlsx(...)` composes
+cleanly; see each companion's README for runnable examples. Each
+companion pins `bankstatementparser` as a dependency and ships its own
+100%-coverage test suite.
+
+---
+
+## Capabilities at a glance
+
+| Area | Capability | Status |
+| :--- | :--- | :--- |
+| Parsing | CAMT.052, CAMT.053, CAMT.054, PAIN.001, MT940, MT942, BAI2, OFX, QFX, CSV | Core install |
+| Parsing | Format detection and parser factory (`detect_statement_format()`, `create_parser()`) | Core install |
+| Parsing | Streaming with bounded memory, parallel multi-file parsing, in-memory parsing | Core install |
+| PDFs | Hybrid pipeline: deterministic first, then text LLM, then vision (`smart_ingest()`) | Opt-in extras |
+| Verification | Golden Rule balance checks, overall and per currency | Core install |
+| Data quality | Idempotent deduplication by versioned hash, suspected-match detection | Core install |
+| Enrichment | LLM categorisation, regex account mapping | Categorisation is an extra |
+| Export | CSV, JSON, Excel, Parquet, Polars, hledger, beancount | Excel, Parquet, Polars are extras |
+| Interfaces | `bankstatementparser` CLI, FastAPI REST service | REST is an extra |
+| Security | PII redaction, XXE-safe XML, ZIP-bomb and path-traversal checks | Core install |
+| Extensibility | Third-party loaders and writers through entry points | Core install |
+
+---
+
+## Ecosystem comparison
+
+No comparison is published yet. A fair comparison needs the same files
+run through each alternative library and the results checked, and that
+work has not been done, so this README makes no claims about other
+projects.
+
+---
+
+## Benchmarks
+
+Measured with the repository's own benchmarks (`benches/`), best of
+three runs, uninstrumented. CI enforces lower floors under coverage
+(`tests/test_performance_contracts.py`).
+
+| Scenario | Result | Environment |
+| :--- | ---: | :--- |
+| CAMT.053 streaming, 10,000 transactions | 23,273 tx/s (43 µs/tx) | Apple M1 Pro, macOS 27.2.1, CPython 3.12.16 |
+| PAIN.001 streaming, 10,000 transactions | 56,311 tx/s (18 µs/tx) | Apple M1 Pro, macOS 27.2.1, CPython 3.12.16 |
+| CAMT.053 time to first record, 50,000 transactions | 0.89 ms | Apple M1 Pro, macOS 27.2.1, CPython 3.12.16 |
+| Deduplication, 8,000 distinct transactions | 156 ms (19.5 µs/tx, linear) | Apple M1 Pro, macOS 27.2.1, CPython 3.12.16 |
+| Deduplication, 800 identical in a batch of 4,000 | 2.42 s (near quadratic in the group) | Apple M1 Pro, macOS 27.2.1, CPython 3.12.16 |
+
+Streaming throughput is flat from 1,000 to 50,000 transactions.
+
+See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for methodology and full results.
+
+---
+
+## Features
+
+### Key Features
+
+#### Parsing
+
+| Feature | Description |
+|---|---|
+| **8 structured formats** | CAMT (052, 053, 054), PAIN.001, MT940, MT942, BAI2, OFX, QFX, CSV |
+| **Auto-detection** | `detect_statement_format()` identifies the format; `create_parser()` returns the right parser |
+| **Streaming** | `parse_streaming()` with bounded memory: about 23,000 tx/s (CAMT) and 56,000 tx/s (PAIN.001) in [Benchmarks](#benchmarks) |
+| **Parallel** | `parse_files_parallel()` for multi-file batch processing across CPU cores |
+| **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
+
+#### Hybrid PDF pipeline (LLM-assisted)
+
+| Feature | Description |
+|---|---|
+| **Hybrid PDF pipeline** *(v0.0.5)* | `smart_ingest()` routes digital PDFs through a text-LLM and scanned PDFs through a multimodal vision model. Deterministic parsers always tried first ($0 cost). |
+| **Local-first LLM** *(v0.0.5)* | Ollama is the default backend; switch to Anthropic, OpenAI, or any LiteLLM provider via `BSP_HYBRID_MODEL`. Vision is opt-in via `BSP_HYBRID_VISION_MODEL`: no surprise downloads. |
+| **Direct Ollama bridge** *(v0.0.7)* | Auto-bypasses the upstream LiteLLM to Ollama hang on long vision prompts. `ollama/minicpm-v` recommended over `ollama/llava` for document OCR. |
+| **Strip mode** *(v0.0.7)* | `VisionExtractor(strip_rows=True)` splits dense pages into overlapping bands for small local models, which fixes sign-flip errors and improves accuracy on 15+ row statements. |
+| **Bounding boxes** *(v0.0.6)* | `Transaction.source_bbox` carries per-row normalized coordinates from the vision path for downstream review UIs. |
+| **Bulk directory scanner** *(v0.0.8)* | `scan_and_ingest(directory, pattern="**/*.pdf")` scans a folder tree, runs `smart_ingest` on every match, deduplicates across the entire batch. |
+
+#### Data quality and verification
+
+| Feature | Description |
+|---|---|
+| **Golden Rule verification** *(v0.0.5)* | Every result carries `opening + credits − debits == closing` status: `VERIFIED`, `DISCREPANCY`, `UNVERIFIABLE`, or `FAILED`. |
+| **Multi-currency verification** *(v0.0.8)* | `verify_balance_multi_currency()` groups transactions by currency and runs the Golden Rule independently per group, so multi-currency statements no longer report a false `DISCREPANCY`. |
+| **Idempotent dedup** *(v0.0.5)* | Every `Transaction` carries a stable `transaction_hash` (versioned SHA-256 of account, currency, date, description, amount, and bank identity). `Deduplicator.dedupe_by_hash()` makes incremental ingestion safe to re-run. |
+| **Interactive review** *(v0.0.6)* | `--type review` CLI walks through discrepancies with accept/edit/skip/delete/quit. `IngestResult.to_json()` / `.from_json()` for stable round-trip with embedded audit trail. |
+
+#### Enrichment and export
+
+| Feature | Description |
+|---|---|
+| **Categorization** *(v0.0.6)* | `bankstatementparser.enrichment.Categorizer` tags transactions with a pluggable category schema (Plaid 13-category default) and an optional `is_business_expense` flag. Wrapper model: it never mutates the original `Transaction`. |
+| **Account mapping** *(v0.0.8)* | `AccountMapper` with ordered regex rules loaded from JSON config. First match wins. Pairs with the ledger exporter for end-to-end plaintext-accounting workflows. |
+| **hledger + beancount export** *(v0.0.8)* | `to_hledger()` and `to_beancount()` produce journal strings for plaintext-accounting workflows. Uses `Transaction.category` as the contra-account when set. |
+| **Export** | CSV, JSON, Excel (`.xlsx`), Apache Parquet (`.parquet`), and optional Polars DataFrames |
+| **REST API** *(v0.0.8)* | FastAPI microservice: `POST /ingest` a file, get JSON back. `GET /health` for monitoring. `pip install 'bankstatementparser[api]'`. |
+
+#### Security and quality
+
+| Feature | Description |
+|---|---|
+| **PII redaction** | Names, IBANs, and addresses masked by default; opt in with `--show-pii` |
+| **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
+| **Tested** | 1091 tests, coverage gated at 100% in CI on Linux, macOS and Windows, property-based testing with Hypothesis, and Atheris fuzzing of the parsers |
+
+### How it works
+
+`smart_ingest()` routes any input file through the cheapest viable
+extraction path. Deterministic parsers always run first ($0 cost).
+Text and vision LLMs are fallbacks for unstandardized PDFs; both are
+opt-in via separate install extras and can be swapped between any
+LiteLLM-supported provider (Ollama, Anthropic, OpenAI, Gemini, and
+others).
+
+```mermaid
+flowchart TD
+    A["smart_ingest(path)"] --> B{"detect_statement_format"}
+    B -->|CAMT/PAIN/OFX/MT940/MT942/BAI2/CSV| C["Path A: deterministic parser<br/>$0, fastest"]
+    C --> Z["IngestResult<br/>source_method='deterministic'"]
+
+    B -->|pdf or unknown| D["pypdf extract_text"]
+    D --> E{"text length >= 50?"}
+
+    E -->|yes| F["Path B: text-LLM<br/>default ollama/llama3"]
+    F --> Y["IngestResult<br/>source_method='llm'"]
+
+    E -->|no| G["Path C: vision-LLM<br/>opt-in via BSP_HYBRID_VISION_MODEL"]
+    G --> X["IngestResult<br/>source_method='vision'"]
+
+    Z --> V["verify_balance<br/>Golden Rule"]
+    Y --> V
+    X --> V
+    V --> R["VERIFIED / DISCREPANCY / UNVERIFIABLE / FAILED"]
+```
+
+Every extracted row carries an immutable `transaction_hash`, an
+audit-trail `source_method` tag, and (for LLM rows) a `confidence`
+score; see [Hybrid extraction](#hybrid-extraction-pdfs-included)
+below for the full surface. The module layout is described in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ### Parse a PAIN.001 payment file
 
@@ -199,26 +390,26 @@ records = parser.parse()
 
 Works with `.xml`, `.csv`, `.ofx`, `.qfx`, and `.mt940` files.
 
-### Hybrid extraction (PDFs included) *(v0.0.5)*
+### Hybrid extraction (PDFs included)
 
-`smart_ingest()` is the single entry point that routes any file
-through the cheapest viable extraction path:
+`smart_ingest()` (v0.0.5) is the single entry point that routes any
+file through the cheapest viable extraction path:
 
 ```python
 from bankstatementparser.hybrid import smart_ingest
 
-# Path A — deterministic parser (free, fastest, $0)
+# Path A: deterministic parser (free, fastest, $0)
 result = smart_ingest("statement.xml")
 print(result.source_method)  # "deterministic"
 
-# Path B — text-LLM for digital PDFs (set BSP_HYBRID_MODEL=ollama/llama3)
+# Path B: text-LLM for digital PDFs (set BSP_HYBRID_MODEL=ollama/llama3)
 result = smart_ingest("statement.pdf")
 print(result.source_method)  # "llm"
 print(
     result.verification.status
 )  # VERIFIED | DISCREPANCY | UNVERIFIABLE | FAILED
 
-# Path C — multimodal vision for scanned PDFs (set BSP_HYBRID_VISION_MODEL)
+# Path C: multimodal vision for scanned PDFs (set BSP_HYBRID_VISION_MODEL)
 # auto-routed when pypdf cannot extract enough text
 result = smart_ingest("scan.pdf")
 print(result.source_method)  # "vision"
@@ -226,14 +417,14 @@ print(result.source_method)  # "vision"
 
 Every row carries:
 
-- `source_method` — `"deterministic"`, `"llm"`, or `"vision"` for
+- `source_method`: `"deterministic"`, `"llm"`, or `"vision"` for
   full audit provenance
-- `transaction_hash` — versioned SHA-256 fingerprint scoped to account,
+- `transaction_hash`: versioned SHA-256 fingerprint scoped to account,
   currency, date, description, amount, and available bank identity.
   Rebuild persisted pre-v2 keys before re-ingestion
-- `confidence` — float between 0 and 1 for LLM rows, `None` for
+- `confidence`: float between 0 and 1 for LLM rows, `None` for
   deterministic
-- `raw_source_text` — best-effort source-text slice for the v0.0.6
+- `raw_source_text`: best-effort source-text slice for the v0.0.6
   review-mode UI
 
 A complete walkthrough with synthetic UK-bank PDFs, mock vs. live
@@ -270,99 +461,7 @@ The iterator enforces size limits, blocks encrypted entries, and
 rejects suspicious compression ratios before any XML parsing
 occurs.
 
----
-
-## How it works
-
-`smart_ingest()` routes any input file through the cheapest viable
-extraction path. Deterministic parsers always run first ($0 cost).
-Text and vision LLMs are fallbacks for unstandardized PDFs — both
-are opt-in via separate install extras and can be swapped between
-any LiteLLM-supported provider (Ollama, Anthropic, OpenAI,
-Gemini, …).
-
-```mermaid
-flowchart TD
-    A["smart_ingest(path)"] --> B{"detect_statement_format"}
-    B -->|CAMT/PAIN/OFX/MT940/MT942/BAI2/CSV| C["Path A: deterministic parser<br/>$0, fastest"]
-    C --> Z["IngestResult<br/>source_method='deterministic'"]
-
-    B -->|pdf or unknown| D["pypdf extract_text"]
-    D --> E{"text length >= 50?"}
-
-    E -->|yes| F["Path B: text-LLM<br/>default ollama/llama3"]
-    F --> Y["IngestResult<br/>source_method='llm'"]
-
-    E -->|no| G["Path C: vision-LLM<br/>opt-in via BSP_HYBRID_VISION_MODEL"]
-    G --> X["IngestResult<br/>source_method='vision'"]
-
-    Z --> V["verify_balance<br/>Golden Rule"]
-    Y --> V
-    X --> V
-    V --> R["VERIFIED / DISCREPANCY / UNVERIFIABLE / FAILED"]
-```
-
-Every extracted row carries an immutable `transaction_hash`, an
-audit-trail `source_method` tag, and (for LLM rows) a `confidence`
-score — see
-[Hybrid extraction](#hybrid-extraction-pdfs-included-v005) above
-for the full surface.
-
----
-
-## Key Features
-
-### Parsing
-
-| Feature | Description |
-|---|---|
-| **8 structured formats** | CAMT (052, 053, 054), PAIN.001, MT940, MT942, BAI2, OFX, QFX, CSV |
-| **Auto-detection** | `detect_statement_format()` identifies the format; `create_parser()` returns the right parser |
-| **Streaming** | `parse_streaming()` at 27,000+ tx/s (CAMT) and 52,000+ tx/s (PAIN.001) with bounded memory |
-| **Parallel** | `parse_files_parallel()` for multi-file batch processing across CPU cores |
-| **In-memory parsing** | `from_string()` and `from_bytes()` parse XML without touching disk |
-
-### Hybrid PDF pipeline (LLM-assisted)
-
-| Feature | Description |
-|---|---|
-| **Hybrid PDF pipeline** *(v0.0.5)* | `smart_ingest()` routes digital PDFs through a text-LLM and scanned PDFs through a multimodal vision model. Deterministic parsers always tried first ($0 cost). |
-| **Local-first LLM** *(v0.0.5)* | Ollama is the default backend; switch to Anthropic, OpenAI, or any LiteLLM provider via `BSP_HYBRID_MODEL`. Vision is opt-in via `BSP_HYBRID_VISION_MODEL` — no surprise downloads. |
-| **Direct Ollama bridge** *(v0.0.7)* | Auto-bypasses the upstream LiteLLM ↔ Ollama hang on long vision prompts. `ollama/minicpm-v` recommended over `ollama/llava` for document OCR. |
-| **Strip mode** *(v0.0.7)* | `VisionExtractor(strip_rows=True)` splits dense pages into overlapping bands for small local models — fixes sign-flip errors and improves accuracy on 15+ row statements. |
-| **Bounding boxes** *(v0.0.6)* | `Transaction.source_bbox` carries per-row normalized coordinates from the vision path for downstream review UIs. |
-| **Bulk directory scanner** *(v0.0.8)* | `scan_and_ingest(directory, pattern="**/*.pdf")` scans a folder tree, runs `smart_ingest` on every match, deduplicates across the entire batch. |
-
-### Data quality & verification
-
-| Feature | Description |
-|---|---|
-| **Golden Rule verification** *(v0.0.5)* | Every result carries `opening + credits − debits == closing` status: `VERIFIED`, `DISCREPANCY`, `UNVERIFIABLE`, or `FAILED`. |
-| **Multi-currency verification** *(v0.0.8)* | `verify_balance_multi_currency()` groups transactions by currency and runs the Golden Rule independently per group — no more false `DISCREPANCY` on multi-currency statements. |
-| **Idempotent dedup** *(v0.0.5)* | Every `Transaction` carries a stable `transaction_hash` (versioned SHA-256 of account, currency, date, description, amount, and bank identity). `Deduplicator.dedupe_by_hash()` makes incremental ingestion safe to re-run. |
-| **Interactive review** *(v0.0.6)* | `--type review` CLI walks through discrepancies with accept/edit/skip/delete/quit. `IngestResult.to_json()` / `.from_json()` for stable round-trip with embedded audit trail. |
-
-### Enrichment & export
-
-| Feature | Description |
-|---|---|
-| **Categorization** *(v0.0.6)* | `bankstatementparser.enrichment.Categorizer` tags transactions with a pluggable category schema (Plaid 13-category default) and an optional `is_business_expense` flag. Wrapper model — never mutates the original `Transaction`. |
-| **Account mapping** *(v0.0.8)* | `AccountMapper` with ordered regex rules loaded from JSON config. First match wins. Pairs with the ledger exporter for end-to-end plaintext-accounting workflows. |
-| **hledger + beancount export** *(v0.0.8)* | `to_hledger()` and `to_beancount()` produce journal strings for plaintext-accounting workflows. Uses `Transaction.category` as the contra-account when set. |
-| **Export** | CSV, JSON, Excel (`.xlsx`), Apache Parquet (`.parquet`), and optional Polars DataFrames |
-| **REST API** *(v0.0.8)* | FastAPI microservice: `POST /ingest` a file, get JSON back. `GET /health` for monitoring. `pip install 'bankstatementparser[api]'`. |
-
-### Security & quality
-
-| Feature | Description |
-|---|---|
-| **PII redaction** | Names, IBANs, and addresses masked by default — opt in with `--show-pii` |
-| **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 1085 tests, coverage gated at 100% in CI, property-based fuzzing with Hypothesis |
-
----
-
-## PII Redaction
+### PII redaction
 
 PII (names, IBANs, addresses) is **redacted by default** in
 CLI console output. Python parser methods return full records unless
@@ -382,12 +481,10 @@ Regular and hybrid file exports contain full records. Legacy CLI streaming
 exports follow `--show-pii`; Python exports reflect the records supplied.
 Choose redaction explicitly before sharing an exported file.
 
----
-
-## Streaming
+### Streaming
 
 Process large files incrementally. Memory stays bounded regardless
-of file size — tested at 50,000 transactions with sub-2x memory
+of file size, tested at 50,000 transactions with sub-2x memory
 scaling.
 
 ```python
@@ -400,27 +497,9 @@ for transaction in parser.parse_streaming():
 
 Works with both `CamtParser` and `Pain001Parser`. PAIN.001 files
 over 50 MB use chunk-based namespace stripping via a temporary
-file — the full document is never loaded into memory.
+file, so the full document is never loaded into memory.
 
----
-
-## Performance
-
-| Metric | CAMT | PAIN.001 |
-|---|---|---|
-| **Throughput** | 27,000+ tx/s | 52,000+ tx/s |
-| **Per-transaction latency** | 37 us | 19 us |
-| **Time to first result** | < 1 ms | < 2 ms |
-| **Memory scaling** | Constant (1K–50K) | Constant (1K–50K) |
-
-Performance is flat from 1,000 to 50,000 transactions. CI enforces
-minimum TPS and latency thresholds, and a non-blocking benchmark
-job compares every run against the last known-good `main`
-baseline.
-
----
-
-## Parallel Parsing
+### Parallel parsing
 
 Process multiple files simultaneously across CPU cores:
 
@@ -443,9 +522,7 @@ Uses `ProcessPoolExecutor` to bypass the GIL. Each file is parsed
 in its own worker process. Auto-detects format per file, or force
 with `format_name="camt"`.
 
----
-
-## Command Line
+### Command line
 
 After installation a `bankstatementparser` console script is
 available on `PATH`:
@@ -460,15 +537,15 @@ bankstatementparser --type camt --input statement.xml --output transactions.csv
 # Stream with PII visible
 bankstatementparser --type camt --input statement.xml --streaming --show-pii
 
-# v0.0.5 — hybrid pipeline (auto-routes deterministic / text-LLM / vision)
+# v0.0.5: hybrid pipeline (auto-routes deterministic / text-LLM / vision)
 bankstatementparser --type ingest --input statement.pdf
 bankstatementparser --type ingest --input statement.pdf --output ledger.csv
 
-# v0.0.6 — interactive review of saved IngestResult JSON
+# v0.0.6: interactive review of saved IngestResult JSON
 bankstatementparser --type review --input result.json
 bankstatementparser --type review --input result.json --output reviewed.json
 
-# v0.0.9 — also review rows the LLM was unsure about (confidence < 0.8)
+# v0.0.9: also review rows the LLM was unsure about (confidence < 0.8)
 bankstatementparser --type review --input result.json --review-below 0.8
 ```
 
@@ -477,7 +554,7 @@ Supports `--type camt`, `--type pain001`, `--type ingest`
 `python -m bankstatementparser.cli ...` invocation form continues
 to work for parity with older releases.
 
-### REST API *(v0.0.8)*
+### REST API
 
 ```bash
 pip install 'bankstatementparser[api]'
@@ -491,31 +568,10 @@ curl http://localhost:8000/health
 ```
 
 Default bind is `127.0.0.1` (localhost-only). Use
-`--host 0.0.0.0` for container deployments.
+`--host 0.0.0.0` for container deployments. Its security defaults are
+listed under [Security](#security).
 
-#### Security defaults
-
-- Uploads are streamed in chunks; the request is rejected with
-  **413 Payload Too Large** once the cumulative size exceeds
-  `BSP_API_MAX_UPLOAD_BYTES` (default **25 MB**).
-- The uploaded filename is reduced to its basename —
-  caller-supplied path components are dropped — and the suffix
-  must match one of the allowed input extensions (`.xml`, `.csv`,
-  `.ofx`, `.qfx`, `.mt940`, `.sta`, `.pdf`, `.json`). Anything
-  else returns **400 Bad Request**.
-- On parse failure the response carries a UUID `correlation_id`;
-  the raw exception is logged server-side only. Status
-  **422 Unprocessable Entity**.
-- **Authentication, authorization, and rate limiting are out of
-  scope** for this microservice — wire them in your reverse proxy
-  (nginx `auth_basic` + `limit_req`, a WAF, or an API gateway).
-  The default `127.0.0.1` bind means a fresh
-  `bankstatementparser-api` is never publicly reachable unless you
-  explicitly opt in via `--host 0.0.0.0`.
-
----
-
-## Deduplication
+### Deduplication
 
 Detect duplicate transactions across multiple sources:
 
@@ -536,9 +592,7 @@ and configurable similarity thresholds for suspected matches. Each
 match group includes a confidence score and reason for
 auditability.
 
----
-
-## Export
+### Export
 
 ```python
 parser = CamtParser("statement.xml")
@@ -554,7 +608,7 @@ parser.export_json("output.json")
 parser.camt_to_excel("output.xlsx")
 ```
 
-### Polars (optional)
+#### Polars (optional)
 
 Convert any parser output to a Polars DataFrame:
 
@@ -565,7 +619,7 @@ lazy_df = parser.to_polars_lazy()
 
 Install with `pip install bankstatementparser[polars]`.
 
-### Apache Parquet (optional)
+#### Apache Parquet (optional)
 
 Export transactions to Apache Parquet columnar files in batch or streaming mode:
 
@@ -591,9 +645,9 @@ with ParquetStreamWriter("output_stream.parquet", schema=schema, batch_size=1000
 
 Install with `pip install 'bankstatementparser[parquet]'`.
 
-### hledger + beancount *(v0.0.8)*
+#### hledger and beancount
 
-Export transactions to plaintext-accounting journal formats:
+Export transactions to plaintext-accounting journal formats (v0.0.8):
 
 ```python
 from bankstatementparser.export import to_hledger, to_beancount
@@ -608,10 +662,10 @@ journal = to_beancount(transactions, account="Assets:Bank:Checking")
 Uses `Transaction.category` as the contra-account when set by the
 enrichment module.
 
-### Bulk directory scanner *(v0.0.8)*
+#### Bulk directory scanner
 
 Scan a folder tree and ingest every statement, deduplicating
-across the batch:
+across the batch (v0.0.8):
 
 ```python
 from bankstatementparser.hybrid import scan_and_ingest
@@ -620,9 +674,9 @@ batch = scan_and_ingest("statements/2026/", pattern="**/*.pdf")
 print(f"{batch.file_count} files, {batch.total_unique} unique transactions")
 ```
 
-### Account mapping *(v0.0.8)*
+#### Account mapping
 
-Map transactions to ledger accounts via configurable regex rules:
+Map transactions to ledger accounts via configurable regex rules (v0.0.8):
 
 ```python
 from bankstatementparser.enrichment import AccountMapper
@@ -632,7 +686,7 @@ for tx, account in zip(transactions, mapper.map_batch(transactions)):
     print(f"{tx.description} -> {account}")
 ```
 
-### Multi-currency verification *(v0.0.8)*
+#### Multi-currency verification
 
 ```python
 from bankstatementparser.hybrid import verify_balance_multi_currency
@@ -644,6 +698,30 @@ results = verify_balance_multi_currency(
 for currency, v in results.items():
     print(f"{currency}: {v.status.value}")
 ```
+
+### XML tag mapping
+
+See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference
+of ISO 20022 XML tags to DataFrame columns across all structured formats.
+Use this when integrating with ERP systems or building
+reconciliation pipelines.
+
+---
+
+## Configuration
+
+Parsers take their options as arguments (for example `redact_pii`,
+`format_name`, `source_name`); the CLI flags are in
+[Command line](#command-line). The optional services read these
+environment variables:
+
+| Variable | Read by | Effect |
+| :--- | :--- | :--- |
+| `BSP_HYBRID_MODEL` | Hybrid text path, categorizer fallback | LiteLLM model name; default `ollama/llama3` |
+| `BSP_HYBRID_VISION_MODEL` | Hybrid vision path | Vision model name; the vision path needs it set |
+| `BSP_HYBRID_ENRICHMENT_MODEL` | `Categorizer` | Model for categorisation; falls back to `BSP_HYBRID_MODEL` |
+| `BSP_HYBRID_API_BASE` | Vision path, direct Ollama bridge | Model server base URL; Ollama's default is `http://localhost:11434` |
+| `BSP_API_MAX_UPLOAD_BYTES` | REST API | Upload size cap; default 25 MB |
 
 ---
 
@@ -671,19 +749,19 @@ See [`examples/`](examples/README.md) for 23 runnable scripts
 | `compatibility_wrappers.py` | Legacy API wrappers |
 | `cli_examples.sh` | CLI commands for CAMT and PAIN.001 |
 
-### Hybrid pipeline *(v0.0.5)*
+### Hybrid pipeline
 
 | Example | What it demonstrates |
 |---|---|
 | `hybrid/generate_sample_pdfs.py` | Produce reproducible synthetic UK-bank PDFs (digital + scanned) |
-| `hybrid/01_smart_ingest_deterministic.py` | Path A — `smart_ingest()` against a CAMT.053 fixture, $0 cost |
-| `hybrid/02_smart_ingest_text_llm.py` | Path B — text-LLM extraction from a digital PDF (mock or live Ollama) |
-| `hybrid/03_smart_ingest_vision.py` | Path C — multimodal vision extraction with `LOW_TEXT_DENSITY` auto-routing |
+| `hybrid/01_smart_ingest_deterministic.py` | Path A: `smart_ingest()` against a CAMT.053 fixture, $0 cost |
+| `hybrid/02_smart_ingest_text_llm.py` | Path B: text-LLM extraction from a digital PDF (mock or live Ollama) |
+| `hybrid/03_smart_ingest_vision.py` | Path C: multimodal vision extraction with `LOW_TEXT_DENSITY` auto-routing |
 | `hybrid/04_golden_rule.py` | `verify_balance()`, `verify_transactions()`, and `verify_continuity()` across `VERIFIED` / `DISCREPANCY` / `UNVERIFIABLE` outcomes |
 | `hybrid/05_dedupe_recurring.py` | `normalize_description()` + `dedupe_by_hash()` for idempotent batching |
-| `hybrid/06_cli_walkthrough.sh` | Four flavours of the new `--type ingest` CLI subcommand |
+| `hybrid/06_cli_walkthrough.sh` | Four flavours of the `--type ingest` CLI subcommand |
 | `hybrid/06_cli_walkthrough.ps1` | PowerShell sibling of the bash walkthrough (native Windows) |
-| `hybrid/07_scan_and_ingest.py` | Bulk directory ingest with `scan_and_ingest()` — cross-file dedup + continuity check |
+| `hybrid/07_scan_and_ingest.py` | Bulk directory ingest with `scan_and_ingest()`: cross-file dedup + continuity check |
 
 See [`examples/hybrid/README.md`](examples/hybrid/README.md) for
 the full walkthrough including a Mermaid flow diagram, the
@@ -692,56 +770,55 @@ results.
 
 ---
 
-## XML Tag Mapping
+## When not to use bankstatementparser
 
-See [`docs/MAPPING.md`](docs/MAPPING.md) for a complete reference
-of ISO 20022 XML tags to DataFrame columns across all structured formats.
-Use this when integrating with ERP systems or building
-reconciliation pipelines.
+- **You need to fetch statements from a bank.** This package reads
+  files; retrieval over EBICS is
+  [`bankstatementparser-transport-ebics`](https://github.com/sebastienrousseau/bankstatementparser-transport-ebics).
+- **You need to write SWIFT, OFX, QIF or styled Excel files.** Use the
+  writer packages in [the ecosystem](#the-bankstatementparser-ecosystem).
+- **You need byte-identical results from PDFs.** Only the
+  deterministic parsers are deterministic. The PDF path depends on a
+  language model, can drop or misread rows, and reports its confidence
+  and a Golden Rule verdict rather than a guarantee.
+- **You need an internet-facing API as is.** The REST service has no
+  authentication, authorization or rate limiting; put it behind a
+  reverse proxy or gateway that does.
+- **You deduplicate huge groups of identical transactions.** The
+  matcher's cost grows close to quadratically with the size of one
+  duplicate group (2.4 s for 800 identical rows in a batch of 4,000 in
+  [Benchmarks](#benchmarks)).
+- **You need a frozen API.** The project is in its `0.y.z` series; see
+  [Stability guarantees](#stability-guarantees).
 
 ---
 
-## Ecosystem
-
-`bankstatementparser` is the core engine. Optional, independently
-versioned companion packages build on it — each is its own repository
-and Python package, so you install only what you need and the core
-stays dependency-light.
-
-| Package | GitHub Repository | Release / PyPI | Role | Description |
-|---|---|---|---|---|
-| [`bankstatementparser`](https://github.com/sebastienrousseau/bankstatementparser) | [`sebastienrousseau/bankstatementparser`](https://github.com/sebastienrousseau/bankstatementparser) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser.svg)](https://pypi.org/project/bankstatementparser/) | Core Engine | Unified parser for CAMT (052/053/054), PAIN.001, CSV, OFX, QFX, MT940, MT942, BAI2, and PDF statements |
-| [`bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | [`sebastienrousseau/bankstatementparser-mcp`](https://github.com/sebastienrousseau/bankstatementparser-mcp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-mcp.svg)](https://pypi.org/project/bankstatementparser-mcp/) | AI Protocol | Model Context Protocol (MCP) server exposing statement tools to LLMs & AI agents |
-| [`bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | [`sebastienrousseau/bankstatementparser-lsp`](https://github.com/sebastienrousseau/bankstatementparser-lsp) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-lsp.svg)](https://pypi.org/project/bankstatementparser-lsp/) | Developer Tooling | Language Server Protocol (LSP) with live SWIFT MT940 statement validation & diagnostics |
-| [`bankstatementparser-transport-ebics`](https://github.com/sebastienrousseau/bankstatementparser-transport-ebics) | [`sebastienrousseau/bankstatementparser-transport-ebics`](https://github.com/sebastienrousseau/bankstatementparser-transport-ebics) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-transport-ebics.svg)](https://pypi.org/project/bankstatementparser-transport-ebics/) | Transport | Automated bank statement retrieval over EBICS 3.0 (`H005`) and 2.5 (`H004`) protocols |
-| [`bankstatementparser-writer-xlsx`](https://github.com/sebastienrousseau/bankstatementparser-writer-xlsx) | [`sebastienrousseau/bankstatementparser-writer-xlsx`](https://github.com/sebastienrousseau/bankstatementparser-writer-xlsx) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-xlsx.svg)](https://pypi.org/project/bankstatementparser-writer-xlsx/) | Output Writer | Formats and exports parsed banking transactions into styled Microsoft Excel (`.xlsx`) workbooks |
-| [`bankstatementparser-writer-qif`](https://github.com/sebastienrousseau/bankstatementparser-writer-qif) | [`sebastienrousseau/bankstatementparser-writer-qif`](https://github.com/sebastienrousseau/bankstatementparser-writer-qif) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-qif.svg)](https://pypi.org/project/bankstatementparser-writer-qif/) | Output Writer | Serializes transactions into standard Quicken Interchange Format (`.qif`) exchange files |
-| [`bankstatementparser-writer-ofx`](https://github.com/sebastienrousseau/bankstatementparser-writer-ofx) | [`sebastienrousseau/bankstatementparser-writer-ofx`](https://github.com/sebastienrousseau/bankstatementparser-writer-ofx) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-ofx.svg)](https://pypi.org/project/bankstatementparser-writer-ofx/) | Output Writer | Serializes transactions into standard Open Financial Exchange (`.ofx`) XML/SGML files |
-| [`bankstatementparser-writer-swift`](https://github.com/sebastienrousseau/bankstatementparser-writer-swift) | [`sebastienrousseau/bankstatementparser-writer-swift`](https://github.com/sebastienrousseau/bankstatementparser-writer-swift) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-writer-swift.svg)](https://pypi.org/project/bankstatementparser-writer-swift/) | Output Writer | Exports transactions to SWIFT MT940 customer statements and MT942 interim reports |
-| [`bankstatementparser-loader-bai2`](https://github.com/sebastienrousseau/bankstatementparser-loader-bai2) | [`sebastienrousseau/bankstatementparser-loader-bai2`](https://github.com/sebastienrousseau/bankstatementparser-loader-bai2) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-bai2.svg)](https://pypi.org/project/bankstatementparser-loader-bai2/) | Input Loader | Parses BAI2 cash-management and account balance statements |
-| [`bankstatementparser-loader-mt942`](https://github.com/sebastienrousseau/bankstatementparser-loader-mt942) | [`sebastienrousseau/bankstatementparser-loader-mt942`](https://github.com/sebastienrousseau/bankstatementparser-loader-mt942) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-mt942.svg)](https://pypi.org/project/bankstatementparser-loader-mt942/) | Input Loader | Parses SWIFT MT942 interim transaction reports with credit/debit summary reconciliation |
-| [`bankstatementparser-loader-cfonb`](https://github.com/sebastienrousseau/bankstatementparser-loader-cfonb) | [`sebastienrousseau/bankstatementparser-loader-cfonb`](https://github.com/sebastienrousseau/bankstatementparser-loader-cfonb) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-cfonb.svg)](https://pypi.org/project/bankstatementparser-loader-cfonb/) | Input Loader | Parses French CFONB 120 / AFB120 120-byte fixed-width banking statement files |
-| [`bankstatementparser-loader-camt054`](https://github.com/sebastienrousseau/bankstatementparser-loader-camt054) | [`sebastienrousseau/bankstatementparser-loader-camt054`](https://github.com/sebastienrousseau/bankstatementparser-loader-camt054) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-camt054.svg)](https://pypi.org/project/bankstatementparser-loader-camt054/) | Input Loader | Ingests ISO 20022 CAMT.054 real-time debit/credit notification stream XML |
-| [`bankstatementparser-loader-sepa`](https://github.com/sebastienrousseau/bankstatementparser-loader-sepa) | [`sebastienrousseau/bankstatementparser-loader-sepa`](https://github.com/sebastienrousseau/bankstatementparser-loader-sepa) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-sepa.svg)](https://pypi.org/project/bankstatementparser-loader-sepa/) | Input Loader | Ingests ISO 20022 SEPA PAIN.002 payment status reports and PAIN.008 direct debit mandates |
-| [`bankstatementparser-loader-bacs`](https://github.com/sebastienrousseau/bankstatementparser-loader-bacs) | [`sebastienrousseau/bankstatementparser-loader-bacs`](https://github.com/sebastienrousseau/bankstatementparser-loader-bacs) | [![PyPI](https://img.shields.io/pypi/v/bankstatementparser-loader-bacs.svg)](https://pypi.org/project/bankstatementparser-loader-bacs/) | Input Loader | Parses UK BACS Standard 18 / Faster Payments 106-byte fixed-width transmission files |
-
-Loaders turn an additional source format into the same unified
-`Transaction` model; writers take parsed data back out to another
-target. Each companion pins `bankstatementparser` as a dependency and
-ships its own 100%-coverage test suite.
+## Development
 
 ```bash
-# Mix and match: e.g. fetch via EBICS 3.0, parse CAMT.053, and export to SWIFT MT940 or Excel
-pip install bankstatementparser-transport-ebics bankstatementparser-writer-swift bankstatementparser-writer-xlsx
+git clone https://github.com/sebastienrousseau/bankstatementparser.git
+cd bankstatementparser
+poetry install --with dev -E excel
+make install-hooks   # pre-commit hook runs `make verify` before every commit
+make verify          # lint, format, mypy, complexity, completions, README, tests, bandit
+make completions     # regenerate completions/ from the CLI parsers
+make docs            # build the manual with mkdocs --strict
+make demo            # re-render .github/demo.gif from .github/demo.tape (needs vhs)
+make fuzz            # Atheris fuzzing of the parsers (Linux x86_64)
 ```
 
-Loaders hand back the same `Transaction` model the core parsers
-produce, so `load_mt942_file(...)` then `write_xlsx(...)` composes
-cleanly — see each companion's README for runnable examples.
+`make verify` runs locally what CI runs on every change: ruff lint and
+format, mypy, the complexity baseline (`scripts/complexity_baseline.json`,
+which may only shrink), the completions and README template checks,
+the test suite at 100% coverage, and bandit. CI adds the Python 3.10
+to 3.14 matrix on Linux, macOS and Windows, 120 seconds of Atheris
+fuzzing, the container build, pip-audit against the lock, CodeQL,
+gitleaks, markdownlint, OpenSSF Scorecard and the strict documentation
+build.
 
----
+Signed commits are required. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Project Layout
+### Project layout
 
 ```text
 bankstatementparser/            Source code (55 modules)
@@ -751,10 +828,14 @@ bankstatementparser/hybrid/     PDF pipeline: orchestrator, llm_extractor, visio
 bankstatementparser/enrichment/ Categorizer, AccountMapper, EnrichedTransaction
 bankstatementparser/export/     hledger + beancount journal export, Apache Parquet columnar export
 bankstatementparser/api.py      REST API microservice (FastAPI)
+benches/                        Streaming and deduplication benchmarks
+completions/                    Generated bash, zsh and tcsh completions
+docs/                           The manual: architecture, policies, benchmarks, API reference
 docs/compliance/                ISO 13485 validation, risk register, traceability matrix
 examples/                       14 deterministic + 9 hybrid runnable example scripts
-scripts/                        SBOM generation, checksums, signature verification
-tests/                          1085 tests (unit, integration, property-based, security, hybrid mocks)
+fuzz/                           Atheris fuzz target for the parsers
+scripts/                        SBOM generation, checksums, signature verification, release gates
+tests/                          1091 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---
@@ -765,81 +846,43 @@ Bank statement files contain sensitive financial and personal
 data. This library is designed with security as a primary
 constraint:
 
-- **XXE protection** — `resolve_entities=False`,
+- **XXE protection**: `resolve_entities=False`,
   `no_network=True`, `load_dtd=False`
-- **ZIP bomb protection** — compression ratio limits, entry size
+- **ZIP bomb protection**: compression ratio limits, entry size
   caps, encrypted entry rejection
-- **Path traversal prevention** — dangerous pattern blocklist,
+- **Path traversal prevention**: dangerous pattern blocklist,
   symlink resolution
-- **PII redaction** — default masking of names, IBANs, and
+- **PII redaction**: default masking of names, IBANs, and
   addresses
-- **Signed commits** — enforced in CI via GitHub API verification
-- **Supply chain** — SHA-256 hash-locked dependencies, CycloneDX
-  SBOM, build provenance attestation
+- **Signed commits**: enforced in CI via GitHub API verification
+- **Supply chain**: SHA-256 hash-locked dependencies, CycloneDX
+  SBOM, pip-audit in CI, and releases signed with cosign and shipped
+  with SLSA Level 3 provenance and GitHub build attestations
 
-For vulnerability reports, see [SECURITY.md](.github/SECURITY.md).
+The REST API's defaults:
+
+- Uploads are streamed in chunks; the request is rejected with
+  **413 Payload Too Large** once the cumulative size exceeds
+  `BSP_API_MAX_UPLOAD_BYTES` (default **25 MB**).
+- The uploaded filename is reduced to its basename (caller-supplied
+  path components are dropped) and the suffix must match one of the
+  allowed input extensions (`.xml`, `.csv`, `.ofx`, `.qfx`, `.mt940`,
+  `.sta`, `.pdf`, `.json`). Anything else returns
+  **400 Bad Request**.
+- On parse failure the response carries a UUID `correlation_id`;
+  the raw exception is logged server-side only. Status
+  **422 Unprocessable Entity**.
+- **Authentication, authorization, and rate limiting are out of
+  scope** for this microservice: wire them in your reverse proxy
+  (nginx `auth_basic` + `limit_req`, a WAF, or an API gateway).
+  The default `127.0.0.1` bind means a fresh
+  `bankstatementparser-api` is never publicly reachable unless you
+  explicitly opt in via `--host 0.0.0.0`.
 
 For the full compliance suite, see
 [`docs/compliance/`](docs/compliance/).
 
----
-
-## Verify the Repository
-
-Run the full validation suite locally:
-
-```bash
-ruff check bankstatementparser tests examples scripts
-ruff format --check bankstatementparser tests examples scripts
-python -m mypy bankstatementparser
-python -m pytest
-bandit -r bankstatementparser examples scripts -q
-```
-
----
-
-## Versioning
-
-This project follows [Semantic Versioning](https://semver.org).
-While the version is `0.y.z`, any release may contain breaking
-changes; they are always listed under a **Changed — BREAKING**
-heading in the [CHANGELOG](CHANGELOG.md) with migration notes.
-From `1.0.0`, breaking changes will require a major release.
-Deprecations emit `DeprecationWarning` for at least one minor
-release before removal.
-
----
-
-## Contributing
-
-Signed commits required. See [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
-## FAQ
-
-**What formats are supported?**
-CAMT (CAMT.052, CAMT.053, CAMT.054), PAIN.001, SWIFT MT940, SWIFT MT942, BAI2, OFX, QFX, CSV, and PDF.
-
-**Does any data leave my infrastructure?**
-No. Zero network calls. XML parsers enforce `no_network=True`. No
-cloud, no telemetry.
-
-**Is PII redacted automatically?**
-CLI console output masks personal fields by default. Python callers
-must request `redact_pii=True`. Regular file exports retain full data;
-legacy streaming exports follow `--show-pii`.
-
-**Is the extraction deterministic?**
-Yes. Same input produces byte-identical output. Critical for
-financial auditing.
-
-**Can it handle large files?**
-Yes. `parse_streaming()` is tested at 50,000 transactions (~25 MB)
-with bounded memory. Files over 50 MB use chunk-based streaming.
-
-See [FAQ.md](FAQ.md) for the complete FAQ covering data privacy,
-technical specs, and treasury workflows.
+Report vulnerabilities according to [`SECURITY.md`](SECURITY.md).
 
 ---
 
@@ -847,22 +890,48 @@ technical specs, and treasury workflows.
 
 | Document | Covers |
 |---|---|
-| [API reference](https://sebastienrousseau.github.io/bankstatementparser/) | Full API reference generated from docstrings (mkdocs + mkdocstrings). Build locally with `poetry install --with docs && poetry run mkdocs serve`. |
-| [`docs/MAPPING.md`](docs/MAPPING.md) | ISO 20022 XML tag to DataFrame column mapping for all six formats. |
+| [User manual](https://docs.bankstatementparser.com/) | The manual and full API reference generated from docstrings (MkDocs Material + mkdocstrings), deployed from `main`. Build locally with `make docs`. |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How the modules fit together, from entry points to export. |
+| [`docs/POLICIES.md`](docs/POLICIES.md) | Supported Python versions, versioning, how support is enforced. |
+| [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) | Benchmark methodology and results. |
+| [`docs/MAPPING.md`](docs/MAPPING.md) | ISO 20022 XML tag to DataFrame column mapping. |
 | [`FAQ.md`](FAQ.md) | Data privacy, determinism, technical specs, treasury workflows. |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Signed-commit policy, the five local gates, PR guidelines. |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Signed-commit policy, the local gates, PR guidelines. |
 | [`CHANGELOG.md`](CHANGELOG.md) | Per-release notes following Keep a Changelog. |
-| [`SECURITY.md`](.github/SECURITY.md) | Disclosure policy, supported versions, contact. |
+| [`SECURITY.md`](SECURITY.md) | Disclosure policy, supported versions, contact. |
 | [`docs/compliance/`](docs/compliance/) | ISO 13485 validation, risk register, traceability matrix. |
 | [`examples/hybrid/README.md`](examples/hybrid/README.md) | Hybrid-pipeline walkthrough: mock vs. live mode, verification matrix, Ollama smoke tests. |
 
 ---
 
+## Stability guarantees
+
+- **Versioning.** This project follows
+  [Semantic Versioning](https://semver.org). While the version is
+  `0.y.z`, any release may contain breaking changes; they are always
+  listed under a **Changed — BREAKING** heading in the
+  [CHANGELOG](CHANGELOG.md) with migration notes. From `1.0.0`,
+  breaking changes will require a major release.
+- **Deprecations** emit `DeprecationWarning` for at least one minor
+  release before removal.
+- **Output stability.** The deterministic parsers produce the same
+  output for the same input, and golden-file tests
+  (`tests/test_golden_files.py`) pin it. `transaction_hash` is
+  versioned (currently `v2:`); keys persisted under an earlier scheme
+  must be rebuilt before re-ingestion.
+- **Minimum toolchain.** Python 3.10 to 3.14, tested on Linux, macOS
+  and Windows. A Python version is dropped only in a release whose
+  CHANGELOG says so; see [`docs/POLICIES.md`](docs/POLICIES.md).
+- **Lockstep releases.** Core and every companion package share one
+  version number per release.
+
+---
+
 ## License
 
-Licensed under the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
-See [LICENSE](LICENSE).
+Dual-licensed under either the
+[Apache License, Version 2.0](LICENSE-APACHE) or the
+[MIT license](LICENSE-MIT), at your option. See [LICENSE](LICENSE).
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 

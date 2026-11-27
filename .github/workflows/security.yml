@@ -11,54 +11,61 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
-  security-events: write
 
 jobs:
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
 
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload the CodeQL results
     strategy:
       fail-fast: false
       matrix:
         language: [python]
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea
+        uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea
+        uses: github/codeql-action/autobuild@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
 
       - name: Analyze
-        uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea
+        uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
 
   secret-scanning:
     name: Secret Scanning
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks lists the pull request's commits
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Gitleaks
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -68,24 +75,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: "pip"
 
       - name: Install Poetry
-        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
         with:
           poetry-version: "2.3.2"
 
+      # bandit and pip-audit are locked dev dependencies, so the audit
+      # tools install from poetry.lock with the rest of the project.
       - name: Install project and audit tools
-        run: |
-          poetry install --with dev
-          python -m pip install --upgrade pip
-          python -m pip install bandit pip-audit
+        run: poetry install --with dev
 
       - name: Verify lockfile hashes
         run: poetry run python scripts/verify_locked_hashes.py
@@ -94,6 +100,8 @@ jobs:
         run: |
           poetry run python scripts/export_locked_requirements.py --with dev --output /tmp/requirements-hashed.txt
           diff -u requirements.txt /tmp/requirements-hashed.txt
+          poetry run python scripts/export_locked_requirements.py --output /tmp/requirements-runtime.txt
+          diff -u requirements/runtime.txt /tmp/requirements-runtime.txt
           python -m pip install --dry-run --require-hashes -r /tmp/requirements-hashed.txt
 
       - name: Bandit SAST
@@ -110,6 +118,6 @@ jobs:
       - name: Pip audit
         run: |
           poetry run python scripts/export_locked_requirements.py --with dev --output /tmp/requirements-audit.txt
-          pip-audit -r /tmp/requirements-audit.txt
+          poetry run pip-audit -r /tmp/requirements-audit.txt
           poetry run python scripts/export_locked_requirements.py --with dev --all-extras --output /tmp/requirements-all-extras.txt
-          pip-audit -r /tmp/requirements-all-extras.txt
+          poetry run pip-audit -r /tmp/requirements-all-extras.txt

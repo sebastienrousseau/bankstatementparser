@@ -1,0 +1,79 @@
+name: Bug Report
+description: Report a reproducible problem in bankstatementparser
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: bankstatementparser Version
+      placeholder: "0.0.36"
+    validations:
+      required: true
+  - type: dropdown
+    id: python_version
+    attributes:
+      label: Python Version
+      options:
+        - "3.10"
+        - "3.11"
+        - "3.12"
+        - "3.13"
+        - "3.14"
+    validations:
+      required: true
+  - type: dropdown
+    id: input_format
+    attributes:
+      label: Input Format
+      options:
+        - CAMT (052, 053, 054)
+        - PAIN.001
+        - MT940
+        - MT942
+        - BAI2
+        - OFX / QFX
+        - CSV
+        - PDF (hybrid pipeline)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Linux
+        - macOS
+        - Windows
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: |
+        The call or command you ran and a minimal input file (redact any
+        sensitive account numbers or balances - placeholder data is fine).
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: error_output
+    attributes:
+      label: Error Output
+      description: The exception, stack trace or wrong output you got.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything Else
+      description: Logs, installed extras, model configuration for the hybrid pipeline, etc.

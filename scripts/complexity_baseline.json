@@ -235,12 +235,6 @@
   "examples/hybrid/05_dedupe_recurring.py::main": {
     "lines": 83
   },
-  "scripts/export_locked_requirements.py::_project_node": {
-    "cyclomatic": 11
-  },
-  "scripts/export_locked_requirements.py::_selected": {
-    "cyclomatic": 11
-  },
   "scripts/run_llm_eval.py::main": {
     "cyclomatic": 11,
     "lines": 79

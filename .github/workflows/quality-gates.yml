@@ -19,16 +19,16 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
       - name: Install Poetry
-        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
         with:
           poetry-version: "2.3.2"
 
@@ -36,16 +36,19 @@ jobs:
         run: poetry install --with dev -E excel
 
       - name: Ruff
-        run: poetry run ruff check bankstatementparser tests examples scripts benches
+        run: poetry run ruff check bankstatementparser tests examples scripts benches fuzz
 
       - name: Ruff format
-        run: poetry run ruff format --check bankstatementparser tests examples scripts
+        run: poetry run ruff format --check bankstatementparser tests examples scripts benches fuzz
 
       - name: Mypy
         run: poetry run mypy bankstatementparser
 
       - name: Complexity baseline
         run: python3 scripts/check_complexity.py
+
+      - name: Shell completions are current
+        run: poetry run python scripts/generate_completions.py --check
 
   lint-and-typecheck-all:
     # Branch protection requires this check by name. It stands for every
@@ -68,33 +71,23 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      # Full version sweep on Linux; macOS and Windows run the
-      # version bounds (oldest + newest) to catch platform issues
-      # without tripling the matrix.
+      # Every supported Python on every supported OS: the coverage
+      # gate (100%) holds on each leg, not only on Linux.
       matrix:
-        os: ["ubuntu-latest"]
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        include:
-          - os: "macos-latest"
-            python-version: "3.10"
-          - os: "macos-latest"
-            python-version: "3.14"
-          - os: "windows-latest"
-            python-version: "3.10"
-          - os: "windows-latest"
-            python-version: "3.14"
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
       - name: Install Poetry
-        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
         with:
           poetry-version: "2.3.2"
 
@@ -143,16 +136,16 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
       - name: Install Poetry
-        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
         with:
           poetry-version: "2.3.2"
 
@@ -167,8 +160,10 @@ jobs:
       # runners. This proves the benchmark still runs against the
       # current API rather than rotting into a file that reads as
       # verified and is not.
-      - name: Run the benchmark
-        run: poetry run python benches/bench_deduplicate.py --quick
+      - name: Run the benchmarks
+        run: |
+          poetry run python benches/bench_deduplicate.py --quick
+          poetry run python benches/bench_streaming.py --quick
 
       - name: Run performance contracts (slow suite)
         # Timing-sensitive tests are excluded from the coverage run
@@ -204,16 +199,16 @@ jobs:
         python-version: ["3.11", "3.13", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
       - name: Install Poetry
-        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
         with:
           poetry-version: "2.3.2"
 
@@ -245,22 +240,64 @@ jobs:
           RESULT: ${{ needs.platform-parity.result }}
         run: test "$RESULT" = success
 
+  fuzz:
+    # Coverage-guided fuzzing of the public parser entry point with
+    # Atheris (libFuzzer), seeded with the test fixtures. The target
+    # fails on any exception outside the documented refusals of bad
+    # input, so a crash here is a real defect.
+    name: Fuzz (Atheris)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install locked dependencies
+        run: poetry install --with fuzz
+
+      - name: Fuzz the parsers
+        run: |
+          mkdir -p "$RUNNER_TEMP/corpus" "$RUNNER_TEMP/crashes"
+          find tests/test_data -maxdepth 1 -type f -exec cp {} "$RUNNER_TEMP/corpus/" \;
+          poetry run python fuzz/fuzz_parsers.py "$RUNNER_TEMP/corpus" \
+            -max_total_time=120 -timeout=25 -rss_limit_mb=4096 \
+            -artifact_prefix="$RUNNER_TEMP/crashes/"
+
+      - name: Upload crash inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crashes
+          path: ${{ runner.temp }}/crashes
+          if-no-files-found: ignore
+
   benchmarks:
     name: Benchmark Regression (non-blocking)
     runs-on: ubuntu-latest
     needs: [unit-tests]
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: "pip"
 
       - name: Install Poetry
-        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
         with:
           poetry-version: "2.3.2"
 
@@ -306,16 +343,16 @@ jobs:
     needs: [unit-tests]
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: "pip"
 
       - name: Install Poetry
-        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
         with:
           poetry-version: "2.3.2"
 
@@ -349,13 +386,13 @@ jobs:
         python-version: ["3.10", "3.12", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Poetry
-        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1 # v4.0.0
         with:
           poetry-version: "2.3.2"
       - name: Install locked optional dependencies
@@ -394,7 +431,7 @@ jobs:
   required-quality:
     name: Required Quality Gates
     if: always()
-    needs: [lint-and-typecheck, unit-tests, integration-tests, platform-parity, optional-integrations]
+    needs: [lint-and-typecheck, unit-tests, integration-tests, platform-parity, optional-integrations, fuzz]
     runs-on: ubuntu-latest
     steps:
       - name: Require successful quality jobs

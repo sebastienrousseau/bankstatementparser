@@ -2,9 +2,11 @@ site_name: Bank Statement Parser
 site_description: >-
   Parse CAMT (ISO 20022), SEPA Pain.001, CSV, OFX/QFX, and MT940 bank
   statements into pandas DataFrames.
-site_url: https://sebastienrousseau.github.io/bankstatementparser/
+site_url: https://docs.bankstatementparser.com/
 repo_url: https://github.com/sebastienrousseau/bankstatementparser
 repo_name: sebastienrousseau/bankstatementparser
+copyright: >-
+  &copy; 2026 <a href="https://sebastienrousseau.com/" rel="author">Sebastien Rousseau</a>
 
 theme:
   name: material
@@ -40,13 +42,20 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.highlight
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - tables
   - toc:
       permalink: true
 
 nav:
   - Home: index.md
+  - Architecture: ARCHITECTURE.md
+  - Benchmarks: BENCHMARKS.md
+  - Policies: POLICIES.md
   - XML Field Mapping: MAPPING.md
   - Audit remediation: AUDIT-REMEDIATION.md
   - v0.0.20 migration: MIGRATION-v0.0.20.md

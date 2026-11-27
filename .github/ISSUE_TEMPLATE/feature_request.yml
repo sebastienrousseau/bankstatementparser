@@ -1,0 +1,52 @@
+name: Feature Request
+description: Suggest a new parser, export or capability for bankstatementparser
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: |
+        What can't you do today with bankstatementparser? If this touches an
+        existing parser or export, link to it.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: |
+        Sketch the new function, parser or option: name, arguments,
+        return shape. Reference the existing bankstatementparser API surface
+        where relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Real-World Use Case
+      description: How would you actually use this?
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Parser (input format)
+        - Export (output format)
+        - Hybrid PDF pipeline
+        - CLI or REST API
+        - Multiple
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+  - type: textarea
+    id: contribution
+    attributes:
+      label: Willingness To Contribute
+      description: Could you take a stab at the implementation or tests?

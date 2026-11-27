@@ -25,3 +25,14 @@ updates:
     labels:
       - "dependencies"
       - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "build"
+    labels:
+      - "dependencies"
+      - "security"

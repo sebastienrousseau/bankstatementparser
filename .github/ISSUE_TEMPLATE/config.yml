@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: GitHub Discussions (suite-wide)
+    url: https://github.com/sebastienrousseau/bankstatementparser/discussions
+    about: Ask usage questions and start broader design discussions for the bankstatementparser suite.
+  - name: bankstatementparser Documentation
+    url: https://github.com/sebastienrousseau/bankstatementparser/blob/main/README.md
+    about: Read the README before opening an issue.
+  - name: Contributing Guide
+    url: https://github.com/sebastienrousseau/bankstatementparser/blob/main/CONTRIBUTING.md
+    about: Follow contribution and review expectations.
+  - name: Security disclosure
+    url: https://github.com/sebastienrousseau/bankstatementparser/blob/main/SECURITY.md
+    about: Do NOT open public issues for vulnerabilities.

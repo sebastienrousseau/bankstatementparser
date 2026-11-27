@@ -1,0 +1,53 @@
+# OpenSSF Scorecard — supply-chain posture, independently scored.
+#
+# Publishes results to the OpenSSF REST API so the badge and the public
+# viewer work:
+#   badge:  https://api.scorecard.dev/projects/github.com/sebastienrousseau/<repo>/badge
+#   viewer: https://scorecard.dev/viewer/?uri=github.com/sebastienrousseau/<repo>
+#
+# All third-party actions are pinned by commit SHA (Scorecard's own
+# Pinned-Dependencies check demands it). Same workflow as the rest of the suite.
+
+name: OpenSSF Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "30 2 * * 1" # weekly, Monday 02:30 UTC
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # upload SARIF to code scanning
+      id-token: write        # publish results (OIDC)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@23f22cd43608bae7a1f1fa2603d7314dee9538a5 # v2.6.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4
+        with:
+          sarif_file: results.sarif

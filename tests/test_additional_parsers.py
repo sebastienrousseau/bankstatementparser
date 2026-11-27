@@ -1,7 +1,9 @@
+import csv
 import tempfile
 import unittest
 from decimal import Decimal
 from pathlib import Path
+from unittest import mock
 
 from bankstatementparser import (
     CamtParser,
@@ -287,6 +289,29 @@ class TestAdditionalParsers(unittest.TestCase):
 
     def test_amount_or_zero_blank_string_is_zero(self):
         self.assertEqual(_amount_or_zero("   ", context="test"), Decimal("0"))
+
+
+class TestCsvDelimiter(unittest.TestCase):
+    """CSV input whose delimiter cannot be sniffed."""
+
+    def test_undetectable_delimiter_raises_validation_error(self) -> None:
+        """Found by fuzzing: csv.Error escaped the parser untranslated.
+
+        Which inputs defeat the delimiter sniffer varies with the Python
+        version and platform, so the sniffer's failure is simulated.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "statement.csv"
+            path.write_text("date,amount\n2025-01-01,1.00\n", encoding="utf-8")
+            sniff_failure = csv.Error("Could not determine delimiter")
+            with (
+                mock.patch(
+                    "bankstatementparser.parsers.csv_parser.pd.read_csv",
+                    side_effect=sniff_failure,
+                ),
+                self.assertRaisesRegex(ValidationError, "delimiter"),
+            ):
+                CsvStatementParser(str(path)).parse()
 
 
 class TestNormalizedHeaderName(unittest.TestCase):
