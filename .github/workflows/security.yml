@@ -100,6 +100,8 @@ jobs:
         run: |
           poetry run python scripts/export_locked_requirements.py --with dev --output /tmp/requirements-hashed.txt
           diff -u requirements.txt /tmp/requirements-hashed.txt
+          poetry run python scripts/export_locked_requirements.py --output /tmp/requirements-runtime.txt
+          diff -u requirements/runtime.txt /tmp/requirements-runtime.txt
           python -m pip install --dry-run --require-hashes -r /tmp/requirements-hashed.txt
 
       - name: Bandit SAST

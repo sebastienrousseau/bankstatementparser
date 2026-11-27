@@ -1,0 +1,39 @@
+name: Container
+
+# Builds the Dockerfile (python:3.14-slim pinned by digest, runtime
+# dependencies installed from requirements/runtime.txt with hashes)
+# and runs the image against a fixture, so a container that no longer
+# builds or starts fails the pull request that broke it. The image is
+# not published.
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main, "feat/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and smoke-test the image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: docker build
+        run: docker build --tag bankstatementparser:ci .
+
+      - name: Parse a CAMT.053 fixture in the container
+        run: |
+          docker run --rm --volume "$PWD/tests/test_data:/data:ro" \
+            bankstatementparser:ci --type camt --input /data/camt.053.001.02.xml
