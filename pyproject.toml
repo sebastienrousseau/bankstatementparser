@@ -87,6 +87,14 @@ optional = true
 mkdocs-material = "^9.5"
 mkdocstrings = {version = ">=0.27", extras = ["python"]}
 
+# Coverage-guided fuzzing (fuzz/fuzz_parsers.py). Atheris ships wheels
+# for Linux x86_64 only, which is where CI runs it.
+[tool.poetry.group.fuzz]
+optional = true
+
+[tool.poetry.group.fuzz.dependencies]
+atheris = { version = "^3.1.0", python = ">=3.12", markers = "sys_platform == 'linux' and platform_machine == 'x86_64'" }
+
 [tool.poetry.extras]
 excel = ["openpyxl"]
 polars = ["polars"]

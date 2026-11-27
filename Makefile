@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: install install-all install-hooks dist release test test-slow lint format-check typecheck complexity completions completions-check security verify clean
+.PHONY: install install-all install-hooks dist release test test-slow lint format-check typecheck complexity completions completions-check fuzz security verify clean
 
 # ----- Local development -----------------------------------------------------
 
@@ -43,10 +43,10 @@ test-slow:
 	poetry run pytest --no-cov -m slow
 
 lint:
-	poetry run ruff check bankstatementparser tests examples scripts
+	poetry run ruff check bankstatementparser tests examples scripts benches fuzz
 
 format-check:
-	poetry run ruff format --check bankstatementparser tests examples scripts
+	poetry run ruff format --check bankstatementparser tests examples scripts benches fuzz
 
 typecheck:
 	poetry run mypy bankstatementparser
@@ -66,6 +66,12 @@ completions:
 # Fails when completions/ no longer matches the parsers.
 completions-check:
 	poetry run python scripts/generate_completions.py --check
+
+# Coverage-guided fuzzing (Linux x86_64 only; atheris has no other
+# wheels). CI runs the same target for 120 seconds.
+fuzz:
+	poetry install --with fuzz
+	poetry run python fuzz/fuzz_parsers.py -max_total_time=60
 
 security:
 	poetry run bandit -r bankstatementparser examples scripts -c pyproject.toml

@@ -343,6 +343,20 @@ files = [
 ]
 
 [[package]]
+name = "atheris"
+version = "3.1.0"
+description = "A coverage-guided fuzzer for Python and Python extensions."
+optional = false
+python-versions = "*"
+groups = ["fuzz"]
+markers = "python_version >= \"3.12\" and platform_machine == \"x86_64\" and sys_platform == \"linux\""
+files = [
+    {file = "atheris-3.1.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ec5e11f21a4c197fe91f7aea2b2de88e623c73a21fc07b105ac6329a1588457b"},
+    {file = "atheris-3.1.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:f8a9f51ce8369026e8eb7b7174835e8c4c85a1a6db5d9add36c15100779d2a39"},
+    {file = "atheris-3.1.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:315a0b5c819852b1ffe1ca72efc389c7724881f2c33e4aacb8c6bcec49bd5011"},
+]
+
+[[package]]
 name = "attrs"
 version = "26.1.0"
 description = "Classes Without Boilerplate"
@@ -5857,4 +5871,4 @@ polars = ["polars"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "ffb6ff1e139bb1ba046df4abcc9d53d2d5e0acc8ab8d2ac40e0e6161de4e3aa8"
+content-hash = "6013e1e38f53cc23c2d56c3e07a1c5ee19b486d6f83fa2ef3fac624e94c2cb03"

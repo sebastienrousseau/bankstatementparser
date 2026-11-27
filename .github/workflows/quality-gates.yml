@@ -36,10 +36,10 @@ jobs:
         run: poetry install --with dev -E excel
 
       - name: Ruff
-        run: poetry run ruff check bankstatementparser tests examples scripts benches
+        run: poetry run ruff check bankstatementparser tests examples scripts benches fuzz
 
       - name: Ruff format
-        run: poetry run ruff format --check bankstatementparser tests examples scripts
+        run: poetry run ruff format --check bankstatementparser tests examples scripts benches fuzz
 
       - name: Mypy
         run: poetry run mypy bankstatementparser
@@ -248,6 +248,48 @@ jobs:
           RESULT: ${{ needs.platform-parity.result }}
         run: test "$RESULT" = success
 
+  fuzz:
+    # Coverage-guided fuzzing of the public parser entry point with
+    # Atheris (libFuzzer), seeded with the test fixtures. The target
+    # fails on any exception outside the documented refusals of bad
+    # input, so a crash here is a real defect.
+    name: Fuzz (Atheris)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@3765cf608f2d4a72178a9fc5b918668e542b89b1
+        with:
+          poetry-version: "2.3.2"
+
+      - name: Install locked dependencies
+        run: poetry install --with fuzz
+
+      - name: Fuzz the parsers
+        run: |
+          mkdir -p "$RUNNER_TEMP/corpus" "$RUNNER_TEMP/crashes"
+          find tests/test_data -maxdepth 1 -type f -exec cp {} "$RUNNER_TEMP/corpus/" \;
+          poetry run python fuzz/fuzz_parsers.py "$RUNNER_TEMP/corpus" \
+            -max_total_time=120 -timeout=25 -rss_limit_mb=4096 \
+            -artifact_prefix="$RUNNER_TEMP/crashes/"
+
+      - name: Upload crash inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crashes
+          path: ${{ runner.temp }}/crashes
+          if-no-files-found: ignore
+
   benchmarks:
     name: Benchmark Regression (non-blocking)
     runs-on: ubuntu-latest
@@ -397,7 +439,7 @@ jobs:
   required-quality:
     name: Required Quality Gates
     if: always()
-    needs: [lint-and-typecheck, unit-tests, integration-tests, platform-parity, optional-integrations]
+    needs: [lint-and-typecheck, unit-tests, integration-tests, platform-parity, optional-integrations, fuzz]
     runs-on: ubuntu-latest
     steps:
       - name: Require successful quality jobs
