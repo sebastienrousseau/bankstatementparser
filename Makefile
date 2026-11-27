@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: install install-all install-hooks dist release test test-slow lint format-check typecheck complexity completions completions-check fuzz security verify clean
+.PHONY: install install-all install-hooks dist release test test-slow lint format-check typecheck complexity completions completions-check fuzz readme-check demo docs security verify clean
 
 # ----- Local development -----------------------------------------------------
 
@@ -73,11 +73,26 @@ fuzz:
 	poetry install --with fuzz
 	poetry run python fuzz/fuzz_parsers.py -max_total_time=60
 
+# The README template gate (the suite's shared scripts/readme-check.sh);
+# Docs Lint runs it in CI beside markdownlint.
+readme-check:
+	scripts/readme-check.sh
+
+# Re-render .github/demo.gif from .github/demo.tape with VHS
+# (brew install vhs). Needs the dev environment installed.
+demo:
+	vhs .github/demo.tape
+
+# Build the manual exactly as CI does.
+docs:
+	poetry install --with docs
+	poetry run mkdocs build --strict
+
 security:
 	poetry run bandit -r bankstatementparser examples scripts -c pyproject.toml
 
 # Run every gate the GitHub Actions pipeline runs, in the same order.
-verify: lint format-check typecheck complexity completions-check test security
+verify: lint format-check typecheck complexity completions-check readme-check test security
 
 # ----- Build & release ------------------------------------------------------
 
