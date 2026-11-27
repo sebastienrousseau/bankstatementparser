@@ -18,8 +18,11 @@ name: Publish to PyPI
 # tag; PyPI refuses a second upload of the same version, so use it only
 # for a tag that never reached PyPI.
 #
-# Verify a downloaded asset with either:
+# Verify a downloaded asset with any of:
 #   gh attestation verify <file> --owner sebastienrousseau
+#   cosign verify-blob <file> --signature <file>.sig --certificate <file>.pem \
+#     --certificate-identity-regexp '^https://github.com/sebastienrousseau/bankstatementparser/' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com
 #   slsa-verifier verify-artifact <file> --provenance-path multiple.intoto.jsonl \
 #     --source-uri github.com/sebastienrousseau/bankstatementparser --source-tag vX.Y.Z
 on:
@@ -49,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # Sigstore signing for the build attestation
+      id-token: write # Sigstore signing for the attestation and cosign
       attestations: write
     outputs:
       hashes: ${{ steps.hashes.outputs.hashes }}
@@ -93,6 +96,28 @@ jobs:
         run: |
           poetry build
           pipx run twine==7.0.0 check --strict dist/*
+
+      # Keyless Sigstore signatures (Fulcio + Rekor through the job's
+      # OIDC identity, no stored key) for the wheel and the sdist,
+      # attached to the release as .sig + .pem beside them. They land in
+      # release/ before the checksums and the SLSA subjects are taken,
+      # so both cover the signatures too.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: "v2.4.3"
+
+      - name: Sign distributions (keyless)
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          for f in dist/*; do
+            name="$(basename "$f")"
+            cosign sign-blob --yes \
+              --output-signature "release/$name.sig" \
+              --output-certificate "release/$name.pem" \
+              "$f"
+          done
 
       # release/ holds every file attached to the GitHub release. dist/
       # stays wheel + sdist only, because the PyPI upload rejects anything
