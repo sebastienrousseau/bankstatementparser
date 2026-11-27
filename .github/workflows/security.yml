@@ -11,14 +11,15 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
-  security-events: write
 
 jobs:
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -29,6 +30,9 @@ jobs:
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload the CodeQL results
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +55,9 @@ jobs:
   secret-scanning:
     name: Secret Scanning
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks lists the pull request's commits
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -81,11 +88,10 @@ jobs:
         with:
           poetry-version: "2.3.2"
 
+      # bandit and pip-audit are locked dev dependencies, so the audit
+      # tools install from poetry.lock with the rest of the project.
       - name: Install project and audit tools
-        run: |
-          poetry install --with dev
-          python -m pip install --upgrade pip
-          python -m pip install bandit pip-audit
+        run: poetry install --with dev
 
       - name: Verify lockfile hashes
         run: poetry run python scripts/verify_locked_hashes.py
@@ -110,6 +116,6 @@ jobs:
       - name: Pip audit
         run: |
           poetry run python scripts/export_locked_requirements.py --with dev --output /tmp/requirements-audit.txt
-          pip-audit -r /tmp/requirements-audit.txt
+          poetry run pip-audit -r /tmp/requirements-audit.txt
           poetry run python scripts/export_locked_requirements.py --with dev --all-extras --output /tmp/requirements-all-extras.txt
-          pip-audit -r /tmp/requirements-all-extras.txt
+          poetry run pip-audit -r /tmp/requirements-all-extras.txt

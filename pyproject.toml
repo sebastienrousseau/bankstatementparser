@@ -75,6 +75,10 @@ httpx = "^0.28.1"
 packaging = ">=24,<27"
 jsonschema = ">=4.23,<5"
 referencing = ">=0.30,<1"
+shtab = "^1.7"
+# pip-audit pulls filelock through cachecontrol; the patched filelock
+# (>=4.2.1) needs Python 3.11, so the audit tool does too.
+pip-audit = { version = "^2.9", python = ">=3.11" }
 
 [tool.poetry.group.docs]
 optional = true
