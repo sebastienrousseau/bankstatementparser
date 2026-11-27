@@ -454,8 +454,6 @@ the benchmark and drift check this repository was missing.
   `DISCREPANCY` and `FAILED` in the aggregate worst-first precedence:
   `DISCREPANCY` > `FAILED` > `UNVERIFIABLE` > `VERIFIED`.
 
-### Changed
-
 - **Behavior change.** The "cannot apply the rule" cases that
   previously reported `FAILED` now report `UNVERIFIABLE`:
   `verify_balance`/`verify_transactions` with a missing
@@ -665,7 +663,7 @@ the benchmark and drift check this repository was missing.
   Medium: starlette host-header validation → 1.2.1; aiohttp cross-origin
   cookie + untrusted-data deserialization (<3.14.0) → 3.14.1; idna
   `idna.encode()` bypass (<3.15) → 3.18; pypdf FlateDecode RAM-exhaust
-  + long-runtime paths (<6.10.2) → 6.13.2; python-dotenv symlink
+  and long-runtime paths (<6.10.2) → 6.13.2; python-dotenv symlink
   follow in `set_key` (<1.2.2) → 1.2.2; pytest tmpdir vulnerability
   (<9.0.3) → 9.0.3.
 - **`litellm` is now Python-version-restricted to `<3.14`** in
@@ -1207,7 +1205,6 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
-[Unreleased]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.36...HEAD
 [0.0.36]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.35...v0.0.36
 [0.0.35]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.34...v0.0.35
 [0.0.34]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.33...v0.0.34

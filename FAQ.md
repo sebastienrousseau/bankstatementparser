@@ -158,6 +158,7 @@ The full smoke-test results table is in `examples/hybrid/README.md` under "Smoke
 
 1. **The LLM dropped a row.** Re-run with a larger model, or pass the same file to `--type ingest` again — small models are sometimes non-deterministic at temperature 0. The `discrepancy` field on the result tells you the exact magnitude of the missing transactions.
 2. **The source statement's reported balances are wrong.** Rare but happens with some banks' formatting. You can override the balances manually:
+
    ```python
    result = smart_ingest(
        "statement.pdf",
@@ -165,6 +166,7 @@ The full smoke-test results table is in `examples/hybrid/README.md` under "Smoke
        closing_balance=Decimal("2621.59"),
    )
    ```
+
 3. **You're passing manual balance overrides that don't match the file's actual balances.** Drop the overrides and let the LLM read them from the document.
 4. **Currency mismatch on a multi-currency statement.** The Golden Rule sums all amounts as if they were in the same currency. Multi-currency statements need per-currency verification — out of scope for v0.0.5; deferred to v0.0.6 (see [#46](https://github.com/sebastienrousseau/bankstatementparser/issues/46)).
 

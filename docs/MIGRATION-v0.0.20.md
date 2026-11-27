@@ -84,7 +84,6 @@ PDF forensic verdicts add `INVALID`, `INDETERMINATE`, and `NO_INDICATORS`.
 Heuristic risk findings, including the legacy `is_tampered` field, do not prove
 forgery or establish authenticity.
 
-
 ## PDF completeness and crop provenance
 
 `VisionExtractor(max_pages=5)` now rejects a document exceeding its page budget
@@ -103,7 +102,6 @@ Repeated observations without boxes remain in the result. Review unverifiable
 statements and balance discrepancies; neither model output nor inferred boxes
 are guaranteed to identify every bank transaction correctly.
 
-
 ## Recurring-payment analytics
 
 Recurrence groups now include account and payment direction. `RecurringPattern`
@@ -115,7 +113,6 @@ not a salary keyword or a tax classification. Amounts remain positive magnitudes
 `min_occurrences` must be at least two and counts distinct booking dates.
 Same-day repeats remain in occurrence totals and transaction dates but cannot
 fabricate or shorten a schedule. Zero-value rows do not create patterns.
-
 
 ## Scoped summaries and booked amounts
 
@@ -145,7 +142,6 @@ transaction narrative. Two-digit dates retain the documented 1969-2068 window.
 The reversal and funds-code interpretation follows the
 [ING MT940 format guide](https://business.ing.ro/ing2/ingdocuments/MT940-MT942-file-formats.pdf).
 
-
 The CAMT compatibility wrapper now joins balances by statement position and
 exposes `BalancesByCurrency`. Legacy top-level balance codes are populated only
 for single-currency balances. `get_account_balances()` adds `StatementIndex`.
@@ -157,7 +153,6 @@ contain only the matching pair, and exclude already identified exact duplicates.
 The separate `dedupe_by_hash()` incremental filter still uses occurrence counts
 against the supplied persisted set; without bank IDs, overlapping exports need
 operator validation because fingerprints alone cannot establish identity.
-
 
 ## Streaming resource controls
 
@@ -183,7 +178,6 @@ list. Both APIs still materialize each individual file's DataFrame. Closing the
 iterator cancels queued work and waits for running workers; this is not an
 execution deadline or a byte-level memory limit.
 
-
 ## API execution deadlines
 
 `create_app()` now runs each ingestion in a disposable Python interpreter and
@@ -202,7 +196,6 @@ For explicitly trusted embedded deployments, `ingest_timeout=None` opts into
 the old thread worker with no execution deadline. A terminated local worker
 cannot guarantee cancellation of computation already accepted by a remote model
 provider. Direct library calls and parallel batch workers have no new deadline.
-
 
 ## Export schemas and privacy
 
@@ -233,7 +226,6 @@ unknown fields, missing non-nullable values and incompatible amounts fail.
 Use string fields for identities when enabling redaction. Existing
 `export_parquet()` and `parser.to_parquet()` remain eager byte-returning APIs.
 
-
 ## Locked exports and installed artifacts
 
 Poetry remains the dependency resolver. Regenerate hashed requirements with
@@ -255,7 +247,6 @@ Security and release-integrity workflows validate generated CycloneDX 1.5
 SBOMs against vendored, checksum-verified official schemas without network
 retrieval. The SBOM still inventories the complete lock; it is not a graph of
 one deployment's selected extras and platform.
-
 
 ## Calendar analytics
 

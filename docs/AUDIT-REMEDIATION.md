@@ -77,7 +77,6 @@ change output and matching even though most call signatures remain compatible.
 These are local results. The workflow changes provide future CI enforcement;
 branch protection and release acceptance remain separate from these results.
 
-
 ## Second implementation batch
 
 The first commit's remote quality matrix exposed CAMT throughput below the
@@ -108,7 +107,6 @@ and 100% documentation coverage passed. A native PDFium smoke check rendered
 a two-page PDF in both modes and rejected an over-budget document in both modes.
 Remote quality, security, documentation and signature checks passed for commit
 `5356990`, including the unchanged throughput gate across the quality matrix.
-
 
 ## Third implementation batch
 
@@ -145,7 +143,6 @@ although the Poetry lock correctly includes it for the API on Python 3.14.
 The corresponding hash-required installation rejects the incomplete export.
 This reproduced limitation is corrected in the packaging follow-up below; do
 not hand-edit generated requirements or bypass hash checks.
-
 
 ## Fourth implementation batch
 
@@ -286,7 +283,6 @@ A macOS/Python 3.10 CI throughput regression was repaired separately by avoiding
 unneeded CAMT amount/reference traversal and using direct child lookups. The
 unchanged throughput and coverage gates passed across the complete remote
 matrix after that correction.
-
 
 ## Packaging follow-up
 
