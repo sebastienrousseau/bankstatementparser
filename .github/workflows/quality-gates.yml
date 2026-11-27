@@ -160,8 +160,10 @@ jobs:
       # runners. This proves the benchmark still runs against the
       # current API rather than rotting into a file that reads as
       # verified and is not.
-      - name: Run the benchmark
-        run: poetry run python benches/bench_deduplicate.py --quick
+      - name: Run the benchmarks
+        run: |
+          poetry run python benches/bench_deduplicate.py --quick
+          poetry run python benches/bench_streaming.py --quick
 
       - name: Run performance contracts (slow suite)
         # Timing-sensitive tests are excluded from the coverage run
