@@ -1394,9 +1394,9 @@ pytest-benchmark==5.3.1 ; (python_full_version < "4.0" and python_full_version >
 pytest-cov==7.1.0 ; (python_full_version < "4.0" and python_full_version >= "3.10") and python_full_version >= "3.9" \
     --hash=sha256:30674f2b5f6351aa09702a9c8c364f6a01c27aae0c1366ae8016160d1efc56b2 \
     --hash=sha256:a0461110b7865f9a271aa1b51e516c9a95de9d696734a2f71e3e78f46e1d4678
-python-dateutil==2.9.0.post0 ; (python_full_version < "4.0" and python_full_version >= "3.10") and (python_full_version != "3.0.*" and python_full_version != "3.1.*" and python_full_version != "3.2.*" and python_full_version >= "2.7") \
-    --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
-    --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
+python-dateutil==3.0.0 ; (python_full_version < "4.0" and python_full_version >= "3.10") and (python_full_version != "3.0.*" and python_full_version != "3.1.*" and python_full_version != "3.2.*" and python_full_version >= "2.7") \
+    --hash=sha256:3c79630202e4152c6add678446984236efe4f57e84d8e892aab0637bab82e9fd \
+    --hash=sha256:7ebcb3c29a92f3ceafe79a7a48a5c45677e9e004bbeec5742ac0bbb00560b7a2
 pytz==2026.3.post1 ; python_full_version < "4.0" and python_full_version >= "3.10" \
     --hash=sha256:2211d3fcf9a797d3405cac96ac7f61d80e6a644f72a3309607282fe8a2010c5d \
     --hash=sha256:dd95840dd199baea12d9cc096a1d452caa6596a1c1e4b5f3dbd1541855d5e815
