@@ -95,14 +95,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         outdated = stale(files)
         for path in outdated:
-            print(f"stale: {path.relative_to(ROOT)}", file=sys.stderr)
+            print(
+                f"stale: {path.relative_to(ROOT).as_posix()}", file=sys.stderr
+            )
         if outdated:
             print("run: make completions", file=sys.stderr)
         return 1 if outdated else 0
     OUT_DIR.mkdir(exist_ok=True)
     for path, text in files.items():
         path.write_text(text, encoding="utf-8", newline="\n")
-        print(f"wrote {path.relative_to(ROOT)}")
+        print(f"wrote {path.relative_to(ROOT).as_posix()}")
     return 0
 
 
