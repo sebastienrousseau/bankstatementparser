@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//
+// Markdown rules for the bankstatementparser suite, identical in every
+// repository (adapted from askiso's). The rules kept catch defects a reader
+// hits: a broken heading hierarchy, a duplicate sibling heading (broken
+// anchors), a fenced block with no language, a bare URL, a missing final
+// newline. The rules disabled are typographic preferences, not defects.
+{
+  "globs": ["**/*.md"],
+  "ignores": [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    "site/**",
+    "htmlcov/**",
+    ".venv/**",
+    ".github/ISSUE_TEMPLATE/**",
+    ".github/pull_request_template.md",
+    ".claude/**"
+  ],
+  "config": {
+    "default": true,
+    // Line length: prose is wrapped by editors, not by the linter.
+    "MD013": false,
+    // Table column alignment is cosmetic.
+    "MD060": false,
+    // The CHANGELOG repeats "Added"/"Fixed" under each release.
+    "MD024": { "siblings_only": true },
+    // The README template's centred header and badge row are HTML.
+    "MD033": false,
+    // The README opens with an SPDX comment and a centred logo, not an h1.
+    "MD041": false,
+    // Bold lead-ins are used as labels, not as headings.
+    "MD036": false
+  }
+}

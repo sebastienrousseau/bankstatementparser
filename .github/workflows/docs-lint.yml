@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# Prose gates for the repository's own documents: the README's layout
+# (scripts/readme-check.sh, the portfolio README template) and the
+# Markdown rules in .markdownlint-cli2.jsonc. Identical in every
+# bankstatementparser suite repository. Neither gate breaks any other
+# job, which is why they have a workflow of their own: a standard that
+# is not a CI gate decays.
+
+name: Docs Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readme:
+    name: README template
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The README follows the portfolio template
+        run: scripts/readme-check.sh
+
+  markdown:
+    name: Markdown
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The globs and ignores are the config file's, so a local
+      # `npx markdownlint-cli2` checks exactly what CI checks.
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25.0.0
