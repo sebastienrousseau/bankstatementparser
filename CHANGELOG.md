@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- CI: four pinned actions move to their latest releases:
+  codeql-action 4.39.5, markdownlint-cli2-action 25.1.0,
+  cosign-installer 4.1.4 and sbom-action 0.24.4.
+- Dependencies: nine locked packages refreshed (packaging, librt,
+  coverage, iniconfig, pdfplumber, pytz, litellm, filelock, tomli).
+  python-dateutil stays at 2.9.0.post0: botocore requires <3.0.0.
+
+### Added
+
+- Python 3.15 support. On 3.15 the core installs pandas 3 (3.0.6 or
+  later) and numpy 2.5.2 or later, the first releases with 3.15 wheels;
+  3.10 to 3.14 keep pandas 2. CI tests 3.15 in every Python matrix, and
+  the container image moves to python:3.15-slim.
+
 ## [0.0.36] - 2026-11-27
 
 ### Added

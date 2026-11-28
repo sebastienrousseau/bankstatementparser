@@ -2,7 +2,7 @@
 
 ## Supported Python versions
 
-`bankstatementparser` supports **Python 3.10 to 3.14**. The floor is
+`bankstatementparser` supports **Python 3.10 to 3.15**. The floor is
 `pyproject.toml`'s `python = ">=3.10,<4.0"`, the same range the
 package's classifiers declare, and the README's toolchain badge states
 it.
@@ -14,6 +14,7 @@ it.
 | 3.12 | Supported | Supported | Supported |
 | 3.13 | Supported | Supported | Supported |
 | 3.14 | Supported | Installs without `litellm` | Supported |
+| 3.15 | Supported, with pandas 3 | Installs without `litellm` | Supported |
 
 Why the optional extras are narrower than the core:
 
@@ -22,6 +23,9 @@ Why the optional extras are narrower than the core:
   Python 3.11. The LLM extras therefore need Python 3.11 to 3.13.
 - `pdfplumber` pulls Pillow, and the first Pillow without open
   advisories (13.0.0) dropped Python 3.10.
+- pandas 2.3.3, the last 2.x release, has no Python 3.15 wheel, so on
+  3.15 the core installs pandas 3 (3.0.6 or later) and numpy 2.5.2 or
+  later. Python 3.10 to 3.14 keep pandas 2.
 
 Deterministic parsing (CAMT, PAIN.001, MT940, MT942, BAI2, OFX, QFX,
 CSV) works on every supported version.
@@ -29,7 +33,7 @@ CSV) works on every supported version.
 ### How support is enforced
 
 Every pull request runs the full test suite, with its 100% coverage
-gate, on Ubuntu, macOS and Windows for each of Python 3.10 to 3.14
+gate, on Ubuntu, macOS and Windows for each of Python 3.10 to 3.15
 (`.github/workflows/quality-gates.yml`), and lint and type checks on
 each version. A version is supported when that matrix passes on it.
 

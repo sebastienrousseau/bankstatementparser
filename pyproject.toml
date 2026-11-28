@@ -35,7 +35,15 @@ keywords = [
 python = ">=3.10,<4.0"
 lxml = ">=5.0"
 openpyxl = {version = "^3.1.5", optional = true}
-pandas = "^2.3.3"
+# pandas 2.3.3, the last 2.x release, has no Python 3.15 wheel; 3.0.6 is
+# the first 3.x release with one. Python 3.10 to 3.14 keep pandas 2.
+pandas = [
+    {version = "^2.3.3", python = "<3.15"},
+    {version = ">=3.0.6,<4", python = ">=3.15"},
+]
+# pandas pulls numpy; 2.5.2 is the first numpy release with a Python
+# 3.15 wheel.
+numpy = {version = ">=2.5.2", python = ">=3.15"}
 defusedxml = "^0.7.1"
 pydantic = "^2.11.0"
 polars = {version = ">=1.32.0,<3", optional = true}

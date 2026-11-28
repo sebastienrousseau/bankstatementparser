@@ -7,7 +7,7 @@
 #     --type camt --input /data/statement.xml
 
 # Pinned by digest; Dependabot's docker updater moves it.
-FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f AS builder
+FROM python:3.15-slim@sha256:08a4c22c92b79ec821a7ad49768480039ee5b7accac3955228e75366e30abc8e AS builder
 
 WORKDIR /build
 
@@ -27,7 +27,7 @@ RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip wheel --no-deps --wheel-dir /tmp/wheels . \
     && /opt/venv/bin/pip install --no-deps /tmp/wheels/*.whl
 
-FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
+FROM python:3.15-slim@sha256:08a4c22c92b79ec821a7ad49768480039ee5b7accac3955228e75366e30abc8e
 
 LABEL org.opencontainers.image.title="bankstatementparser" \
       org.opencontainers.image.description="Parse bank statements (CAMT, PAIN.001, MT940, MT942, OFX, BAI2, CSV) into unified transactions." \

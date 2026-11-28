@@ -109,7 +109,7 @@ pip install 'bankstatementparser[api]'
 ### As a container
 
 The repository's `Dockerfile` builds the command-line interface on
-`python:3.14-slim` (pinned by digest) from the locked, hash-checked
+`python:3.15-slim` (pinned by digest) from the locked, hash-checked
 runtime dependencies. CI builds and runs it on every change; no image
 is published to a registry yet.
 
@@ -136,7 +136,7 @@ source completions/bankstatementparser.bash
 
 ## Requirements
 
-- Python **3.10** through **3.14**. Python 3.9 was dropped in
+- Python **3.10** through **3.15**. Python 3.9 was dropped in
   v0.0.6; pin to v0.0.5 if you cannot upgrade your interpreter. The
   policy, and how CI enforces it, is in
   [`docs/POLICIES.md`](docs/POLICIES.md).
@@ -145,13 +145,14 @@ source completions/bankstatementparser.bash
 - Poetry, for local development.
 
 > **Python version note.** The deterministic core (CAMT, PAIN.001,
-> CSV, OFX, QFX, MT940, MT942, BAI2) supports Python **3.10 to 3.14**.
+> CSV, OFX, QFX, MT940, MT942, BAI2) supports Python **3.10 to 3.15**;
+> on 3.15 it installs pandas 3, because pandas 2 has no 3.15 wheel.
 > The optional `[hybrid]`, `[hybrid-plus]`, `[hybrid-vision]`, and
 > `[enrichment]` extras pull in `litellm`, which currently requires
 > **Python <3.14** upstream, and filelock, whose first release
 > without open advisories (4.2.1) dropped 3.10. The LLM extras
-> therefore need Python **3.11 to 3.13**; on 3.10 or 3.14 they install
-> without `litellm`. Use Python 3.11 to 3.13 for the full hybrid
+> therefore need Python **3.11 to 3.13**; on 3.10, 3.14 or 3.15 they
+> install without `litellm`. Use Python 3.11 to 3.13 for the full hybrid
 > pipeline; any supported version works for deterministic parsing.
 > The `pdfplumber` engine in `[hybrid-plus]` needs Python **3.11+**:
 > it pulls Pillow, whose first release without open advisories
@@ -811,7 +812,7 @@ make fuzz            # Atheris fuzzing of the parsers (Linux x86_64)
 format, mypy, the complexity baseline (`scripts/complexity_baseline.json`,
 which may only shrink), the completions and README template checks,
 the test suite at 100% coverage, and bandit. CI adds the Python 3.10
-to 3.14 matrix on Linux, macOS and Windows, 120 seconds of Atheris
+to 3.15 matrix on Linux, macOS and Windows, 120 seconds of Atheris
 fuzzing, the container build, pip-audit against the lock, CodeQL,
 gitleaks, markdownlint, OpenSSF Scorecard and the strict documentation
 build.
@@ -919,7 +920,7 @@ Report vulnerabilities according to [`SECURITY.md`](SECURITY.md).
   (`tests/test_golden_files.py`) pin it. `transaction_hash` is
   versioned (currently `v2:`); keys persisted under an earlier scheme
   must be rebuilt before re-ingestion.
-- **Minimum toolchain.** Python 3.10 to 3.14, tested on Linux, macOS
+- **Minimum toolchain.** Python 3.10 to 3.15, tested on Linux, macOS
   and Windows. A Python version is dropped only in a release whose
   CHANGELOG says so; see [`docs/POLICIES.md`](docs/POLICIES.md).
 - **Lockstep releases.** Core and every companion package share one
