@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The suite consistency check authenticates its GitHub API request
   with the workflow token, so the shared anonymous rate limit no
   longer fails it.
+- scripts/release_suite.sh waits up to 60 minutes for CI on main, and
+  ignores GitHub's own Dependabot and dependency-graph runs, which
+  stopped the 0.0.36 release run twice.
 
 ## [0.0.36] - 2026-11-27
 
