@@ -79,8 +79,18 @@ remote_has_tag() {
   git -C "$(repo_dir "$1")" ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1
 }
 
+# Fetched in Python rather than piped from curl into an interpreter.
 pypi_version() {
-  curl -fsS "https://pypi.org/pypi/$1/json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["info"]["version"])'
+  python3 - "$1" <<'PY'
+import json
+import sys
+import urllib.parse
+import urllib.request
+
+url = "https://pypi.org/pypi/" + urllib.parse.quote(sys.argv[1], safe="") + "/json"
+with urllib.request.urlopen(url, timeout=30) as response:
+    print(json.load(response)["info"]["version"])
+PY
 }
 
 preflight() {
