@@ -1,6 +1,6 @@
 name: Container
 
-# Builds the Dockerfile (python:3.14-slim pinned by digest, runtime
+# Builds the Dockerfile (python:3.15-slim pinned by digest, runtime
 # dependencies installed from requirements/runtime.txt with hashes)
 # and runs the image against a fixture, so a container that no longer
 # builds or starts fails the pull request that broke it. The image is
