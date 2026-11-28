@@ -325,7 +325,7 @@ See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for methodology and full results.
 |---|---|
 | **PII redaction** | Names, IBANs, and addresses masked by default; opt in with `--show-pii` |
 | **Secure ZIP** | `iter_secure_xml_entries()` rejects zip bombs, encrypted entries, and suspicious compression ratios |
-| **Tested** | 1091 tests, coverage gated at 100% in CI on Linux, macOS and Windows, property-based testing with Hypothesis, and Atheris fuzzing of the parsers |
+| **Tested** | 1093 tests, coverage gated at 100% in CI on Linux, macOS and Windows, property-based testing with Hypothesis, and Atheris fuzzing of the parsers |
 
 ### How it works
 
@@ -836,7 +836,7 @@ docs/compliance/                ISO 13485 validation, risk register, traceabilit
 examples/                       14 deterministic + 9 hybrid runnable example scripts
 fuzz/                           Atheris fuzz target for the parsers
 scripts/                        SBOM generation, checksums, signature verification, release gates
-tests/                          1091 tests (unit, integration, property-based, security, hybrid mocks)
+tests/                          1093 tests (unit, integration, property-based, security, hybrid mocks)
 ```
 
 ---
