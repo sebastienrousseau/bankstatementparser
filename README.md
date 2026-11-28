@@ -18,7 +18,7 @@ crates.io, npm and other registries, which do not resolve relative paths.
 
 <p align="center">
   <a href="https://github.com/sebastienrousseau/bankstatementparser/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/bankstatementparser/quality-gates.yml?style=for-the-badge&logo=github" alt="Build" height="28" /></a>
-  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.36" alt="Registry" height="28" /></a>
+  <a href="https://pypi.org/project/bankstatementparser/"><img src="https://img.shields.io/pypi/v/bankstatementparser?style=for-the-badge&color=fc8d62&logo=python&v=0.0.37" alt="Registry" height="28" /></a>
   <a href="https://docs.bankstatementparser.com/"><img src="https://img.shields.io/badge/docs-user%20manual-0a7bbb?style=for-the-badge&labelColor=555555&logo=materialformkdocs" alt="Docs" height="28" /></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/sebastienrousseau/bankstatementparser"><img src="https://img.shields.io/ossf-scorecard/github.com/sebastienrousseau/bankstatementparser?style=for-the-badge&label=OpenSSF%20Scorecard&logo=openssf" alt="OpenSSF Scorecard" height="28" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg?style=for-the-badge" alt="License: Apache-2.0 OR MIT" height="28" /></a>

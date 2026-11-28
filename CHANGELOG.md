@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.37] - 2026-11-28
 
 ### Changed
 
@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dependencies: nine locked packages refreshed (packaging, librt,
   coverage, iniconfig, pdfplumber, pytz, litellm, filelock, tomli).
   python-dateutil stays at 2.9.0.post0: botocore requires <3.0.0.
+- Version 0.0.37, in lockstep with the suite's 0.0.37 release.
 
 ### Added
 
@@ -1276,6 +1277,7 @@ existing deterministic parsers.
 See the git history for changes prior to v0.0.5. The CHANGELOG was
 introduced in v0.0.5; earlier releases are not back-filled.
 
+[0.0.37]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.36...v0.0.37
 [0.0.36]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.35...v0.0.36
 [0.0.35]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.34...v0.0.35
 [0.0.34]: https://github.com/sebastienrousseau/bankstatementparser/compare/v0.0.33...v0.0.34

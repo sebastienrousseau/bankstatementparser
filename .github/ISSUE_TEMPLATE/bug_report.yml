@@ -7,7 +7,7 @@ body:
     id: version
     attributes:
       label: bankstatementparser Version
-      placeholder: "0.0.36"
+      placeholder: "0.0.37"
     validations:
       required: true
   - type: dropdown
