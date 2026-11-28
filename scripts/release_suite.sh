@@ -55,6 +55,13 @@ WEBSITE="bankstatementparser.github.io"
 WEBSITE_PROJECT="bankstatementparser.com"
 WEBSITE_DIR="${HOME}/Code/Public/Web/${WEBSITE}"
 PYPI_WAIT_SECONDS=1800
+# Core's Quality Gates alone takes about 40 minutes on main.
+CI_WAIT_SECONDS=3600
+# GitHub's own runs on a commit (Dependabot Updates, Dependency Graph)
+# have event "dynamic": they are not the repository's CI, and a failed
+# one cannot be rerun, so neither the CI wait nor the preflight counts
+# them.
+NOT_DYNAMIC='select(.event != "dynamic")'
 
 say() { printf '\n==> %s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -72,8 +79,18 @@ remote_has_tag() {
   git -C "$(repo_dir "$1")" ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1
 }
 
+# Fetched in Python rather than piped from curl into an interpreter.
 pypi_version() {
-  curl -fsS "https://pypi.org/pypi/$1/json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["info"]["version"])'
+  python3 - "$1" <<'PY'
+import json
+import sys
+import urllib.parse
+import urllib.request
+
+url = "https://pypi.org/pypi/" + urllib.parse.quote(sys.argv[1], safe="") + "/json"
+with urllib.request.urlopen(url, timeout=30) as response:
+    print(json.load(response)["info"]["version"])
+PY
 }
 
 preflight() {
@@ -103,8 +120,8 @@ preflight() {
   [ "${alerts}" = "0" ] || die "${repo}: ${alerts} open Dependabot alert(s)"
   issues="$(gh issue list -R "${OWNER}/${repo}" --state open --json number --jq length)"
   [ "${issues}" = "0" ] || die "${repo}: ${issues} open issue(s)"
-  bad="$(gh run list -R "${OWNER}/${repo}" --commit "${sha}" --json workflowName,status,conclusion \
-    --jq '[.[] | select(.status != "completed" or (.conclusion != "success" and .conclusion != "skipped"))] | map("\(.workflowName)=\(.conclusion // .status)") | join(", ")')"
+  bad="$(gh run list -R "${OWNER}/${repo}" --commit "${sha}" --json workflowName,status,conclusion,event \
+    --jq "[.[] | ${NOT_DYNAMIC}"' | select(.status != "completed" or (.conclusion != "success" and .conclusion != "skipped"))] | map("\(.workflowName)=\(.conclusion // .status)") | join(", ")')"
   [ -z "${bad}" ] || die "${repo}: CI on ${sha:0:7} not green: ${bad}"
   if remote_has_tag "${repo}"; then
     echo "${repo}: ${TAG} already on origin, will skip tagging"
@@ -208,8 +225,8 @@ wait_for_main_ci() {
   local repo="$1" sha waited=0
   sha="$(gh api "repos/${OWNER}/${repo}/commits/main" --jq .sha)"
   sleep 15
-  while [ -n "$(gh run list -R "${OWNER}/${repo}" --commit "${sha}" --json status --jq '.[] | select(.status != "completed") | .status')" ]; do
-    [ "${waited}" -lt 1800 ] || die "${repo}: CI on ${sha:0:7} still running after 30 minutes"
+  while [ -n "$(gh run list -R "${OWNER}/${repo}" --commit "${sha}" --json status,event --jq ".[] | ${NOT_DYNAMIC}"' | select(.status != "completed") | .status')" ]; do
+    [ "${waited}" -lt "${CI_WAIT_SECONDS}" ] || die "${repo}: CI on ${sha:0:7} still running after $((CI_WAIT_SECONDS / 60)) minutes"
     sleep 30
     waited=$((waited + 30))
   done
