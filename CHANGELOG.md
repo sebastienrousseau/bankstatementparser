@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3.10 to 3.14 keep pandas 2. CI tests 3.15 in every Python matrix, and
   the container image moves to python:3.15-slim.
 
+### Fixed
+
+- The suite consistency check authenticates its GitHub API request
+  with the workflow token, so the shared anonymous rate limit no
+  longer fails it.
+
 ## [0.0.36] - 2026-11-27
 
 ### Added

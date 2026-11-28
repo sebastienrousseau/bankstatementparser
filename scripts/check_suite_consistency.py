@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -101,9 +102,16 @@ def website_version(repository: str = WEBSITE) -> str | None:
     )
     if not url.startswith("https://api.github.com/"):  # pragma: no cover
         raise ValueError(f"refusing to fetch a non-GitHub URL: {url}")
+    # Anonymous API calls share 60 an hour per address, and CI runners
+    # share addresses, so the lookup authenticates with the workflow's
+    # token when it is set. Without one (a local run) it stays anonymous.
+    request = urllib.request.Request(url)
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
     try:
         # B310: scheme checked above, as in published_version.
-        opened = urllib.request.urlopen(url, timeout=TIMEOUT)  # nosec B310
+        opened = urllib.request.urlopen(request, timeout=TIMEOUT)  # nosec B310
         with opened as response:
             return str(json.load(response)["tag_name"]).removeprefix("v")
     except (urllib.error.URLError, KeyError, ValueError, TimeoutError):
